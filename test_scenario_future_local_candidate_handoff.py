@@ -7,8 +7,14 @@ existing future-three-original-gateway test suite.
 import copy
 import hashlib
 import json
+from pathlib import Path
+import shutil
+import tempfile
 import unittest
 from itertools import permutations
+from unittest.mock import patch
+
+import scenario_future_local_candidate_handoff as handoff
 
 from scenario_future_local_candidate_handoff import (
     prepare_local_candidate, SCHEMA, MIN_REMAINING_SECONDS,
@@ -111,12 +117,61 @@ class FutureLocalCandidateHandoffTests(unittest.TestCase):
             self.prepared(g=g)
         p=copy.deepcopy(self.p)
         p["scenario_hypotheses"]["escape_wall"]["head_log_shifts"][0]=3.6
-        with self.assertRaisesRegex(ValueError,"coefficients"):
+        with self.assertRaisesRegex(ValueError,"preregistered_protocol_argument_modified"):
             self.prepared(p=p)
         p=copy.deepcopy(self.p)
         del p["method_git_blob_sha1"]["research_model.py"]
-        with self.assertRaisesRegex(ValueError,"unfrozen_model"):
+        with self.assertRaisesRegex(ValueError,"preregistered_protocol_argument_modified"):
             self.prepared(p=p)
+
+    def test_colluding_caller_cannot_replace_both_scenario_and_signature(self):
+        # Before the fix this passed: attacker replaced both the supplied
+        # protocol and its matching gateway signature. That would effectively
+        # register a hindsight coefficient without a prior Git commit.
+        changed=copy.deepcopy(self.p)
+        changed["scenario_hypotheses"]["escape_wall"]["head_log_shifts"][0]=3.6
+        gateway=fake_gateway(changed)
+        with self.assertRaisesRegex(ValueError,"preregistered_protocol_argument_modified"):
+            self.prepared(g=gateway,p=changed)
+        changed=copy.deepcopy(self.p)
+        changed["method_git_blob_sha1"]["research_model.py"]="a"*40
+        with self.assertRaisesRegex(ValueError,"preregistered_protocol_argument_modified"):
+            self.prepared(p=changed)
+        changed=copy.deepcopy(self.p)
+        changed["new_pilot_admitted"]=1
+        with self.assertRaisesRegex(ValueError,"unregistered_or_postresult_candidate"):
+            self.prepared(p=changed)
+
+    def test_precommitted_protocol_bytes_are_not_silently_replaceable(self):
+        original=handoff.PROTOCOL_PATH.read_bytes()
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            path=root/"research"/handoff.PROTOCOL_PATH.name
+            path.parent.mkdir(parents=True)
+            path.write_bytes(original.replace(
+                b'"registered_on_date_jst": "2026-11-10"',
+                b'"registered_on_date_jst": "2026-11-11"'))
+            with patch.object(handoff,"PROTOCOL_PATH",path):
+                with self.assertRaisesRegex(ValueError,"preregistered_protocol_file_git_blob_mismatch"):
+                    self.prepared()
+
+    def test_unchanged_protocol_but_modified_model_code_is_rejected(self):
+        # Completely isolated temp checkout, without touching actual repo.
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            archive=root/"research"/handoff.PROTOCOL_PATH.name
+            archive.parent.mkdir(parents=True)
+            shutil.copy2(handoff.PROTOCOL_PATH,archive)
+            for relative in self.p["method_git_blob_sha1"]:
+                dest=root/relative
+                dest.parent.mkdir(parents=True,exist_ok=True)
+                shutil.copy2(handoff.PROTOCOL_PATH.parent.parent/relative,dest)
+            with patch.object(handoff,"PROTOCOL_PATH",archive):
+                self.assertTrue(handoff.require_registered_study_and_unchanged_model(self.p))
+                model=root/"research_model.py"
+                model.write_bytes(model.read_bytes()+b"\\n# unregistered drift\\n")
+                with self.assertRaisesRegex(ValueError,"preregistered_method_source_changed:research_model.py"):
+                    self.prepared()
 
     def test_candidate_freeze_clock_strict_boundaries(self):
         for frozen in (
