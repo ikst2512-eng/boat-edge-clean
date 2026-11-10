@@ -99,6 +99,32 @@ class ActivationTests(unittest.TestCase):
         self.assertEqual(watcher.count("- cron:"),1)
         self.assertNotIn("forecast_record: true",watcher)
 
+    def test_v236_early_schedule_only_wakes_08_jst_t12_rescue(self):
+        # An actual independent V236 main/schedule event at Nov 9 08:10 JST
+        # completed at 08:11, inside the 08:35 race's T12 selection window.
+        # Only UTC 23:00-23:59 corresponds to JST 08:00-08:59.
+        from pathlib import Path
+        from entry_course_t12_seed import near_t12
+        root=Path(__file__).resolve().parent.parent
+        v236=(root/".github/workflows/v236-verification.yml").read_text()
+        watchdog=(root/".github/workflows/entry-course-activation-watchdog.yml").read_text()
+        self.assertIn("name: CLEAN V236 verification queue",v236)
+        self.assertIn("cron: '2,7,12,17,22,27,32,37,42,47,52,57 * * * *'",v236)
+        self.assertIn('- "CLEAN V236 verification queue"',watchdog)
+        self.assertIn("github.event.workflow_run.name != 'CLEAN V236 verification queue'",watchdog)
+        self.assertIn("contains(github.event.workflow_run.created_at, 'T23:')",watchdog)
+        self.assertIn("github.event.workflow_run.event == 'schedule'",watchdog)
+        self.assertIn("github.event.workflow_run.head_branch == 'main'",watchdog)
+        self.assertIn("github.event.workflow_run.head_repository.full_name == github.repository",watchdog)
+        self.assertEqual(watchdog.count("- cron:"),1)
+        sample=[{"レースコード":"202611102101",
+                 "電話投票締切予定":"08:35"}]
+        self.assertEqual(near_t12(sample,"20261110",now=datetime(
+            2026,11,10,8,11,tzinfo=JST)),["202611102101"])
+        self.assertFalse(run_once(now=NOW.replace(hour=8,minute=11),
+            fetch_runs=lambda file,event:[],
+            dispatch=lambda file:None)["unattended_scheduled_capture_verified"])
+
     def test_existing_crons_cover_08_jst_without_new_workflow(self):
         from pathlib import Path
         root=Path(__file__).resolve().parent.parent
