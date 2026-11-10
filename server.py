@@ -266,7 +266,8 @@ def _compute_holdout_status():
                     late = str(exc) == "first Git commit not before prospective cutoff"
                     first_add_probes[code] = {"ok": False,
                         "reason": type(exc).__name__,
-                        "cutoff_rejected": late}
+                        "cutoff_rejected": late,
+                        "reason_detail": str(exc)[:160]}
                     if late:
                         # Diagnostic only: preserve inspect() rejection while
                         # identifying the *actual* first-add commit used by Render.
