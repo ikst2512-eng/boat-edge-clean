@@ -118,16 +118,24 @@ def validate_protocol(p):
     return True
 
 
+def verify_checked_out_method_blobs(p):
+    """Fail if any live local model source differs from the registered blob."""
+    validate_protocol(p)
+    for path, pinned in p["method_git_blob_sha1"].items():
+        if not (PROTOCOL.parent.parent / path).is_file():
+            raise ValueError("registered_method_file_missing")
+        actual = subprocess.check_output(
+            ["git", "hash-object", path], cwd=PROTOCOL.parent.parent,
+            text=True).strip()
+        if actual != pinned:
+            raise ValueError("preregistered_method_git_blob_drift:" + path)
+    return True
+
+
 class FrozenSeparateFutureStudyTests(unittest.TestCase):
     def test_protocol_exact_unmodified_source_and_hypotheses(self):
         p = read_protocol()
-        self.assertTrue(validate_protocol(p))
-        for path, pinned in p["method_git_blob_sha1"].items():
-            actual = subprocess.check_output(
-                ["git", "hash-object", path], cwd=PROTOCOL.parent.parent,
-                text=True).strip()
-            with self.subTest(path=path):
-                self.assertEqual(actual, pinned, "mutable research method detected")
+        self.assertTrue(verify_checked_out_method_blobs(p))
         self.assertEqual(p["scientific_protocol"]["pilot_eligible_races"],300)
         self.assertEqual(p["scientific_protocol"]["confirmation_independent_eligible_races"],300)
 
@@ -162,9 +170,8 @@ class FrozenSeparateFutureStudyTests(unittest.TestCase):
         p=read_protocol()
         q=copy.deepcopy(p)
         q["method_git_blob_sha1"]["research_model.py"]="a"*40
-        # The method filename contract stays intact but its blob must be
-        # checked against checkout in a separate real git hash test.
-        self.assertTrue(validate_protocol(q))
+        with self.assertRaisesRegex(ValueError,"preregistered_method_git_blob_drift"):
+            verify_checked_out_method_blobs(q)
         q=copy.deepcopy(p)
         q["preregistration_independently_attested"]=True
         with self.assertRaisesRegex(ValueError,"promotion"):
