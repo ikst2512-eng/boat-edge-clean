@@ -23,8 +23,9 @@ class _DiscardCrossHostAuth(HTTPRedirectHandler):
                 raise ValueError("insecure_github_artifact_redirect")
             if (origin.scheme,origin.netloc)!=(destination.scheme,destination.netloc):
                 # Do not leak GitHub's bearer token to the signed blob URL.
-                redirected.remove_header("Authorization")
-                redirected.remove_header("X-GitHub-Api-Version")
+                for header in tuple(redirected.headers):
+                    if header.lower() in ("authorization","x-github-api-version"):
+                        redirected.remove_header(header)
         return redirected
 
 
