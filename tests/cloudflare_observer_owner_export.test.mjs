@@ -50,6 +50,11 @@ test('explicit owner query collector makes exactly two scoped non-dispatch Cloud
     assert.ok(!call.url.includes('github.com')&&!call.url.includes('/dispatches'));
   }
   assert.equal(calls[0].request.limit,2000);
+  assert.match(calls[0].request.queryId,
+    /^boat-edge-observer-events-2026-11-09-[0-9a-f-]{36}$/);
+  assert.match(calls[1].request.queryId,
+    /^boat-edge-observer-sampling-2026-11-09-[0-9a-f-]{36}$/);
+  assert.equal(calls[0].request.queryId.slice(-36),calls[1].request.queryId.slice(-36));
   assert.equal(calls[0].request.parameters.view,'events');
   assert.equal(calls[1].request.parameters.view,'calculations');
   assert.equal(calls[1].request.parameters.calculations[0].operator,'count');
@@ -59,6 +64,20 @@ test('explicit owner query collector makes exactly two scoped non-dispatch Cloud
   assert.equal(out.events_query.response.result.run.status,'STARTED');
   assert.doesNotMatch(JSON.stringify(out),new RegExp(TOKEN));
   assert.ok(!Object.hasOwn(out,'authenticated_to_cloudflare'));
+});
+
+test('two owner acquisitions for the same UTC day never reuse the same query pair IDs',async()=>{
+  const first=mockedApi(),second=mockedApi();
+  const a=await request({fetcher:first.fetcher});
+  const b=await request({fetcher:second.fetcher});
+  assert.notEqual(a.events_query.request.queryId,b.events_query.request.queryId);
+  assert.notEqual(a.sampling_query.request.queryId,b.sampling_query.request.queryId);
+  assert.equal(a.events_query.request.queryId.slice(-36),
+    a.sampling_query.request.queryId.slice(-36));
+  assert.equal(b.events_query.request.queryId.slice(-36),
+    b.sampling_query.request.queryId.slice(-36));
+  assert.equal(first.calls.length,2);
+  assert.equal(second.calls.length,2);
 });
 
 test('collector refuses incomplete day, missing identity and token before any request',async()=>{
