@@ -22,8 +22,8 @@ jobs:
           python-version: '3.12'
       - name: Fail-closed source-contract tests (no fake racelist)
         run: |
-          python -m py_compile scenario_official_pair_research_input.py scenario_actual_pair_four_mode_replay.py scenario_exhibition_all_mode_runner.py
-          python -m unittest -v test_scenario_official_pair_research_input
+          python -m py_compile scenario_official_pair_research_input.py scenario_actual_pair_four_mode_replay.py scenario_exhibition_all_mode_runner.py scenario_archived_rates_ablation.py
+          python -m unittest -v test_scenario_official_pair_research_input test_scenario_archived_rates_ablation
       - name: Fetch exactly pinned existing position-sensitive #1698 model
         run: |
           set -euo pipefail
@@ -82,10 +82,55 @@ jobs:
                   assert r["status"]=="EXHIBITION_MISSING_REJECTED"
           print("PRIMARY OFFICIAL 3/4 exhibitions consumed in all 4 research model modes; 1 missing rejected; formal=0")
           PY
+      - name: Pin all four existing archived V2 national-rate originals without touching main
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin 1e8b6b86e4c700bcf10b5dfcb4cdaa981799bb78
+          mkdir -p "$RUNNER_TEMP/original-v2-rates"
+          for entry in \
+            202611091110:492f9d732df9fe46d6cba4f52135f4ee0c148592 \
+            202611091710:75252b292d1aa2bbd97d222e9c249d158edaad34 \
+            202611101202:d7801a878c4f2d1fd296f2d21c38906e92df0efb \
+            202611102211:f6f20088220f2c42d785f4b4eada20eef5d930cd; do
+            code="${entry%%:*}"
+            sha="${entry#*:}"
+            git show "1e8b6b86e4c700bcf10b5dfcb4cdaa981799bb78:four_mode_forecasts/$code.json" > "$RUNNER_TEMP/original-v2-rates/$code.json"
+            test "$(git hash-object "$RUNNER_TEMP/original-v2-rates/$code.json")" = "$sha"
+          done
+      - name: Measure archived six-rate effect vs neutral-rate reference (NO results)
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$RUNNER_TEMP/position1698:$PWD" python scenario_archived_rates_ablation.py \
+            --nov9-zip "$RUNNER_TEMP/nov9-source-original.zip" \
+            --nov10-zip "$RUNNER_TEMP/nov10-source-original.zip" \
+            --original-dir "$RUNNER_TEMP/original-v2-rates" \
+            --out "$RUNNER_TEMP/research-archived-rates-vs-neutral.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          out=json.loads((Path(os.environ["RUNNER_TEMP"])/"research-archived-rates-vs-neutral.json").read_text())
+          assert out["complete_exhibition_and_saved_rates"] == 3
+          assert out["exhibition_missing_rejected"] == 1
+          assert not out["formal"] and not out["results_read"]
+          assert not out["accuracy_improvement_proven"]
+          assert not out["original_forecasts_modified"]
+          assert not out["new_forecasts_published"]
+          for race in out["races"]:
+              assert race["original_v2_blob"] == out["original_blobs"][race["race_code"]]
+              if race["status"].startswith("ARCHIVED_SIX"):
+                  assert set(race["mode_input_ablation"]) == {"narrow","hit","balance","hole"}
+                  assert all(x["entire_120_probability_digest_changed"] for x in race["mode_input_ablation"].values())
+                  assert not race["formal"] and not race["results_read"]
+              else:
+                  assert race["race_code"] == "202611102211"
+          print("Three actual source+archived rate ablations verified, one exhibition missing, formal=0")
+          PY
       - name: Retain ONLY derived hypothetical rankings / evidence status
         uses: actions/upload-artifact@v4
         with:
           name: research-real-official-pair-fourmode-math-not-forecasts
-          path: ${{ runner.temp }}/research-actual-4mode-two-source.json
+          path: |
+            ${{ runner.temp }}/research-actual-4mode-two-source.json
+            ${{ runner.temp }}/research-archived-rates-vs-neutral.json
           retention-days: 7
           if-no-files-found: error
