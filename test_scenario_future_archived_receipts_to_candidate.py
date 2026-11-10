@@ -156,6 +156,13 @@ class ArchivedTripleSourceOperatorTests(unittest.TestCase):
                          {"narrow":5,"hit":10,"balance":16,"hole":22})
         self.assertEqual(len(summary["candidate_sha256"]),64)
         self.assertEqual(len(summary["candidate_git_blob_sha1"]),40)
+        self.assertEqual(
+            summary["source_age_at_generation_seconds_from_manifest_claims"],
+            {"racelist":360.0,"beforeinfo":300.0,"odds120":240.0})
+        self.assertEqual(
+            summary["source_age_before_T12_seconds_from_manifest_claims"],
+            {"racelist":1020.0,"beforeinfo":960.0,"odds120":900.0})
+        self.assertFalse(summary["source_ages_independently_authenticated"])
         self.assertFalse(summary["github_create_attempted"])
         for key in ("candidate_first_remote_receipt_verified",
                     "official_source_first_remote_receipts_independently_verified",
@@ -343,6 +350,10 @@ class ArchivedTripleSourceOperatorTests(unittest.TestCase):
                          {"narrow":5,"hit":10,"balance":16,"hole":22})
         self.assertEqual(len(result["candidate_sha256"]),64)
         self.assertEqual(len(result["candidate_git_blob_sha1"]),40)
+        self.assertEqual(
+            result["source_age_at_generation_seconds_from_manifest_claims"],
+            {"racelist":360.0,"beforeinfo":300.0,"odds120":240.0})
+        self.assertFalse(result["source_ages_independently_authenticated"])
         for key in (
             "official_source_first_remote_receipts_independently_verified",
             "candidate_first_remote_receipt_verified",
