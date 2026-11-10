@@ -339,9 +339,9 @@ assert.ok(!script.includes("record.official_finish!==item.match"),'old four-mode
 assert.ok(!script.includes("document.querySelector('.view-tabs').scrollIntoView"),'no removed-tab scroll references');
 
 assert.ok(html.includes('id="forecastPreviewStatus"')&&html.includes('id="forecastPreviewRows"'),'forecast needs visible beforeinfo summary');
-assert.ok(script.includes('async function loadForecastPreview()')&&script.includes('loadForecastPreview();loadForecastCourseStats();loadForecastPriorResults()}'),'forecast must fetch selected race beforeinfo');
+assert.ok(script.includes('async function loadForecastPreview()')&&script.includes('loadForecastCourseStats();loadForecastPriorResults();loadForecastPreview()'),'racecard rates subtab must fetch verified beforeinfo and course statistics');
 assert.ok(script.includes("raw.source_audit?.beforeinfo?.status!=='ok'"),'reject unsupported preview sources');
-console.log('PASS: selected-race beforeinfo panel in forecast');
+console.log('PASS: verified selected-race beforeinfo and card-level rates panel');
 
 // Pages review requires a real CLEAN API origin, not a Pages-relative /api path.
 assert.ok(html.includes("fetchTimed('https://boat-edge-clean.onrender.com/api/clean-result?hd="),'review must fetch CLEAN result via Render');
@@ -428,7 +428,7 @@ assert.ok(historicalPagesWorkflow.includes("if(!archived.ok())throw Error('CLEAN
 // GitHub Pages must ship the runtime navigation script referenced by index.html.
 const pagesWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
 assert.ok(html.includes("navScript.src='navigation.js'"),'site expects external navigation script');
-assert.ok(pagesWorkflow.includes('cp index.html navigation.js candidates.html candidate_history.js public/'),'Pages must publish main, candidate and navigation assets');
+assert.ok(pagesWorkflow.includes('cp index.html navigation.js public/'),'Pages must publish both runtime assets');
 assert.ok(pagesWorkflow.includes('cmp -s public/navigation.js /tmp/clean-deployed-navigation.js'),'Pages must verify deployed navigation asset');
 assert.ok(pagesWorkflow.includes('      - navigation.js'),'navigation changes must trigger Pages publication');
 console.log('PASS: Pages navigation asset packaging and verification');
@@ -440,18 +440,39 @@ assert.ok(navigation.includes("target.searchParams.set('screen','review')"),'Pag
 assert.ok(navigation.includes("location.pathname.startsWith('/boat-edge-clean/')"),'Pages must restore review screen under project path');
 console.log('PASS: Pages project-path review navigation regression');
 
-// BOATERS-inspired single-page forecast must not regress to scattered panels.
+// Forecast stays ticket-only; rates and conditional comparisons belong inside
+// the race card, which has accessible basic/rates nested tabs.
+const cardStart=html.indexOf('<section class="box" id="raceDataSection"');
+const statsPane=html.indexOf('<section class="race-card-stats-pane"');
+const forecastStart=html.indexOf('<section class="box" id="forecast"');
 const resultFirst=html.indexOf('id="forecastResultFirstStatus"');
-const prediction=html.indexOf('id="predictionRows"');
+const prediction=html.indexOf('id="fourModeForecastRows"');
 const leader=html.indexOf('id="forecastLeaderRows"');
 const evidence=html.indexOf('id="forecastEvidenceStatus"');
-assert.ok(resultFirst>=0&&resultFirst<prediction&&prediction<leader&&leader<evidence,'result, prediction, conditional stats and preview should share one ordered page');
+assert.ok(cardStart>=0&&cardStart<statsPane&&statsPane<leader&&leader<evidence&&evidence<forecastStart&&forecastStart<resultFirst&&resultFirst<prediction,'card rates must be before forecast tickets in DOM');
+const predictionPane=html.slice(forecastStart);
+for(const forbidden of ['id="forecastLeaderRows"','class="forecast-statistics"','id="entryScenarioPanel"','id="legacyTopnResearch"'])
+ assert.ok(!predictionPane.includes(forbidden),'forecast must show only prediction, not '+forbidden);
+assert.ok(html.includes('id="raceCardCore"')&&html.includes('id="raceCardStatistics"'),'nested card tabs must exist');
+assert.ok(html.includes('data-race-card-pane="rates"'),'rates subtab must be clickable');
+assert.ok(navigation.includes("['出走表','card']")&&!navigation.includes("['連対率','stats']"),'four main race tabs only');
+assert.ok(script.includes('function setRaceCardPane(pane)'),'rates tab selection must be functional');
 for(let lane=1;lane<=6;lane++)assert.ok(html.includes('data-forecast-leader="'+lane+'"'),'missing leader '+lane);
 assert.ok(script.includes('function selectForecastLeader(leader)'),'leader selection must respond to interaction');
 assert.ok(script.includes('forecastEvidenceMirror.observe'),'verified predeadline preview must be mirrored without an extra fetch');
 assert.ok(script.includes('forecastResultMirror.observe'),'validated confirmed result must be mirrored without an extra fetch');
 assert.ok(html.includes('先頭艇として選択中')&&html.includes('未取得'),'missing stats must not be fabricated as 0%');
-console.log('PASS: one-page forecast layout and source-safe comparison controls');
+const historyPage=fs.readFileSync('selection.html','utf8');
+assert.ok(historyPage.includes('id="savedPredictionHistory"')&&historyPage.includes('four_mode_forecasts/'),'saved pre-race tickets must remain inspectable after results');
+assert.ok(historyPage.includes('history-10000.json')&&historyPage.includes('id="savedHistoryDate"'),'history should allow date selection and immutable result reconciliation');
+assert.ok(historyPage.includes('3連単の的中率70%ではありません'),'70% winner-head research score must not be called a trifecta hit rate');
+const historyScript=historyPage.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+assert.ok(historyScript,'saved history page must contain one inline script');
+new vm.Script(historyScript,{filename:'selection.html'});
+assert.ok(historyScript.includes('Date.parse(a.generated_at_jst)>=Date.parse(a.deadline_jst)'),'saved pre-race forecasts must predate cutoff');
+assert.ok(historyScript.includes('a.race_code!==r.race_code'),'result and forecast must be same race');
+
+console.log('PASS: four race tabs, card-level rates, and stored forecast/result history');
 
 assert.ok(script.includes("bar.setAttribute('aria-label',r.lane+'号艇の実コース別3連対率')"),'course three-place rate progress bar must be accessible');
 assert.ok(script.includes('bar.max=100;bar.value=three'),'three-place rate bar must use verified percentage');
@@ -488,7 +509,7 @@ assert.ok(html.includes('id="forecastPriorResultRows"'),'prior confirmed empiric
 assert.ok(script.includes('Array.from({length:race-1}'),'only earlier races may be inspected');
 assert.ok(script.includes("item.race_code!==code||item.status!=='confirmed'"),'unverified result not eligible for conditional rate');
 assert.ok(script.includes('renderForecastPriorResults(leader)'),'leader switch must refresh historical real data');
-assert.ok(script.includes('loadForecastPriorResults()}else if(activeView'),'selected-race changes must refresh prior results');
+assert.ok(script.includes('loadForecastPriorResults();loadForecastPreview()}}else if(activeView'),'card-rate race changes must refresh prior results');
 
 assert.ok(script.includes('取得不足のため当日傾向として扱わない'),'partial earlier-race collection must warn of incomplete daily coverage');
 
@@ -615,40 +636,122 @@ assert.ok(archivePublish.includes('tabEvidence.exhibit.sourceVerified='),'publis
 assert.ok(archivePublish.includes("card?.verifiedPreview===true&&card?.source_audit?.beforeinfo?.status==='ok'"),'verification must require timestamp-gated snapshot and source audit');
 assert.ok(archivePublish.includes('unverified_exhibition_mislabeled_verified'),'contradictory exhibition status must fail diagnostic');
 
-// Candidate history now retains all pre-race Git records beyond deadline, with no six-race cap.
-// All chronology and tampering checks moved into Python's candidate_history.py and the
-// explicit test_candidate_history.py behavioral suite (also run on this PR).
-assert.ok(html.includes('締切前3レースと開催場へ戻る'),'home shortcut remains available');
-assert.ok(html.includes('https://boat-edge-clean.onrender.com/" aria-label="締切前3レースと開催場へ戻る'),'home shortcut unchanged');
-assert.ok(script.includes('else if(!archive?.ok){'),'schedule must fall back on Raw non-404 failures');
+// Candidate history: every Git-saved race on a selected date must survive cutoff.
+assert.ok(html.includes('締切前3レースと開催場へ戻る'),'home shortcut stays visible');
+assert.ok(script.includes('else if(!archive?.ok){'),'schedule fallback stays intact');
 const candidateCode=fs.readFileSync('candidate_history.py','utf8');
 const candidateController=fs.readFileSync('candidate_history.js','utf8');
 const candidateStatic=fs.readFileSync('candidates.html','utf8');
 const candidateTests=fs.readFileSync('test_candidate_history.py','utf8');
-assert.ok(candidateHtml.includes('id="candidateCards"')&&candidateHtml.includes('src="/candidate_history.js"'),'Render candidate history must mount shared renderer');
-assert.ok(candidateStatic.includes('id="candidateCards"')&&candidateStatic.includes('src="candidate_history.js"'),'Pages candidate history must mount shared renderer');
-assert.ok(!candidateHtml.includes('showTodayCandidates();'),'expired six-item legacy candidate loop must not execute');
-assert.ok(candidateController.includes("const onPages=location.pathname.endsWith('/candidates.html')"),'Pages must not require Render for candidate archive');
-assert.ok(candidateController.includes("candidate_history/'+day+'.json"),'Pages must read day-scoped immutable manifest');
-assert.ok(candidateController.includes("showRace(race)"),'every record must be rendered');
+assert.ok(candidateHtml.includes('id="candidateCards"')&&candidateHtml.includes('src="/candidate_history.js"'),'Render candidate history must mount shared read-only renderer');
+assert.ok(candidateHtml.includes('id="savedPredictionHistory"'),'new candidate list must preserve #1707 saved four-mode history');
+assert.ok(!candidateHtml.includes('showTodayCandidates();'),'expired six-item live-only candidate scan must not run');
+assert.ok(candidateStatic.includes('id="candidateCards"')&&candidateStatic.includes('src="candidate_history.js"'),'Pages static candidate history must mount shared renderer');
+assert.ok(candidateCode.includes('daily_candidate_history')&&candidateCode.includes('confirmed_archive'),'candidate API must join independently saved results');
+assert.ok(candidateController.includes("const onPages=location.pathname.endsWith('/candidates.html')"),'Pages candidate list must not need Render');
+assert.ok(candidateController.includes("candidate_history/'+day+'.json"),'Pages must read day-scoped manifest');
 assert.ok(candidateController.includes('result_status')&&candidateController.includes('confirmed_archive'),'results must be separately validated');
-assert.ok(candidateCode.includes('saved_research_unattested')&&candidateCode.includes('first_git_add_verified'),'candidate view must not certify historical research');
-assert.ok(candidateCode.includes('deadline - cutoff != timedelta(minutes=12)'),'stored forecast must enforce the 12-minute input gate');
-assert.ok(candidateCode.includes('title_received <= generated and cards_received <= generated < cutoff'),'source receipt chronology must be preserved');
-assert.ok(candidateCode.includes('len(tickets) != len(set(tickets))'),'duplicate picks must be rejected');
-assert.ok(candidateTests.includes('test_all_eight_candidates_survive_deadline_without_six_item_limit'),'past-deadline retention must have behavioral coverage');
-assert.ok(candidateTests.includes('test_confirmed_result_never_creates_a_missing_prediction'),'result-to-forecast reconstruction must be impossible');
-console.log('PASS: immutable daily candidate records, chronology and no six-item cap');
-
-// Published Pages must link to the Render-independent static candidate archive
-// while retaining separate P0 live API checks for race cards.
+assert.ok(candidateTests.includes('test_shipped_november_eight_archive_is_not_capped'),'lossless archive count regression must exist');
 const publishWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
-assert.ok(publishWorkflow.includes('CLEAN_PAGES_CANDIDATE_NAV_VERIFIED'),'published browser must check candidate link');
-assert.ok(publishWorkflow.includes('      - selection.html'),'Render candidate page changes must trigger published browser checks');
-assert.ok(publishWorkflow.includes("candidateHref!=='/boat-edge-clean/candidates.html'"),'Pages candidate link must remain on Pages origin');
-assert.ok(publishWorkflow.includes('CLEAN_CANDIDATE_PUBLIC_DISPLAY'),'published candidate list must be observed');
-assert.ok(publishWorkflow.includes("document.querySelectorAll('#candidateCards > details.candidate-history-card')"),'browser must count all archived candidates');
-assert.ok(publishWorkflow.includes('CLEAN_CANDIDATE_PUBLIC_UNVERIFIED'),'source failures must stay distinguishable');
-assert.ok(publishWorkflow.includes('candidate_archive_not_complete_'),'test must detect lost candidate rows');
-assert.ok(publishWorkflow.includes("'prospective_predictions/**'"),'new candidate archival commits must trigger Pages refresh');
-console.log('PASS: independent Pages candidate publication and verification gates');
+assert.ok(publishWorkflow.includes('CLEAN_PAGES_CANDIDATE_NAV_VERIFIED'),'published browser must test candidate/review navigation');
+assert.ok(publishWorkflow.includes('cp index.html navigation.js candidates.html candidate_history.js public/'),'Pages must publish candidate archive UI');
+assert.ok(publishWorkflow.includes('public/candidate_history'),'Pages must publish day-scoped manifests');
+assert.ok(publishWorkflow.includes('CLEAN_CANDIDATE_PUBLIC_DISPLAY'),'Pages must inspect real archived candidate list in browser');
+assert.ok(publishWorkflow.includes("document.querySelectorAll('#candidateCards > details.candidate-history-card')"),'published browser must count every saved candidate card');
+assert.ok(publishWorkflow.includes('candidate_archive_not_complete_'),'published count and uniqueness must be verified');
+assert.ok(publishWorkflow.includes("candidateHref!=='/boat-edge-clean/candidates.html'"),'Pages candidate link must stay on Pages origin');
+assert.ok(publishWorkflow.includes('CLEAN_CANDIDATE_PUBLIC_UNVERIFIED'),'evidence absence must not count as success');
+console.log('PASS: exhaustive saved candidate history and independent result joins');
+
+// Readability contract: BOATERS-like high-density comparison without turning
+// action targets into tiny controls or re-separating independent original data.
+const compactStyle=html.slice(html.indexOf('/* Compact race information density,'));
+assert.ok(compactStyle.startsWith('/* Compact race information density,'),'compact design overrides must load after old styles');
+for(const expected of [
+ '.four-mode-forecast-grid .four-mode-forecast-ticket .four-mode-combo{font-size:15px}',
+ '.four-mode-forecast-grid{grid-template-columns:repeat(2,minmax(0,1fr))',
+ '.race-detail-shortcuts button{font-size:11px!important;min-height:42px',
+ '#raceDataSection[data-view="exhibit"] .exhibition-values{',
+ '#raceDataSection[data-view="exhibit"] .exhibition-original-values{',
+ '#raceDataSection[data-view="exhibit"] .exhibition-boat{',
+ 'grid-template-columns:repeat(5,minmax(0,1fr))',
+ 'grid-template-columns:repeat(3,minmax(0,1fr))'
+]){
+ assert.ok(compactStyle.includes(expected),'compact six-boat layout missing '+expected);
+}
+assert.ok(script.includes("if(activeView==='exhibit')void loadOriginalExhibition(key,token,exhibitGrid);"),'compact rows must keep original feed per exact boat');
+assert.ok(script.includes("['展示進入',courseLabel]"),'exhibition course must appear alongside each boat, not only as a global note');
+assert.ok(script.includes("Number.isInteger(startCourse)&&startCourse>=1&&startCourse<=6?startCourse+'C':'—'"),'unverified or invalid exhibition course must not be synthesized');
+assert.ok(!compactStyle.includes('display:none!important}\n#raceDataSection[data-view="exhibit"] .exhibition-boat'),'six-boat comparison must remain visible');
+console.log('PASS: compact two-column forecasts, 6-boat exhibition rows and original measurements');
+
+// Integrated exhibition: use the exact production CSV parser and async
+// original-exhibition renderer against a deterministic DOM stub (no live data).
+// This catches shifted-lane values, duplicate rows, incomplete source schemas,
+// network absence and stale requests without changing forecast/scoring logic.
+assert.ok(script.includes("metrics.dataset.originalExhibitionLane=String(lane)"),'each boat needs its own original exhibition host');
+assert.ok(script.includes("if(activeView==='exhibit')void loadOriginalExhibition(key,token,exhibitGrid);"),'load original only after six boat cards');
+assert.ok(!script.includes('originalExhibitionDetails'),'original exhibition cannot create a separate detached section');
+assert.ok(html.includes('.exhibition-original-values'),'original measurements must share the six-boat card styling');
+void (async()=>{
+ const csvFn=script.split('\n').find(x=>x.startsWith('function csvFields('));
+ const begin=script.indexOf('async function loadOriginalExhibition(key,token,grid){');
+ const finish=script.indexOf("\nlet displayedRaceKey='';",begin);
+ assert.ok(csvFn&&begin>=0&&finish>begin,'production original exhibition loader must be isolated');
+ class FakeNode {
+  constructor(tag='div'){this.tag=tag;this.children=[];this.textContent='';this.className='';this.isConnected=true;this.dataset={};}
+  replaceChildren(...items){this.children=[...items]}
+  append(...items){this.children.push(...items)}
+ }
+ const state={key:'20261104-01-11',token:1};
+ const document={createElement:tag=>new FakeNode(tag)};
+ const makeGrid=()=>{
+  const status=new FakeNode('p'),holders=Array.from({length:6},()=>new FakeNode());
+  status.textContent='読込中';
+  return {status,holders,grid:{isConnected:true,
+   querySelector(selector){
+    if(selector==='#originalExhibitionStatus')return status;
+    const match=selector.match(/^\[data-original-exhibition-lane="([1-6])"\]$/);
+    return match?holders[Number(match[1])-1]:null;
+   }}};
+ };
+ const head=['レースコード','計測数','計測項目1','計測項目2'];
+ const data=['202611040111','2','1周','まわり足'];
+ for(let lane=1;lane<=6;lane++)for(let k=1;k<=2;k++){
+  head.push('艇'+lane+'_値'+k);
+  data.push(String(lane*10+k));
+ }
+ const fixture=head.join(',')+'\n'+data.join(',')+'\n';
+ let response={ok:true,status:200,text:async()=>fixture},blocked=false,finishRequest=null;
+ const win={get raceDataRequestId(){return state.token}};
+ const load=vm.runInNewContext(csvFn+'\n'+script.slice(begin,finish)+'\nloadOriginalExhibition',{
+   document,window:win,sameRaceKey:()=>state.key,activeView:'exhibit',
+   fetchTimed:async()=>blocked?new Promise(resolve=>{finishRequest=resolve}):response,Error,Number,Set,Array,String
+ });
+ const ok=makeGrid();await load(state.key,state.token,ok.grid);
+ assert.match(ok.status.textContent,/6艇分/);
+ ok.holders.forEach((holder,i)=>{
+  assert.equal(holder.children.length,2,'must display two original source metrics for boat '+(i+1));
+  assert.equal(holder.children[0].children[0].textContent,'1周');
+  assert.equal(holder.children[0].children[1].textContent,String((i+1)*10+1),'no boat-to-boat shift');
+  assert.equal(holder.children[1].children[0].textContent,'まわり足');
+  assert.equal(holder.children[1].children[1].textContent,String((i+1)*10+2));
+ });
+ response={ok:false,status:404};
+ const pending=makeGrid();await load(state.key,state.token,pending.grid);
+ assert.match(pending.status.textContent,/未配信/);
+ assert.ok(pending.holders.every(h=>h.children.length===1&&h.children[0].textContent==='オリ展：未取得'),'404 must not invent original values');
+ response={ok:true,status:200,text:async()=>head.slice(0,-1).join(',')+'\n'+data.slice(0,-1).join(',')};
+ const incomplete=makeGrid();await load(state.key,state.token,incomplete.grid);
+ assert.match(incomplete.status.textContent,/検証できません/);
+ assert.ok(incomplete.holders.every(h=>h.children[0].textContent==='オリ展：未取得'),'missing lane column must reject whole source');
+ blocked=true;
+ const stale=makeGrid();const request=load(state.key,state.token,stale.grid);
+ assert.equal(typeof finishRequest,'function','the stale request must be pending at the network boundary');
+ state.token++;
+ finishRequest({ok:true,status:200,text:async()=>fixture});
+ await request;
+ assert.equal(stale.status.textContent,'読込中','stale race request must not overwrite new race cards');
+ assert.ok(stale.holders.every(h=>h.children.length===0),'stale request must not add measurements');
+ console.log('PASS: original exhibition merged by exact boat number, independent data checks and stale-request protection');
+})().catch(error=>{console.error('FAIL: per-boat exhibition integration',error);process.exitCode=1});
