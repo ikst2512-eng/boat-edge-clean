@@ -294,6 +294,16 @@ class WatchdogInventoryTest(unittest.TestCase):
                         dict(runs[0], workflow=CLEAN)],
                 {"total_count_reported": 2, "returned": 2}, at)
 
+    def test_schedule_naive_timestamp_rejected_without_local_timezone_guess(self):
+        at = datetime(2026, 11, 10, 17, 35,
+                      tzinfo=timezone(timedelta(hours=9)))
+        row = {"id": 42, "workflow": CLEAN, "event": "schedule",
+               "created_at": "2026-11-10T13:35:12",
+               "status": "completed", "conclusion": "success"}
+        with self.assertRaisesRegex(ValueError, "invalid schedule observation timestamp"):
+            audit_current_day_schedule_observations(
+                CLEAN, [row], {"total_count_reported": 1, "returned": 1}, at)
+
     def test_no_capture_is_unknown_not_zero_minutes(self):
         def fetch(url, token):
             return {"workflow_runs": []}
