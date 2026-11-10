@@ -14,6 +14,12 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
 ROOT = Path(__file__).resolve().parent
+
+def deployed_commit():
+    """Expose only a genuine Render commit SHA; never infer deployment from main."""
+    value = os.environ.get("RENDER_GIT_COMMIT", "")
+    return value.lower() if re.fullmatch(r"[0-9a-fA-F]{40}", value) else None
+
 LOCK = threading.Lock()
 CACHE = {}
 INFLIGHT = set()
@@ -389,6 +395,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Content-Type', 'text/plain; charset=utf-8')
         self.send_header('Content-Length', '0')
         self.send_header('Cache-Control', 'no-store')
+        if path == '/healthz':
+            revision = deployed_commit()
+            if revision:
+                self.send_header("X-Boat-Edge-Deploy-Commit", revision)
         self.end_headers()
 
     def do_GET(self):
@@ -531,6 +541,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
+        if path == "/healthz":
+            revision = deployed_commit()
+            if revision:
+                self.send_header("X-Boat-Edge-Deploy-Commit", revision)
         if path in ("/api/clean-schedule", "/api/predictions", "/api/clean-result", "/api/clean-racecard", "/api/prospective-topn", "/api/odds", "/api/four-mode-archive", "/api/candidate-history"):
             # Read-only CLEAN data is consumed by the GitHub Pages origin.
             self.send_header("Access-Control-Allow-Origin", "https://ikst2512-eng.github.io")
