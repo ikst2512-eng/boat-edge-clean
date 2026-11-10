@@ -29,6 +29,7 @@ on:
       - research/test_hole_pair_prospective_evidence_gap_ledger.py
       - research/hole_pair_real_main_snapshot_gate.py
       - research/test_hole_pair_real_main_snapshot_gate.py
+      - docs/research/hole_pair_nov10_150_original_source_readiness_20261110.md
       - research/hole_pair_manual_capture.py
       - research/test_hole_pair_manual_capture.py
       - test_hole_pair_remote_receipt_evidence.py
