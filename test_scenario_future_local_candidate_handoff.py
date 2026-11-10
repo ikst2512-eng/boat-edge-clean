@@ -5,6 +5,7 @@ first receipt is claimed. The pinned #1698 integration case lives in the
 existing future-three-original-gateway test suite.
 """
 import copy
+from datetime import datetime
 import hashlib
 import json
 from pathlib import Path
@@ -17,7 +18,8 @@ from unittest.mock import patch
 import scenario_future_local_candidate_handoff as handoff
 
 from scenario_future_local_candidate_handoff import (
-    prepare_local_candidate, SCHEMA, MIN_REMAINING_SECONDS,
+    prepare_local_candidate, publish_local_candidate_write_once,
+    RESEARCH_ONLY_LEDGER_BRANCH, SCHEMA, MIN_REMAINING_SECONDS,
 )
 from test_scenario_future_protocol_freeze import read_protocol
 
@@ -119,6 +121,128 @@ class FutureLocalCandidateHandoffTests(unittest.TestCase):
             self.assertTrue(
                 row["prospective_metric_applicability_not_results"][mode]["top10"])
         self.assertTrue(row["top10_for_narrow_must_never_mean_top5"])
+
+    def test_synthetic_create_once_identical_retry_is_read_only(self):
+        # Mocked in-memory dependency proves only idempotent algorithm, not
+        # that anything was published to a real remote GitHub branch.
+        snap=self.prepared()
+        memory={}
+        writes=[]
+        reads=[]
+        clock=lambda: datetime.fromisoformat("2026-11-11T15:09:00+09:00")
+        def read(branch,path):
+            reads.append((branch,path))
+            return memory.get((branch,path))
+        def create(branch,path,raw):
+            writes.append((branch,path))
+            assert (branch,path) not in memory
+            memory[(branch,path)]=raw
+        invoke=lambda:publish_local_candidate_write_once(
+            snap,self.g,self.p,GENERATED,FROZEN,
+            RESEARCH_ONLY_LEDGER_BRANCH,read,create,clock)
+        first=invoke()
+        second=invoke()
+        self.assertEqual(first["status"],"create_only_storage_call_returned_unattested")
+        self.assertEqual(second["status"],"identical_candidate_already_present_unattested")
+        self.assertEqual(len(writes),1)
+        self.assertEqual(len(reads),4)
+        self.assertEqual(memory[(RESEARCH_ONLY_LEDGER_BRANCH,snap["path"])],snap["bytes"])
+        self.assertEqual(first["candidate_sha256"],snap["sha256"])
+        self.assertEqual(first["candidate_git_blob_sha1"],snap["git_blob_sha1"])
+        self.assertTrue(first["local_pre_T12_readback_observed"])
+        for key in ("first_remote_candidate_receipt_verified",
+                    "remote_adapters_independently_authenticated",
+                    "remote_branch_first_add_history_verified",
+                    "official_HTTP_origin_independently_verified",
+                    "capture_and_rescue_run_inventory_complete",
+                    "eligible_for_300_plus_300",
+                    "result_read","formal","promotion_allowed","production_changed"):
+            self.assertFalse(first[key],key)
+
+    def test_wrong_branch_or_tampered_candidate_never_calls_remote(self):
+        snap=self.prepared()
+        calls=[]
+        def forbidden(*args):
+            calls.append(args)
+            raise AssertionError("remote should not be used")
+        clock=lambda:datetime.fromisoformat("2026-11-11T15:09:00+09:00")
+        for branch in ("main","master","position-sensitive-forward-evidence-ledger",
+                       "scenario-four-mode-triple-source-evidence-ledger-copy"):
+            with self.subTest(branch=branch),self.assertRaisesRegex(
+                    ValueError,"research_only_branch"):
+                publish_local_candidate_write_once(
+                    snap,self.g,self.p,GENERATED,FROZEN,
+                    branch,forbidden,forbidden,clock)
+        altered=copy.deepcopy(snap)
+        altered["bytes"]+=b" "
+        with self.assertRaisesRegex(ValueError,"research_only_branch"):
+            publish_local_candidate_write_once(
+                altered,self.g,self.p,GENERATED,FROZEN,
+                RESEARCH_ONLY_LEDGER_BRANCH,forbidden,forbidden,clock)
+        self.assertEqual(calls,[])
+
+    def test_stale_or_unauthorized_local_clock_blocks_remote(self):
+        snap=self.prepared()
+        seen=[]
+        def read(*args):
+            seen.append(args)
+            return None
+        for stamp in ("2026-11-11T15:08:00+09:00",
+                      "2026-11-11T15:17:31+09:00",
+                      "2026-11-11T15:18:01+09:00",
+                      "2026-11-11T15:09:00+00:00"):
+            with self.subTest(stamp=stamp),self.assertRaisesRegex(
+                    ValueError,"local_T12_margin_missing"):
+                publish_local_candidate_write_once(
+                    snap,self.g,self.p,GENERATED,FROZEN,
+                    RESEARCH_ONLY_LEDGER_BRANCH,read,read,
+                    lambda:datetime.fromisoformat(stamp))
+        self.assertEqual(seen,[])
+
+    def test_collision_bad_readback_or_concurrent_creation_is_not_success(self):
+        snap=self.prepared()
+        clock=lambda:datetime.fromisoformat("2026-11-11T15:09:00+09:00")
+        writes=[]
+        with self.assertRaisesRegex(ValueError,"immutable_candidate_collision"):
+            publish_local_candidate_write_once(
+                snap,self.g,self.p,GENERATED,FROZEN,
+                RESEARCH_ONLY_LEDGER_BRANCH,
+                lambda branch,path:b"someone else's candidate",
+                lambda *args:writes.append(args),clock)
+        self.assertEqual(writes,[])
+        seen=[]
+        def read_missing_then_wrong(branch,path):
+            seen.append((branch,path))
+            return None if len(seen)==1 else b"altered remote readback"
+        with self.assertRaisesRegex(ValueError,"remote_readback_mismatch"):
+            publish_local_candidate_write_once(
+                snap,self.g,self.p,GENERATED,FROZEN,
+                RESEARCH_ONLY_LEDGER_BRANCH,read_missing_then_wrong,
+                lambda *args:writes.append(args),clock)
+        self.assertEqual(len(writes),1)
+        with self.assertRaisesRegex(RuntimeError,"remote-create-race"):
+            publish_local_candidate_write_once(
+                snap,self.g,self.p,GENERATED,FROZEN,
+                RESEARCH_ONLY_LEDGER_BRANCH,
+                lambda branch,path:None,
+                lambda *args:(_ for _ in ()).throw(RuntimeError("remote-create-race")),
+                clock)
+
+    def test_readback_after_cutoff_fails_even_if_write_occurs(self):
+        snap=self.prepared()
+        memory={}
+        times=iter((
+            datetime.fromisoformat("2026-11-11T15:09:00+09:00"),
+            datetime.fromisoformat("2026-11-11T15:18:01+09:00"),
+        ))
+        with self.assertRaisesRegex(ValueError,"readback_missed_T12"):
+            publish_local_candidate_write_once(
+                snap,self.g,self.p,GENERATED,FROZEN,
+                RESEARCH_ONLY_LEDGER_BRANCH,
+                lambda branch,path:memory.get((branch,path)),
+                lambda branch,path,raw:memory.__setitem__((branch,path),raw),
+                lambda:next(times))
+        self.assertEqual(memory[(RESEARCH_ONLY_LEDGER_BRANCH,snap["path"])],snap["bytes"])
 
     def test_hypothesis_or_method_or_blob_drift_is_rejected(self):
         g=copy.deepcopy(self.g)
