@@ -8,6 +8,9 @@ on:
       - tests/test_prospective_receipt_order.py
       - server.py
       - tests/test_four_mode_archive_cors_hotfix.py
+      - entry_course_t12_seed.py
+      - research_model.py
+      - tests/test_entry_course_t12_seed.py
       - tests/audit_workflow_paths.py
       - .github/workflows/site-regression.yml
       - .github/workflows/deploy-pages.yml
@@ -20,6 +23,9 @@ on:
       - tests/test_prospective_receipt_order.py
       - server.py
       - tests/test_four_mode_archive_cors_hotfix.py
+      - entry_course_t12_seed.py
+      - research_model.py
+      - tests/test_entry_course_t12_seed.py
       - tests/audit_workflow_paths.py
       - .github/workflows/site-regression.yml
       - .github/workflows/deploy-pages.yml
@@ -72,6 +78,8 @@ jobs:
             echo "RENDER_DEPLOY_BEHIND_OR_DIFFERENT_MAIN $revision"
             echo "::warning::Published Render runtime revision differs from current test SHA; not claiming backend deployment parity"
           fi
+      - name: Verify fresh T-12 generation preserves immutable research originals
+        run: python3 -m unittest discover -s tests -p 'test_entry_course_t12_seed.py' -v
       - name: Audit all CLEAN workflow path filters
         run: python3 tests/audit_workflow_paths.py
       - name: Upload regression evidence
