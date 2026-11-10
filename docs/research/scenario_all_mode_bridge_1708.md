@@ -448,3 +448,25 @@ Added full exact-ticket equality regression: the optimized 4-call path is compar
 3. ④/#1693の登録済み独立600枠へ混入しない。別研究として次の将来300+300件を**結果LAST**で採点し、Top1/3/5/10、gain/loss、頭の的中/欠落、Brier/logloss、場別・実進入の欠損、オッズ/ROI可用性を事前に決めて比較。未証明/欠損は外れにも成功にも算入しない。正式0/600、未検証係数の本番利用なし。
 
 **本変更も Draft #1710 のみ。#1713/#1694/#1693/#1698の実装、main/Render/Pages/既存予想・結果原本、本番稼働ジョブ、保存された確定結果を変更していない。**
+
+
+## 2026-11-10 ②担当：実公式racelistの6艇全国・当地・平均STを4モード研究へ源一致連結
+
+**当日ユーザー指示「進めて」に従った実装範囲**：既存Draft PR #1710のみ。既存#1713の出走表原文監査・公式3原本監査、既存#1693原文意味replay、既存#1698固定条件付き数理、#1710の研究4モード計算を再利用し、元コード/既存候補を変更しない。公式出走表国別勝率が旧V2 CSVや中立5.0の借用に依存していた不足を解消する**同レース原文依存ゲート**を実装。
+
+### 追加した実装
+1. `scenario_official_racelist_rates.py`：既存`scripts.inspect_official_racelist_registrations.ROW`と`inspect_six_registrations`をそのまま使う。公式出走表XHTML内の「**全国／当地／モーター／ボート**」ヘッダー順・1〜6号艇の4行結合選手行・登録番号・平均STと全国/当地各3数値の列を検証し、6艇の全国勝率/全国2連率/全国3連率、当地勝率/2連率/3連率、平均STを原文から抽出。クラス/列順変更、ヘッダー欠損重複、登録番号不一致、6艇未満、非有限・範囲外数値、推測補完を拒否。外部依存なし・HTTP取得なし。場別の公式情報が欠ける場合にデフォルト値で埋めない。
+2. `scenario_future_three_original_gateway.run_future_triple_experiment`：既存#1693 raw semantic replayer→既存#1713三原本監査結果を照合した**後に**、同じ原本SHAに一致する`racelist`生バイトから6全国勝率を再抽出。借用した旧V2勝率・全艇5.0・異なるレースの国別勝率・6登録番号対応不一致なら計算前に`ValueError`で拒否。元の研究`evaluate_exhibition_mode_lenses`へは検証済みの原文抽出勝率そのものを渡す。平均STと当地勝率はレコードに残すが、**モデル計算にはまだ使わない**（別研究の校正が必要）。
+3. 出力に`model_input_content_sha256_research_only`、`four_mode_ranked_output_content_sha256_research_only`を追加。同一レース原本3SHA・正規化source/展示vector SHA・6全国勝率・未校正展開係数/モード重み・候補自己申告生成時刻・4モード券順位/確率/120票盤面SHAを**canonical JSON**で連結。入力と重みを固定した再計算は同じSHA、重みを変えると両SHAが変わることを本物の固定#1698コードを使用して試験。**独立Git first remote receiptの証拠ではない**。証拠/候補正式認定は常時false。
+
+### 既存実原本を使用した陽性パーサ検証（新候補/正式予想ではない）
+- [既存#1713実ZIP artifact #13749433042](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42786724704/artifacts/13749433042)、ZIP原本 SHA256 `7eddf4704635613f7d8cb18a03f07bcc1f9037efafb52ee26a3723b333a30354`。原文SHA/登録番号/120オッズを既存3原本監査で再検証してから、**本当の公式racelist HTMLだけ**に新パーサを適用。
+- **蒲郡8R `202611100708`**：1〜6号艇の全国勝率 `[6.77, 5.65, 3.16, 6.76, 6.48, 2.65]`。**住之江7R `202611101207`**：`[7.19, 6.83, 6.87, 7.24, 7.03, 6.99]`。12艇の公式出走表登録番号と既存監査の登録番号を**12/12一致**、当地勝率と平均STも6艇×2レースを抽出。
+- ただし両レースの`beforeinfo`には展示タイム/展示進入/ST6艇が未完成。既存3原本監査が不足、②将来計算gatewayは引き続き**2/2拒否**（新4モード候補0）。一部の公式値を読めたことを将来のT−12三原本認定・モデル性能改善と混同しない。
+- [実HTTP原文・SHA/CRC/値照合GitHub Actions #42804552216](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42804552216) **completed/success**。生成成果物 [artifact #13758211017](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42804552216/artifacts/13758211017) ZIP SHA256 `799bff25144b663a8bcd3a22436aff10fbd34757b90e0d3cdfae3575c046e06b`（GitHub広告digestと独立ダウンロードSHA一致、全CRC正常、**3件JSON厳格parse成功**）。
+- [最新の#1710 PR安全+固定#1698数理連結回帰 #42804851328](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42804851328) **completed/success**、実行head `aa2542803c215416cf19e1b6f3fb050c7f890a95`。旧数理条件・結果原本・本番モデル・収集Cronは不変更。
+
+### 正式予想へ進めるための残りゲート
+- #1713 / #1694 が別の将来レースで公式racelist＋beforeinfo展示6艇/ST6艇＋オッズ120の**同レースT−12完備**と独立source/初回Git受領を実証すること。新#1710 gatewayでsource→rate→exhibition→確率盤面→全モード券を計算できる構造は準備済みだが、**実際に完備した将来レースをまだ通したわけではない**。
+- ②側の`3.5`頭log-shiftとモード別重みはあくまで**人手の未校正研究仮説**。今の3レースの結果を見た後に重みを調整しない。別研究ID・採用モデル/係数/コードSHAを将来検証開始より前に登録する必要あり。
+- 新候補の初回Git遠隔保存、全起動run証拠、厳密な結果LASTと既存/別研究300+300、Top5/10非悪化、確率校正、70%候補の実際の将来結果との照合は未成立。**formal0/600、本番採用0**。#1693既存凍結プロトコル・#1698旧候補のfirst_remote/0.50/0.25は不変。研究CIと本番予想は別物。
