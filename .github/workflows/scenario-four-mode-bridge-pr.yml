@@ -22,6 +22,8 @@ on:
       - 'scenario_future_three_original_gateway.py'
       - 'scenario_future_local_candidate_handoff.py'
       - 'scenario_future_github_research_adapter.py'
+      - 'scenario_future_archived_receipts_to_candidate.py'
+      - 'test_scenario_future_archived_receipts_to_candidate.py'
       - 'test_scenario_future_github_research_adapter.py'
       - 'test_scenario_future_local_candidate_handoff.py'
       - 'research/four_mode_triple_source_forward_protocol_20261110.json'
@@ -47,7 +49,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Check scenario bridge safety and all four mode contracts
-        run: python -m unittest -v test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway test_scenario_official_racelist_rates test_scenario_future_protocol_freeze test_scenario_future_local_candidate_handoff test_scenario_future_github_research_adapter
+        run: python -m unittest -v test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway test_scenario_official_racelist_rates test_scenario_future_protocol_freeze test_scenario_future_local_candidate_handoff test_scenario_future_github_research_adapter test_scenario_future_archived_receipts_to_candidate
       - name: Materialize pinned existing #1698 conditional lab for integration (read-only)
         run: |
           set -euo pipefail
@@ -62,7 +64,9 @@ jobs:
           mkdir -p "$RUNNER_TEMP/semantic1693"
           git show d93349e4855d6dc1026dfad1795a99632d7e9a35:four_mode_official_raw_semantic_replay.py > "$RUNNER_TEMP/semantic1693/four_mode_official_raw_semantic_replay.py"
           test "$(git hash-object "$RUNNER_TEMP/semantic1693/four_mode_official_raw_semantic_replay.py")" = "2f5af32201e3060c57b5a999f0389ce67c3046cb"
+          git show d93349e4855d6dc1026dfad1795a99632d7e9a35:four_mode_official_future_lineage_preflight.py > "$RUNNER_TEMP/semantic1693/four_mode_official_future_lineage_preflight.py"
+          test "$(git hash-object "$RUNNER_TEMP/semantic1693/four_mode_official_future_lineage_preflight.py")" = "88caa6ee3b324df58e60397d74055a075a8de6a9"
       - name: Confirm all-mode scenario composition uses actual reviewed #1698 conditional math
         env:
           RESEARCH_1698_PIN_REQUIRED: '1'
-        run: PYTHONPATH="$RUNNER_TEMP/position1698:$PWD" python -m unittest -v test_scenario_exhibition_all_mode_runner test_scenario_mode_specific_exhibition_end_to_end test_scenario_future_three_original_gateway
+        run: PYTHONPATH="$RUNNER_TEMP/position1698:$PWD" python -m unittest -v test_scenario_exhibition_all_mode_runner test_scenario_mode_specific_exhibition_end_to_end test_scenario_future_three_original_gateway test_scenario_future_archived_receipts_to_candidate
