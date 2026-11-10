@@ -428,7 +428,7 @@ assert.ok(historicalPagesWorkflow.includes("if(!archived.ok())throw Error('CLEAN
 // GitHub Pages must ship the runtime navigation script referenced by index.html.
 const pagesWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
 assert.ok(html.includes("navScript.src='navigation.js'"),'site expects external navigation script');
-assert.ok(pagesWorkflow.includes('cp index.html navigation.js public/'),'Pages must publish both runtime assets');
+assert.ok(pagesWorkflow.includes('cp index.html navigation.js candidates.html candidate_history.js public/'),'Pages must publish navigation and complete candidate history assets');
 assert.ok(pagesWorkflow.includes('cmp -s public/navigation.js /tmp/clean-deployed-navigation.js'),'Pages must verify deployed navigation asset');
 assert.ok(pagesWorkflow.includes('      - navigation.js'),'navigation changes must trigger Pages publication');
 console.log('PASS: Pages navigation asset packaging and verification');
@@ -636,76 +636,32 @@ assert.ok(archivePublish.includes('tabEvidence.exhibit.sourceVerified='),'publis
 assert.ok(archivePublish.includes("card?.verifiedPreview===true&&card?.source_audit?.beforeinfo?.status==='ok'"),'verification must require timestamp-gated snapshot and source audit');
 assert.ok(archivePublish.includes('unverified_exhibition_mislabeled_verified'),'contradictory exhibition status must fail diagnostic');
 
-// Candidate availability regression: real saved pre-deadline forecasts are reachable.
-assert.ok(html.includes('締切前3レースと開催場へ戻る'),'home shortcut is available from any race view');
-assert.ok(html.includes('https://boat-edge-clean.onrender.com/" aria-label="締切前3レースと開催場へ戻る'),'home shortcut must work on GitHub Pages');
-assert.ok(script.includes('else if(!archive?.ok){'),'schedule must fall back on Raw non-404 failures');
-assert.ok(candidateHtml.includes('id="candidateCards"'),'candidate page must show a live candidate container');
-assert.ok(candidateHtml.includes('showTodayCandidates();'),'candidate page must load saved predeadline forecasts');
-assert.ok(candidateHtml.includes("formatToParts(new Date()).filter(p=>p.type!=='literal')"),'race date must use locale-independent JST calendar parts');
-assert.ok(candidateHtml.includes('const code=dateParts.year+dateParts.month+dateParts.day;'),'race key must preserve YYYYMMDD order');
-assert.ok(!candidateHtml.includes("format(new Date()).replaceAll('-','')"),'a locale may display en-CA dates with slashes and must not break race keys');
-assert.ok(candidateHtml.includes('pred?.formal===false&&pred?.scoring===false'),'only research snapshots, not formal ticket recommendations');
-assert.ok(candidateHtml.includes("titleReceived<=generated&&cardsReceived<=generated&&generated<cutoff"),'inverted source timestamps must exclude tickets before rendering');
-assert.ok(candidateHtml.includes("const validTimes=times.every(key=>isJstStamp(pred?.[key]))"),'missing or non-JST source timestamps must fail closed');
-assert.ok(candidateHtml.includes("recordedDeadline===limit&&limit-cutoff===12*60*1000"),'source deadline must match the schedule and T-12 boundary');
-assert.ok(candidateHtml.includes("if(!structurallyValid)continue;\n   available++;"),'invalid candidates must not increase displayed count');
-assert.ok(candidateHtml.includes("購入判断に使用しないでください"),'unverified remote first-seen must never become a purchase recommendation');
-assert.ok(!candidateHtml.includes('const recordedBeforeInput=generated<source'),'source inversion must not merely change warning copy');
-assert.ok(candidateHtml.includes('Date.now()>=limit'),'candidate page must not present closed races as open');
-assert.ok(candidateHtml.includes('for(let start=0;start<upcoming.length&&available<6;start+=12)'),'candidate discovery must scan beyond the first 18 upcoming races');
-assert.ok(candidateHtml.includes('Promise.all(batch.map(async race=>'),'candidate discovery must use bounded parallel fetches');
-assert.ok(!candidateHtml.includes('upcoming.slice(0,18)'),'candidate discovery must not truncate potentially valid later races');
-assert.ok(candidateHtml.includes("signal:AbortSignal.timeout(4500)"),'candidate batches must bound per-race HTTP waits');
-assert.ok(candidateHtml.includes('if(response.status===404)return null;'),'missing archive must be distinct from upstream network failure');
-assert.ok(candidateHtml.includes('if(pred.fetchFailure===true){fetchFailures++;continue}'),'network failures cannot count as valid candidate tickets');
-assert.ok(candidateHtml.includes('候補なしとは断定できません。'),'network outages must not be reported as no safe candidates');
-
-// Deployed Pages tests must follow navigation.js rewriting of candidate/review routes.
+// Candidate history: every Git-saved race on a selected date must survive cutoff.
+assert.ok(html.includes('締切前3レースと開催場へ戻る'),'home shortcut stays visible');
+assert.ok(script.includes('else if(!archive?.ok){'),'schedule fallback stays intact');
+const candidateCode=fs.readFileSync('candidate_history.py','utf8');
+const candidateController=fs.readFileSync('candidate_history.js','utf8');
+const candidateStatic=fs.readFileSync('candidates.html','utf8');
+const candidateTests=fs.readFileSync('test_candidate_history.py','utf8');
+assert.ok(candidateHtml.includes('id="candidateCards"')&&candidateHtml.includes('src="/candidate_history.js"'),'Render candidate history must mount shared read-only renderer');
+assert.ok(candidateHtml.includes('id="savedPredictionHistory"'),'new candidate list must preserve #1707 saved four-mode history');
+assert.ok(!candidateHtml.includes('showTodayCandidates();'),'expired six-item live-only candidate scan must not run');
+assert.ok(candidateStatic.includes('id="candidateCards"')&&candidateStatic.includes('src="candidate_history.js"'),'Pages static candidate history must mount shared renderer');
+assert.ok(candidateCode.includes('daily_candidate_history')&&candidateCode.includes('confirmed_archive'),'candidate API must join independently saved results');
+assert.ok(candidateController.includes("const onPages=location.pathname.endsWith('/candidates.html')"),'Pages candidate list must not need Render');
+assert.ok(candidateController.includes("candidate_history/'+day+'.json"),'Pages must read day-scoped manifest');
+assert.ok(candidateController.includes('result_status')&&candidateController.includes('confirmed_archive'),'results must be separately validated');
+assert.ok(candidateTests.includes('test_shipped_november_eight_archive_is_not_capped'),'lossless archive count regression must exist');
 const publishWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
-assert.ok(publishWorkflow.includes('CLEAN_PAGES_CANDIDATE_NAV_VERIFIED'),'published browser must test candidate and review navigation');
-assert.ok(publishWorkflow.includes('      - selection.html # Re-run the existing published Render candidate browser diagnostic on candidate UI changes.'),'candidate page updates must trigger published browser checks');
-assert.ok(publishWorkflow.includes("candidateResponse.status()!==200"),'published candidate destination must return real HTTP200');
-
-// Record the actual candidate list rather than only the candidate route HTTP200.
-const publicCandidateWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
-assert.ok(publicCandidateWorkflow.includes('CLEAN_CANDIDATE_PUBLIC_DISPLAY'),'published candidate list must be observed in browser');
-assert.ok(publicCandidateWorkflow.includes("document.querySelectorAll('#candidateCards > article.card')"),'candidate report must count rendered cards');
-assert.ok(publicCandidateWorkflow.includes('CLEAN_CANDIDATE_PUBLIC_UNVERIFIED'),'source failures must be distinct from displayed candidates');
-assert.ok(publicCandidateWorkflow.includes('candidate_warning_or_tickets_missing'),'public candidate page must retain research warning');
-
-
-// Behavioral regression: evaluate the production candidate guard, not only its text.
-const guardStart=candidateHtml.indexOf('   const isJstStamp=value=>');
-const guardEnd=candidateHtml.indexOf('   if(!structurallyValid)continue;',guardStart);
-assert.ok(guardStart>0&&guardEnd>guardStart,'candidate chronology guard must be extractable');
-const productionGuard=candidateHtml.slice(guardStart,guardEnd);
-const guardedCandidate=(candidate,nowMs)=>{
- const raceCode='202611040104',limit=Date.parse('2026-11-04T16:35:00+09:00');
- const fakeDate=class extends Date{static now(){return nowMs}};
- return vm.runInNewContext('(()=>{'+productionGuard+'return structurallyValid;})()',
-  {pred:candidate,raceCode,limit,Date:fakeDate,Set});
-};
-const safeCandidate={
- race_code:'202611040104',formal:false,scoring:false,status:'prospective_candidate',
- predictions:['1-2-3','1-3-2'],
- source_title_received_jst:'2026-11-04T11:01:33.708274+09:00',
- source_cards_received_jst:'2026-11-04T11:01:33.766393+09:00',
- generated_at:'2026-11-04T11:01:34.000000+09:00',
- cutoff_jst:'2026-11-04T16:23:00+09:00',
- source_deadline_jst:'2026-11-04T16:35:00+09:00'
-};
-const nowAfterGeneration=Date.parse('2026-11-04T16:00:00+09:00');
-assert.equal(guardedCandidate(safeCandidate,nowAfterGeneration),true,'correct post-input generation remains research-display eligible');
-assert.equal(guardedCandidate({...safeCandidate,generated_at:'2026-11-04T11:01:33.627045+09:00'},nowAfterGeneration),false,'actual Nov 4 candidate chronology inversion is rejected');
-assert.equal(guardedCandidate({...safeCandidate,source_title_received_jst:'2026-11-04T11:01:35+09:00'},nowAfterGeneration),false,'title receipt alone after generation is rejected');
-assert.equal(guardedCandidate({...safeCandidate,source_cards_received_jst:'2026-11-04T11:01:35+09:00'},nowAfterGeneration),false,'cards receipt alone after generation is rejected');
-assert.equal(guardedCandidate({...safeCandidate,source_title_received_jst:null},nowAfterGeneration),false,'missing title receipt is rejected');
-assert.equal(guardedCandidate({...safeCandidate,source_cards_received_jst:'2026-11-04T02:01:33Z'},nowAfterGeneration),false,'non-JST receipt is rejected even for equivalent instant');
-assert.equal(guardedCandidate({...safeCandidate,generated_at:'2026-11-04T16:23:00+09:00'},nowAfterGeneration),false,'generation exactly at T-12 is rejected');
-assert.equal(guardedCandidate({...safeCandidate,source_deadline_jst:'2026-11-04T16:36:00+09:00'},nowAfterGeneration),false,'mismatching source race deadline is rejected');
-assert.equal(guardedCandidate({...safeCandidate,generated_at:'2026-11-04T16:20:00+09:00'},Date.parse('2026-11-04T16:00:00+09:00')),false,'future-dated generation is rejected');
-
+assert.ok(publishWorkflow.includes('CLEAN_PAGES_CANDIDATE_NAV_VERIFIED'),'published browser must test candidate/review navigation');
+assert.ok(publishWorkflow.includes('cp index.html navigation.js candidates.html candidate_history.js public/'),'Pages must publish candidate archive UI');
+assert.ok(publishWorkflow.includes('public/candidate_history'),'Pages must publish day-scoped manifests');
+assert.ok(publishWorkflow.includes('CLEAN_CANDIDATE_PUBLIC_DISPLAY'),'Pages must inspect real archived candidate list in browser');
+assert.ok(publishWorkflow.includes("document.querySelectorAll('#candidateCards > details.candidate-history-card')"),'published browser must count every saved candidate card');
+assert.ok(publishWorkflow.includes('candidate_archive_not_complete_'),'published count and uniqueness must be verified');
+assert.ok(publishWorkflow.includes("candidateHref!=='/boat-edge-clean/candidates.html'"),'Pages candidate link must stay on Pages origin');
+assert.ok(publishWorkflow.includes('CLEAN_CANDIDATE_PUBLIC_UNVERIFIED'),'evidence absence must not count as success');
+console.log('PASS: exhaustive saved candidate history and independent result joins');
 
 // Readability contract: BOATERS-like high-density comparison without turning
 // action targets into tiny controls or re-separating independent original data.

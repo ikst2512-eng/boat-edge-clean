@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BOAT EDGE CLEAN｜候補レース保存履歴</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f2f6fb;color:#18324d;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif}
+header{padding:16px;background:#0b3057;color:#fff}
+header strong{font-size:20px}
+header nav{display:flex;flex-wrap:wrap;gap:9px;margin-top:12px}
+header a{color:#fff;text-decoration:none;font-size:14px;font-weight:800;padding:8px 12px;border:1px solid #91b9d2;border-radius:8px}
+header a[aria-current="page"]{background:#eaf6ff;color:#174166}
+main{max-width:850px;margin:auto;padding:12px}
+.panel{background:#fff;border:1px solid #d9e4ef;border-radius:12px;padding:15px;margin:12px 0}
+h1{font-size:19px;margin:0 0 13px}
+h2{font-size:16px}
+.notes{font-size:13px;line-height:1.7;color:#5e7187}
+.cards{display:grid;gap:9px}
+.card{border:1px solid #d7e3ee;border-radius:9px;background:#fff;padding:12px}
+a{color:#145e9e}
+</style>
+</head>
+<body>
+<header><strong>BOAT EDGE CLEAN</strong><nav aria-label="画面移動">
+<a href="./">開催場・予想</a>
+<a href="./?screen=review">検証</a>
+<a href="candidates.html" aria-current="page">候補レース</a>
+</nav></header>
+<main>
+<section class="panel" id="todayCandidateRaces" aria-labelledby="todayCandidateHeading">
+<h1 id="todayCandidateHeading">候補レース｜日別保存履歴</h1>
+<p id="todayCandidateDate" class="notes">日付を選択できます。</p>
+<p id="candidateStatus" role="status" class="notes">保存済み候補を確認中…</p>
+<p class="notes">その日に保存された候補は締切後も消しません。保存済みの研究予想と独立して保存された確定結果を表示します。未保存の予想・結果を後付け生成することはありません。</p>
+<div id="candidateCards" class="cards"></div>
+<p class="notes">本画面は保存原本の閲覧用です。候補レースの研究予想は正式認定済み予想や購入推奨ではありません。</p>
+</section>
+</main>
+<script src="candidate_history.js"></script>
+</body>
+</html>

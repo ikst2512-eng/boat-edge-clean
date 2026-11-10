@@ -126,8 +126,8 @@ class NavigationContractTest(unittest.TestCase):
         self.assertIn("レース選択へ", self.secondary)
         self.assertIn(".site-head .header-candidate-tab", self.nav)
 
-    def test_pages_candidate_route_is_render_and_keeps_origin(self):
-        self.assertIn("selection.href='https://boat-edge-clean.onrender.com/selection'",self.nav)
+    def test_pages_candidate_history_stays_on_pages(self):
+        self.assertIn("selection.href='/boat-edge-clean/candidates.html'",self.nav)
         self.assertIn("document.querySelector('.site-head .header-candidate-tab[href=", self.nav)
         self.assertIn("destination.origin===location.origin?destination.pathname+destination.search:destination.href",self.nav)
 
