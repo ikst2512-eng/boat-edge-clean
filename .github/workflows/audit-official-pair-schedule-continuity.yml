@@ -1,0 +1,358 @@
+name: Audit official-pair schedule continuity (read only)
+on:
+  pull_request:
+    paths:
+      - scripts/audit_official_pair_schedule_continuity.py
+      - tests/test_audit_official_pair_schedule_continuity.py
+      - scripts/audit_t12_frozen_chronology.py
+      - tests/test_audit_t12_frozen_chronology.py
+      - scripts/audit_t12_three_original_frozen.py
+      - tests/test_audit_t12_three_original_frozen.py
+      - scripts/audit_t12_external_archive_presence.py
+      - tests/test_audit_t12_external_archive_presence.py
+      - scripts/audit_t12_blocker_join.py
+      - tests/test_audit_t12_blocker_join.py
+      - scripts/audit_t12_scheduled_pair_zip.py
+      - tests/test_audit_t12_scheduled_pair_zip.py
+      - scripts/audit_t12_archived_pair_forecast_replay.py
+      - tests/test_audit_t12_archived_pair_forecast_replay.py
+      - scripts/audit_t12_extracted_artifact_replay.py
+      - tests/test_audit_t12_extracted_artifact_replay.py
+      - scripts/audit_t12_multiday_schedule_trend.py
+      - tests/test_audit_t12_multiday_schedule_trend.py
+      - scripts/audit_t12_nov09_real_pair_forecast_replay.py
+      - tests/test_audit_t12_nov09_real_pair_forecast_replay.py
+      - scripts/audit_t12_cross_workflow_schedule.py
+      - tests/test_audit_t12_cross_workflow_schedule.py
+      - scripts/audit_t12_remote_artifact_publication.py
+      - tests/test_audit_t12_remote_artifact_publication.py
+      - scripts/audit_t12_saved_three_original_replay.py
+      - tests/test_audit_t12_saved_three_original_replay.py
+      - scripts/audit_t12_same_race_proof_chain.py
+      - scripts/audit_t12_source_forecast_join.py
+      - tests/test_audit_t12_source_forecast_join.py
+      - scripts/audit_t12_remote_added_blob_witness.py
+      - tests/test_audit_t12_remote_added_blob_witness.py
+      - tests/test_audit_t12_same_race_proof_chain.py
+      - scripts/audit_t12_scheduled_source_topology.py
+      - tests/test_audit_t12_scheduled_source_topology.py
+      - scripts/audit_t12_full_workflow_inventory.py
+      - tests/test_audit_t12_full_workflow_inventory.py
+      - scripts/audit_t12_scheduled_transitive_routes.py
+      - tests/test_audit_t12_scheduled_transitive_routes.py
+      - .github/workflows/audit-official-pair-schedule-continuity.yml
+  workflow_dispatch:
+    inputs:
+      utc_day:
+        description: 'UTC YYYYMMDD; blank uses current UTC day and counts only elapsed slots'
+        required: false
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify strict scope and incomplete-page failure gates
+        run: |
+          python -m unittest discover -s tests -p 'test_audit_official_pair_schedule_continuity.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_frozen_chronology.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_three_original_frozen.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_external_archive_presence.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_blocker_join.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_scheduled_pair_zip.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_archived_pair_forecast_replay.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_extracted_artifact_replay.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_multiday_schedule_trend.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_nov09_real_pair_forecast_replay.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_cross_workflow_schedule.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_remote_artifact_publication.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_saved_three_original_replay.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_same_race_proof_chain.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_source_forecast_join.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_remote_added_blob_witness.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_scheduled_source_topology.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_full_workflow_inventory.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_scheduled_transitive_routes.py' -v
+      - name: Checkout pinned main workflow Git tree in an isolated directory
+        uses: actions/checkout@v4
+        with:
+          ref: 4bd080ad77778053575cf497c8a6b85b959ce173
+          path: pinned-workflow-main
+          persist-credentials: false
+      - name: Inspect ALL 149 pinned main workflow Git blobs for actual schedule and direct capture refs
+        run: |
+          python -m scripts.audit_t12_full_workflow_inventory \
+            --pinned-checkout pinned-workflow-main \
+            --output reports/official_t12_all_main_workflow_inventory.json
+      - name: Trace transitive source scripts for all 51 pinned scheduled workflows (read only)
+        run: |
+          python -m scripts.audit_t12_scheduled_transitive_routes \
+            --pinned-checkout pinned-workflow-main \
+            --output reports/official_t12_51_scheduled_transitive_static.json
+      - name: Checkout contemporaneous Nov10 main for separate exact-Git-source audit
+        uses: actions/checkout@v4
+        with:
+          ref: dbf10676cd874e46e51e725c75c34fa15d895978
+          path: contemporary-nov10-main
+          persist-credentials: false
+      - name: Trace Nov10 contemporary main routes without rewriting historic baseline
+        run: |
+          python -m scripts.audit_t12_scheduled_transitive_routes \
+            --pinned-checkout contemporary-nov10-main \
+            --exact-commit dbf10676cd874e46e51e725c75c34fa15d895978 \
+            --output reports/official_t12_nov10_contemporary_main_transitive_static.json
+      - name: Audit immutable main official-source collection topology (read only)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          # Verify actual source file Git blob bytes at pinned main SHA.
+          # Does not modify the production workflow or enable T12 scoring.
+          python -m scripts.audit_t12_scheduled_source_topology \
+            --repo "$REPOSITORY" \
+            --main-commit 4bd080ad77778053575cf497c8a6b85b959ce173 \
+            --output reports/official_t12_scheduled_source_topology.json
+      - name: Replay actual official-pair run inventory (read only)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          REQUESTED_UTC_DAY: ${{ inputs.utc_day }}
+        run: |
+          # The collector's UTC 00-12 cron is JST 09-21 on the same day.
+          # Pair the Nov 8 PR schedule inventory with Nov 8 archive presence.
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            day=20261108
+          else
+            day="${REQUESTED_UTC_DAY:-$(date -u +%Y%m%d)}"
+          fi
+          python -m scripts.audit_official_pair_schedule_continuity \
+            --repo "$REPOSITORY" --day-utc "$day" \
+            --output reports/official_pair_schedule_continuity.json
+      - name: Audit completed eight-day collector schedule trend (read only)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          # Full Nov 1-8 history; all 156 UTC daily nominal slots have elapsed.
+          # A schedule event's creation is NOT proof of its intended slot.
+          python -m scripts.audit_t12_multiday_schedule_trend \
+            --repo "$REPOSITORY" --start-day 20261101 --end-day 20261108 \
+            --output reports/official_t12_eight_day_schedule_trend.json
+      - name: Compare contemporaneous collector vs peer workflow schedule records
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          # Nov 6-8 are completed days after the compared workflows' cron edits.
+          # Equal UTC 00-12 creation hours, not actual intended cron slots.
+          python -m scripts.audit_t12_cross_workflow_schedule \
+            --repo "$REPOSITORY" --start-day 20261106 --end-day 20261108 \
+            --output reports/t12_cross_workflow_schedule_controls.json
+      - name: Inventory persisted three-original branch presence (read only)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          REQUESTED_UTC_DAY: ${{ inputs.utc_day }}
+        run: |
+          # The same UTC cron date maps to the same racing-day JST cohort.
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            day=20261108
+          else
+            day="${REQUESTED_UTC_DAY:-$(date -u +%Y%m%d)}"
+          fi
+          python -m scripts.audit_t12_external_archive_presence \
+            --repo "$REPOSITORY" --day-jst "$day" \
+            --output reports/official_three_archive_presence.json
+      - name: Join same-day schedule and original-archive blockers (read only)
+        run: |
+          python -m scripts.audit_t12_blocker_join \
+            --schedule reports/official_pair_schedule_continuity.json \
+            --archive reports/official_three_archive_presence.json \
+            --output reports/official_t12_same_day_blockers.json
+      - name: Independently re-read Nov3 stored official three originals by pinned Git SHA
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          # Use the original evidence-branch Git commit, not mutable refs or
+          # the saved report as a success shortcut. Fetch/re-hash all 6 source
+          # blobs and manifests; re-run real racelist+beforeinfo+120 odds.
+          python -m scripts.audit_t12_saved_three_original_replay \
+            --repo "$REPOSITORY" \
+            --git-commit d0ed89f146dff117021c2bc042b20259d6715515 \
+            --race-code 202611030112 \
+            --observation-id ext20261103T08003263231e6e \
+            --output reports/official_t12_nov03_pinned_three_originals.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("reports/official_t12_nov03_pinned_three_originals.json").read_text())
+          missing={"exhibition_six_courses","exhibition_times_six",
+                   "tilt_six","start_exhibition_six"}
+          if (set(p["missing_source_components"])!=missing
+                  or p["source_research_components_complete"] is not False
+                  or p["qualified_three_source_candidates"] != 0
+                  or p["new_formal_certifications"] != 0
+                  or p["formal"] is not False):
+              raise SystemExit("NOV03_PINNED_OFFICIAL_ORIGINAL_REPLAY_REGRESSED")
+          PY
+      - name: Download archived official-source files from Actions run 41976534374
+        uses: actions/download-artifact@v4
+        with:
+          name: independent-late-preview-41976534374
+          run-id: 41976534374
+          github-token: ${{ github.token }}
+          path: historical-artifacts/run-41976534374
+      - name: Download archived official-source files from Actions run 42170457446
+        uses: actions/download-artifact@v4
+        with:
+          name: independent-late-preview-42170457446
+          run-id: 42170457446
+          github-token: ${{ github.token }}
+          path: historical-artifacts/run-42170457446
+      - name: Download archived official-source files from Actions run 42342115412
+        uses: actions/download-artifact@v4
+        with:
+          name: independent-late-preview-42342115412
+          run-id: 42342115412
+          github-token: ${{ github.token }}
+          path: historical-artifacts/run-42342115412
+      - name: Download archived official-source files from Actions run 42450048245
+        uses: actions/download-artifact@v4
+        with:
+          name: independent-late-preview-42450048245
+          run-id: 42450048245
+          github-token: ${{ github.token }}
+          path: historical-artifacts/run-42450048245
+      - name: Independently replay Nov5-8 real official ZIPs vs pinned GitHub forecasts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          # The historical Actions ZIP REST endpoint returned HTTP 401 in PR
+          # CI. Do NOT treat 401 as success; use the authenticated official
+          # download-artifact action, independently replay each source
+          # original/manifest and confirm artifact digest from GitHub metadata.
+          # The extraction ZIP is NOT the same ZIP bytes (scope is explicit).
+          python -m scripts.audit_t12_archived_pair_forecast_replay \
+            --repo "$REPOSITORY" \
+            --extracted-root historical-artifacts \
+            --output reports/historical_real_source_forecast_replay.json
+      - name: Download Nov9 official-source artifact 42567310743 (read only)
+        uses: actions/download-artifact@v4
+        with:
+          name: independent-late-preview-42567310743
+          run-id: 42567310743
+          github-token: ${{ github.token }}
+          path: historical-artifacts/run-42567310743
+      - name: Independently replay Nov9 official pairs vs exact pinned GitHub forecasts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          # Match immutable Actions metadata digest; independently re-audit
+          # every extracted source original, six exhibition and 120 odds.
+          # Git artifact ZIP digest is NOT locally recomputed from extraction.
+          python -m scripts.audit_t12_nov09_real_pair_forecast_replay \
+            --repo "$REPOSITORY" \
+            --extracted-root historical-artifacts/run-42567310743 \
+            --output reports/official_t12_nov09_source_vs_forecast.json
+      - name: Check independent GitHub Actions archive upload timing for real Nov9 official pairs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          # GitHub server-created/updated Actions artifact clocks, not model
+          # generation or first forecast Git remote receipt. Fail closed.
+          python -m scripts.audit_t12_remote_artifact_publication \
+            --repo "$REPOSITORY" \
+            --replay reports/official_t12_nov09_source_vs_forecast.json \
+            --output reports/official_t12_nov09_remote_archive_time.json
+      - name: Compare Nov3 and Nov9 real source-proof gates without cross-race substitution
+        run: |
+          python -m scripts.audit_t12_same_race_proof_chain \
+            --nov03-three reports/official_t12_nov03_pinned_three_originals.json \
+            --nov09-two reports/official_t12_nov09_source_vs_forecast.json \
+            --nov09-remote reports/official_t12_nov09_remote_archive_time.json \
+            --output reports/official_t12_same_race_proof_chain.json
+      - name: Extract Nov10 actual official-source artifact (pinned read-only)
+        uses: actions/download-artifact@v4
+        with:
+          name: independent-late-preview-42769768447
+          run-id: 42769768447
+          github-token: ${{ github.token }}
+          path: historical-artifacts/run-42769768447
+      - name: Reconcile Nov10 real source originals with pinned existing CLEAN/V2 forecasts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          python -m scripts.audit_t12_source_forecast_join \
+            --repo "$REPOSITORY" \
+            --extracted-root historical-artifacts/run-42769768447 \
+            --run-id 42769768447 \
+            --artifact-id 13740574410 \
+            --digest cdfdeae53222a5b7852ba5cf5b6b44080247ec074c8d3dbaf53c4a32fe9706dd \
+            --forecast-ref c4d39245cbc96b6c680585a68c3b9adf6ddeb921 \
+            --expected-races 202611101202,202611102211 \
+            --output reports/official_t12_nov10_pair_frozen.json
+      - name: Independently witness Nov10 Git added files before new official original receipts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          python -m scripts.audit_t12_remote_added_blob_witness \
+            --repo "$REPOSITORY" \
+            --replayed-nov10 reports/official_t12_nov10_pair_frozen.json \
+            --output reports/official_t12_nov10_remote_added_blob_witness.json
+      - name: Inspect CURRENT JST racing day's collector and durable originals (read only)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          # A UTC 00:00-12:55 cron slot is 09:00-21:55 on that SAME JST date.
+          # This additional live snapshot never replaces completed historical cohorts.
+          current_day="$(date -u +%Y%m%d)"
+          python -m scripts.audit_official_pair_schedule_continuity \
+            --repo "$REPOSITORY" --day-utc "$current_day" \
+            --output reports/official_pair_schedule_live_day.json
+          python -m scripts.audit_t12_external_archive_presence \
+            --repo "$REPOSITORY" --day-jst "$current_day" \
+            --output reports/official_three_archive_live_day.json
+          python -m scripts.audit_t12_blocker_join \
+            --schedule reports/official_pair_schedule_live_day.json \
+            --archive reports/official_three_archive_live_day.json \
+            --output reports/official_t12_live_day_blockers.json
+      - name: Preserve read-only metadata report separately from original receipts
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-pair-schedule-audit-${{ github.run_id }}
+          path: |
+            reports/official_pair_schedule_continuity.json
+            reports/official_three_archive_presence.json
+            reports/official_t12_same_day_blockers.json
+            reports/official_t12_eight_day_schedule_trend.json
+            reports/historical_real_source_forecast_replay.json
+            reports/official_pair_schedule_live_day.json
+            reports/official_three_archive_live_day.json
+            reports/official_t12_live_day_blockers.json
+            reports/official_t12_nov09_source_vs_forecast.json
+            reports/t12_cross_workflow_schedule_controls.json
+            reports/official_t12_nov09_remote_archive_time.json
+            reports/official_t12_nov03_pinned_three_originals.json
+            reports/official_t12_same_race_proof_chain.json
+            reports/official_t12_nov10_pair_frozen.json
+            reports/official_t12_nov10_remote_added_blob_witness.json
+            reports/official_t12_scheduled_source_topology.json
+            reports/official_t12_all_main_workflow_inventory.json
+            reports/official_t12_51_scheduled_transitive_static.json
+            reports/official_t12_nov10_contemporary_main_transitive_static.json
+          if-no-files-found: error
+          retention-days: 30

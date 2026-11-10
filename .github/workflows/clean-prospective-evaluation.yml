@@ -6,6 +6,7 @@ on:
       - test_audit_clean_first_add.py
       - audit_clean_post_fix_cohort.py
       - test_audit_clean_post_fix_cohort.py
+      - test_audit_clean_post_fix_day.py
       - evaluate_clean_prospective.py
       - test_evaluate_clean_prospective.py
       - .github/workflows/clean-prospective-evaluation.yml
@@ -19,6 +20,7 @@ on:
       - test_audit_clean_first_add.py
       - audit_clean_post_fix_cohort.py
       - test_audit_clean_post_fix_cohort.py
+      - test_audit_clean_post_fix_day.py
       - evaluate_clean_prospective.py
       - test_evaluate_clean_prospective.py
       - .github/workflows/clean-prospective-evaluation.yml
@@ -42,7 +44,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Check prospective evaluator and first-add audit contracts
-        run: python -m unittest -v test_evaluate_clean_prospective test_audit_clean_first_add test_audit_clean_post_fix_cohort
+        run: python -m unittest -v test_evaluate_clean_prospective test_audit_clean_first_add test_audit_clean_post_fix_cohort test_audit_clean_post_fix_day
   post-fix-cohort-evidence:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -60,6 +62,34 @@ jobs:
           mkdir -p test-results
           # Never certify pending empty cohorts. Keep diagnostics even on failure.
           python audit_clean_post_fix_cohort.py > test-results/post-fix-first-add.json
+      - name: Independently classify current JST day (diagnostic only)
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p test-results
+          day=$(TZ=Asia/Tokyo date +%Y%m%d)
+          # A pending/no-record day or a rejected cohort is not a job-level
+          # regression. Preserve its nonzero result and its full JSON evidence.
+          if python audit_clean_post_fix_cohort.py --day "$day" > test-results/post-fix-first-add-day.json; then
+            echo "POST_FIX_DAILY_LOCAL_DIAGNOSTIC_PASS day=$day (NOT formal)"
+          else
+            echo "POST_FIX_DAILY_LOCAL_DIAGNOSTIC_NOT_CERTIFIED day=$day"
+          fi
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('test-results/post-fix-first-add-day.json').read_text(encoding='utf-8'))
+          allowed=('pending_no_new_capture','post_fix_evidence_rejected','local_first_add_passed')
+          if data['status'] not in allowed or data['formal'] is not False or data['remote_first_seen_verified'] is not False:
+              raise SystemExit('Daily diagnostic would falsely certify evidence')
+          print('POST_FIX_CURRENT_JST_DAY',json.dumps({
+              key:data.get(key) for key in (
+                  'day_jst','status','candidate_count','local_audit_passed','rejected',
+                  'rejection_reasons','by_day','audit_run_id','audit_checkout_sha',
+                  'remote_first_seen_verified','formal')
+          },sort_keys=True))
+          PY
       - name: Summarize post-fix local evidence without formal promotion
         if: always()
         run: |
@@ -88,7 +118,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: clean-post-fix-first-add-${{ github.run_id }}
-          path: test-results/post-fix-first-add.json
+          path: |
+            test-results/post-fix-first-add.json
+            test-results/post-fix-first-add-day.json
           if-no-files-found: warn
           retention-days: 30
   immutable-archive-gate:
