@@ -13,7 +13,8 @@ official, calibrated or predictive. This is never a site/live selector.
 import copy
 import re
 
-from scenario_exhibition_all_mode_runner import run_exhibition_scenario_lab
+from scenario_exhibition_all_mode_runner import _compute_exhibition_scenario_boards
+from scenario_four_mode_bridge import compose_scenario_research
 from scenario_mode_specific_lens_research import MODES, BUDGETS
 
 SCHEMA = "SCENARIO_MODE_SPECIFIC_EXHIBITION_END_TO_END_RESEARCH_V1"
@@ -45,53 +46,38 @@ def evaluate_exhibition_mode_lenses(projection, national_rates, scenario_hypothe
     if not callable(conditional_callback):
         raise ValueError("actual_existing_1698_callback_required")
 
+    # The same source, prior, head shifts, and second/third coefficients feed
+    # ALL modes. Previous code recomputed them 4x and checked the same digest;
+    # now do the expensive conditional work exactly ONCE per scenario.
+    plans = {
+        key: {**copy.deepcopy(hypothesis),
+              "weight": mode_weights["narrow"][key]}
+        for key, hypothesis in scenario_hypotheses.items()
+    }
+    boards, activated_by_scenario = _compute_exhibition_scenario_boards(
+        projection, national_rates, plans, conditional_callback,
+        study_id=study_id)
+    source_digest = dict(projection["source_sha256"])
+    feature_digest = projection["normalized_source_sha256"]
     results = {}
     scenario_source_digests = None
-    source_digest = None
-    feature_digest = None
     for mode in MODES:
-        plans = {
-            key: {**copy.deepcopy(scenario_hypotheses[key]),
-                  "weight": mode_weights[mode][key]}
-            for key in scenario_hypotheses
-        }
-        out = run_exhibition_scenario_lab(
-            copy.deepcopy(projection), copy.deepcopy(national_rates),
-            plans, conditional_callback, study_id=study_id)
-        mixed = out.get("mode_result")
+        mixed = compose_scenario_research(boards, mode_weights[mode])
         if (type(mixed) is not dict
-                or out.get("formal") is not False
-                or out.get("promotion_allowed") is not False
-                or out.get("forecast_usable") is not False
-                or out.get("production_changed") is not False
-                or out.get("actual_official_exhibition_consumption_independently_replayed") is not False
-                or out.get("national_rates_predeadline_original_independently_verified") is not False
-                or out.get("conditional_callback_module_identity_independently_verified") is not False
-                or out.get("conditional_callback_result_blind_independently_verified") is not False
-                or out.get("model_probabilities_calibrated") is not False
                 or mixed.get("formal") is not False
                 or mixed.get("promotion_allowed") is not False
-                or mixed.get("forecast_usable") is not False):
+                or mixed.get("forecast_usable") is not False
+                or mixed.get("production_changed") is not False
+                or mixed.get("source_feature_provenance_independently_verified") is not False
+                or mixed.get("verified_official_six_exhibition_and_120_odds") is not False):
             raise ValueError("unexpected_upstream_verified_or_promoted_claim")
-        if out.get("race_code") != projection.get("race_code"):
-            raise ValueError("race_identity_changed_between_lenses")
         digests = mixed.get("scenario_board_sha256")
         if (type(digests) is not dict or set(digests) != scenarios
-                or (scenario_source_digests is not None and
-                    digests != scenario_source_digests)):
+                or (scenario_source_digests is not None
+                    and digests != scenario_source_digests)):
             raise ValueError("scenario_board_changed_across_modes")
         if scenario_source_digests is None:
             scenario_source_digests = dict(digests)
-        if (source_digest is not None and
-                out.get("referenced_projection_source_sha256") != source_digest):
-            raise ValueError("original_source_sha_changed_between_lenses")
-        if source_digest is None:
-            source_digest = out.get("referenced_projection_source_sha256")
-        if (feature_digest is not None and
-                out.get("projection_normalized_source_sha256") != feature_digest):
-            raise ValueError("feature_projection_sha_changed_between_lenses")
-        if feature_digest is None:
-            feature_digest = out.get("projection_normalized_source_sha256")
         selected = mixed["existing_four_mode_selector_on_mixture"][mode]["tickets"]
         if (type(selected) is not list or len(selected) != BUDGETS[mode]
                 or any(type(row) is not dict
@@ -130,6 +116,9 @@ def evaluate_exhibition_mode_lenses(projection, national_rates, scenario_hypothe
         "source_sha256_claims_not_independently_authenticated": source_digest,
         "normalized_source_sha256_claim": feature_digest,
         "scenario_boards_identical_across_modes": True,
+        "scenario_conditional_computations": len(boards),
+        "redundant_conditional_recomputations_removed": len(boards) * (len(MODES) - 1),
+        "feature_fields_activated_by_scenario": activated_by_scenario,
         "scenario_board_sha256": scenario_source_digests,
         "four_mode_research_tickets": results,
         "pairwise_same_race_overlap": pairs,
