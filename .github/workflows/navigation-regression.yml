@@ -57,6 +57,7 @@ jobs:
 
   browser-pr-smoke:
     runs-on: ubuntu-24.04
+    container: mcr.microsoft.com/playwright:v1.56.1-noble
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
@@ -66,7 +67,7 @@ jobs:
       - name: Install Chromium for local UI smoke
         run: |
           npm install --no-save --no-package-lock playwright@1.56.1
-          npx playwright install --with-deps chromium webkit
+          npx playwright install chromium webkit
       - name: Exercise four race tabs and racecard-only stats on mobile
         run: |
           node - <<'JS'
