@@ -105,7 +105,10 @@ def audit_current_day_schedule_observations(workflow, runs, source_coverage, as_
             raise ValueError("invalid schedule observation")
         seen_ids.add(run["id"])
         try:
-            created = datetime.fromisoformat(run["created_at"]).astimezone(JST)
+            created_utc = datetime.fromisoformat(run["created_at"])
+            if created_utc.utcoffset() is None:
+                raise ValueError("naive timestamp")
+            created = created_utc.astimezone(JST)
         except (KeyError, ValueError, TypeError, AttributeError) as exc:
             raise ValueError("invalid schedule observation timestamp") from exc
         if created.date() != day or created > local:
