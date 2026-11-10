@@ -210,7 +210,7 @@ class FutureLineagePreflightTests(unittest.TestCase):
                 source, candidate = fixture()
                 if location == "source_original":
                     source["originals"]["beforeinfo"]["metadata"] = {
-                        "audit": [{"official_result": [1, 2, 3]}}
+                        "audit": [{"official_result": [1, 2, 3]}]}
                 elif location == "candidate_meta":
                     candidate["metadata"] = [{"environment": {
                         "post_race_weather": {"wind_mps": 8.0}}}]
