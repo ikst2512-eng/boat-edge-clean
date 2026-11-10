@@ -21,6 +21,8 @@ on:
       - 'scenario_archived_rates_ablation.py'
       - 'scenario_future_three_original_gateway.py'
       - 'scenario_future_local_candidate_handoff.py'
+      - 'scenario_future_github_research_adapter.py'
+      - 'test_scenario_future_github_research_adapter.py'
       - 'test_scenario_future_local_candidate_handoff.py'
       - 'research/four_mode_triple_source_forward_protocol_20261110.json'
       - 'test_scenario_future_protocol_freeze.py'
@@ -45,7 +47,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Check scenario bridge safety and all four mode contracts
-        run: python -m unittest -v test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway test_scenario_official_racelist_rates test_scenario_future_protocol_freeze test_scenario_future_local_candidate_handoff
+        run: python -m unittest -v test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway test_scenario_official_racelist_rates test_scenario_future_protocol_freeze test_scenario_future_local_candidate_handoff test_scenario_future_github_research_adapter
       - name: Materialize pinned existing #1698 conditional lab for integration (read-only)
         run: |
           set -euo pipefail
