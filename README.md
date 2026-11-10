@@ -22,6 +22,7 @@
 ## 最新の引継ぎ：本番の実態／次にやること
 
 **最新スナップショット：2026-11-11 00時台 JST（以降の過去記録より優先）**
+- **11/11 02時台の朝対象を特定**：三国1R `202611111001`、締切予定08:47→T−12 08:35、生成選択窓08:21〜08:33（主Cron候補08:25/08:30）。6艇全国勝率は保存原本上すべて正値。独立 ledger の11/11 T12保存・当日schedule write probeは02時台照会時未生成（正常な時刻）。[既存回帰 Actions #42863709906](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42863709906) 30/30 PASS。**朝実起動・新ソース受領・T12初回Git追加は未実証**、09:15既存監査でrun IDと初回保存時刻を照合。
 - **11/11朝T−12の直前修正**：main `fceee894`。旧`research_snapshots`キャッシュをT−12の新予想と誤認定していたため、通常の既存原本には一切触れず、未保存のT−12対象レースだけ新入力を一時保存先で独立生成→締切前/鮮度検証→create-only Git追加するよう修正。無効な時刻・ソース欠落なら保存しない。[GitHub Actions #42844134322](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42844134322)の**29 T−12単体回帰がPASS**。08時台の実Git初回保存/公式24値/正式認定は未実測、既存09:15 JSTの自動監査で確認。
 - **本番で確認できた機能**：main `1ddb26bf`時点の公開Pages/Render `index.html`・`navigation.js` は双方一致。無加工の公開Chromium/WebKitでCORS 200/404/422、保存4モード5/10/16/22点、履歴・4主タブ・戻る/進むがPASS（[Actions #42824633355](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42824633355)）。これはその時点の**公開フロント**の証拠であり、mainの全バックエンド変更がRenderにデプロイ済みとは言わない。
 - **追加の実公開証明（11/10 23:59 JST頃）**：[Pages #42832056749](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42832056749)で保存候補/研究予想/確定結果/独立払戻が11/10対象117件すべて公開表示PASS（的中117件の意味ではない）。[回帰 #42839754344](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42839754344)で公開Renderの実稼働Git SHAは `fea60e6a`、同時点main `8c294a4f`との差はCI Workflow1ファイルのみで実行コードは一致。以後は `/healthz` の `X-Boat-Edge-Deploy-Commit` を実HTTPで検査し、main SHAと同一か・コードに差分があるかを区別する。
