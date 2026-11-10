@@ -603,7 +603,7 @@ jobs:
               const reviewUrl=new URL(reviewHref,process.env.PAGE_URL);
               if(reviewUrl.origin!==new URL(process.env.PAGE_URL).origin||reviewUrl.searchParams.get('screen')!=='review')
                 throw Error('PAGES_REVIEW_ROUTE_BROKEN '+reviewHref);
-              const candidateResponse=await page.request.get(candidateHref,{timeout:20000});
+              const candidateResponse=await page.request.get(new URL(candidateHref,process.env.PAGE_URL).href,{timeout:20000});
               if(candidateResponse.status()!==200||!(await candidateResponse.text()).includes('id="todayCandidateRaces"'))
                 throw Error('PUBLIC_CANDIDATE_PAGE_UNAVAILABLE '+candidateResponse.status());
               console.log('CLEAN_PAGES_CANDIDATE_NAV_VERIFIED',candidateHref,reviewHref);
