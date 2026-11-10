@@ -124,6 +124,16 @@ jobs:
                   assert all(x["uncalibrated_head_shift_changes_120_board"] for x in race["mode_uncalibrated_head_shift_ablation"].values())
                   assert race["head_shift_ablation_kept_real_rates_exhibition_and_position_features"]
                   assert not race["head_shift_assumptions_validated_against_results"]
+                  assert not race["future_candidate_first_remote_receipt_verified"]
+                  assert not race["admitted_to_1693_registered_cohort"]
+                  exposure = race["archived_V2_vs_research_topn_exposure_result_blind"]
+                  assert set(exposure) == {"narrow","hit","balance","hole"}
+                  for mode, arms in exposure.items():
+                      assert set(arms) == {"with_uncalibrated_head_shift","without_uncalibrated_head_shift"}
+                      for comparison in arms.values():
+                          assert comparison["confirmed_result_read"] is False
+                          assert comparison["gain_or_loss_in_actual_hit_rate_computed"] is False
+                          assert not comparison["by_topn"]["top10"]["applicable"] if mode=="narrow" else comparison["by_topn"]["top10"]["applicable"]
                   assert not race["formal"] and not race["results_read"]
               else:
                   assert race["race_code"] == "202611102211"
