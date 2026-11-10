@@ -16,10 +16,15 @@ def before(code,root,identifier):
          'deadline_display':'20:31','received_at_jst':NOW.isoformat()}
 def odds(*args):return {'status':'official_odds_observed_research_only'}
 def audit(*args):return {'both_complete_before_t12':True,'forecast_usable':False,'full_t12_source_certified':False}
+def card_audit(*args):
+ return {'race_code':CODE,'original_hash_verified':True,'six_racers_verified':True,
+         'racer_registration_identities_agree':True,'received_by_t12':True,
+         'beforeinfo_received_by_t12':True,'full_t12_source_certified':False,
+         'forecast_usable':False}
 
 class JointBatchTests(unittest.TestCase):
  def run_collect(self,root,**kwargs):
-  opts={'clock':lambda:NOW,'schedule_fetch':lambda day:(200,SCHEDULE),'before':before,'odds':odds,'auditor':audit,'event':'pull_request'};opts.update(kwargs)
+  opts={'clock':lambda:NOW,'schedule_fetch':lambda day:(200,SCHEDULE),'before':before,'odds':odds,'auditor':audit,'event':'pull_request','racelist_auditor':card_audit};opts.update(kwargs)
   return collect(root,'test1',**opts)
  def test_current_unique_bounded_candidates_and_conflicting_schedule_rejection(self):
   self.assertEqual(candidates(SCHEDULE,NOW),[CODE])
@@ -129,8 +134,9 @@ class JointBatchTests(unittest.TestCase):
      root,include_racelist=True,card=card,triple_auditor=joined,
      auditor=lambda *args:{'both_complete_before_t12':False})
    self.assertEqual(report['observations'][0]['three_source_status'],
-                    'racelist_saved_pair_incomplete')
+                    'racelist_verified_pair_incomplete')
    self.assertEqual(report['official_racelist_originals_saved'],1)
+   self.assertEqual(report['verified_racelist_six_registration_matches'],1)
    self.assertEqual(report['complete_pairs_before_t12'],0)
    card.assert_called_once()
    joined.assert_not_called()
@@ -206,6 +212,34 @@ class JointBatchTests(unittest.TestCase):
     self.assertEqual(report['observations'][0]['three_source_status'],
                      'three_originals_incomplete')
     self.assertFalse(report['forecast_usable'])
+
+ def test_wrong_race_or_registration_mismatch_rejects_racelist_evidence(self):
+  for patch in (
+      {'race_code':'202611040111'},
+      {'racer_registration_identities_agree':False},
+      {'original_hash_verified':False},
+      {'six_racers_verified':False},
+      {'beforeinfo_received_by_t12':False},
+      {'received_by_t12':False},
+      {'forecast_usable':True}):
+   with self.subTest(patch=patch),tempfile.TemporaryDirectory() as root:
+    check=card_audit()
+    check.update(patch)
+    third=Mock()
+    report=self.run_collect(
+       root,include_racelist=True,
+       card=lambda *args:{
+         'status':'official_racelist_html_observed_research_only',
+         'received_at_jst':'2026-11-04T20:00:10+09:00'},
+       racelist_auditor=lambda *args:check,triple_auditor=third)
+    self.assertEqual(report['complete_pairs_before_t12'],1)
+    self.assertEqual(report['official_racelist_originals_saved'],1)
+    self.assertEqual(report['verified_racelist_six_registration_matches'],0)
+    self.assertEqual(report['complete_three_originals_before_t12'],0)
+    self.assertEqual(report['observations'][0]['three_source_status'],
+                     'racelist_identity_incomplete')
+    self.assertFalse(report['observations'][0]['racelist_six_registration_match_verified'])
+    third.assert_not_called()
 
  def test_racelist_join_exception_preserves_pair_and_diagnostic(self):
   with tempfile.TemporaryDirectory() as root:
