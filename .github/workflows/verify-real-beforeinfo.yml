@@ -37,7 +37,7 @@ jobs:
           npx playwright install chromium
       - name: Compare real official six-boat source, Render and public Pages (diagnostic)
         if: always()
-        continue-on-error: true
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         timeout-minutes: 4
         run: |
           cat > .clean-live-official-pages.cjs <<'JS'
