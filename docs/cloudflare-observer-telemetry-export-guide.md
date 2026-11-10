@@ -12,8 +12,9 @@ The repository now contains **scripts/collect_cloudflare_observer_telemetry.mjs*
 # Set your account ID in your own local shell, not in repository files.
 export CLOUDFLARE_ACCOUNT_ID="your-32-character-account-id"
 # Type a token in your private terminal (no echo); never put it in a command history.
-read -r -s -p "Cloudflare observability token: " CLOUDFLARE_OBSERVABILITY_TOKEN
-echo
+printf 'Cloudflare observability token (private input): '
+read -r -s CLOUDFLARE_OBSERVABILITY_TOKEN
+printf '\n'
 export CLOUDFLARE_OBSERVABILITY_TOKEN
 umask 077
 
