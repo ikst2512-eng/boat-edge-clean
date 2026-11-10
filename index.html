@@ -1593,6 +1593,18 @@ async function loadForecastPreview(){
   if(token===forecastPreviewRequestId&&activeView==='forecast'){root.replaceChildren();status.textContent='直前情報を取得できません。推測値は表示しません。'}
  }
 }
+function racecardFailureMessage(reason){
+ if(reason==='HTTP_404')return 'このレースの事前出走表は未配信です（通信障害とは区別します）。';
+ if(reason==='HTTP_422')return 'このレースは締切済み、または指定した日付・場・レース番号が不正です。別のレースを確認してください。';
+ if(reason==='CARD_NOT_PREDEADLINE'||reason==='CARD_EVIDENCE_INVALID')
+  return '保存データの取得時刻や締切情報を検証できないため出走表を表示しません。';
+ if(reason==='RACECARD_TRANSPORT_UNAVAILABLE'||reason==='TimeoutError'||
+    /^HTTP_(?:429|500|502|503|504)$/.test(reason))
+  return '公開APIに一時的に接続できません。再読み込みで再試行できます。未取得の6艇情報は表示しません。';
+ if(['PRE_RACE_SOURCE_NOT_VERIFIED','INCOMPLETE_RACE_CARD','INCOMPLETE_OR_DUPLICATE_RACE_CARD'].includes(reason))
+  return '出走表の対象レース・6艇・出典の検証に失敗しました。異なるレースの値や推測値は表示しません。';
+ return '事前出走表の内容または通信を検証できません。再読み込みをお試しください。';
+}
 async function loadRaceData(force=false){
  const token=(window.raceDataRequestId||0)+1;window.raceDataRequestId=token;
  const key=sameRaceKey(),status=document.getElementById('raceDataStatus'),body=document.getElementById('raceDataRows'),source=document.getElementById('raceDataSource');
@@ -1776,7 +1788,7 @@ async function loadRaceData(force=false){
   if(token!==window.raceDataRequestId||key!==sameRaceKey())return;
   const reason=e instanceof Error?e.message:'';
   if(preserve&&displayedRaceKey===key&&body.children.length){status.textContent='更新情報を確認できませんでした。前回表示した出走表を保持しています。';return;}
-  status.textContent=reason==='CARD_NOT_PREDEADLINE'?'保存データの取得記録が締切前ではないため表示できません。':reason==='HTTP_404'?'このレースの事前出走表は未配信です。':'事前出走表の内容または通信を検証できません。再読み込みをお試しください。';
+  status.textContent=racecardFailureMessage(e instanceof Error&&e.name==='TimeoutError'?'TimeoutError':reason);
  }
 }
 let displayedPredictionKey='';
