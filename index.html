@@ -306,6 +306,164 @@ body:has([data-home-only]:not([hidden])) .race-nav-actions{display:none!importan
 .race-detail-shortcuts{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px!important}
 .race-detail-shortcuts button{min-width:0;white-space:normal!important;overflow-wrap:anywhere;font-size:clamp(10px,2.6vw,13px)!important;padding:8px 2px!important}
 @media(max-width:380px){.race-detail-shortcuts{gap:2px!important}.race-detail-shortcuts button{font-size:10px!important}}
+
+/* Compact race information density, derived from BOATERS' comparative layout.
+   Keep original colors/content; no third-party assets or source markup copied. */
+:root{--race-small:11px;--race-regular:13px;--race-value:15px}
+body{font-size:13px;line-height:1.42}
+main{max-width:1140px}
+.box{padding:10px 12px;border-radius:8px}
+.box h1,.box h2,.venue-list-heading{font-size:15px!important;line-height:1.3;margin-top:4px;margin-bottom:8px}
+.box h3{font-size:13px;line-height:1.3}
+header{padding-top:7px;padding-bottom:7px}
+header .logo{font-size:19px;letter-spacing:0}
+.site-head .header-candidate-tab{font-size:11px;min-height:40px;padding:7px 10px}
+.site-global-nav.compact-nav{padding-top:4px!important;padding-bottom:4px!important}
+.site-global-nav.compact-nav a{font-size:11px!important;padding:7px 11px!important}
+.muted,.source-chip,.venue-next,.course-data-notice{font-size:11px;line-height:1.45}
+.active-race-strip{padding:7px 9px}
+.race-detail-shortcuts{padding:4px!important;gap:3px!important}
+.race-detail-shortcuts button{font-size:11px!important;min-height:42px;padding:7px 3px!important;border-radius:5px}
+.race-card-subtabs{margin:7px 0;gap:4px}
+.race-card-subtabs button{font-size:11px;padding:7px 4px;min-height:42px;border-radius:5px}
+.race-data-table,.forecast-statistics table{font-size:11px}
+.race-data-table th,.race-data-table td,.forecast-statistics th,.forecast-statistics td{padding:6px 5px;line-height:1.3}
+#forecast{padding:10px}
+.forecast-combined-race{padding:7px;border-width:1px;margin:5px 0}
+.forecast-combined-race h2,.forecast-combined-race h3{font-size:14px}
+.four-mode-forecast-panel{padding:7px;margin:5px 0}
+.four-mode-forecast-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+.four-mode-forecast-item{padding:7px;border-radius:5px;min-width:0}
+.four-mode-forecast-item strong{font-size:12px;margin-bottom:3px}
+.four-mode-forecast-ticket{padding:4px 0;column-gap:5px;row-gap:2px}
+.four-mode-forecast-grid .four-mode-forecast-ticket .four-mode-combo{font-size:17px;line-height:1.22;letter-spacing:.01em}
+.four-mode-forecast-ticket .four-mode-prob{font-size:11px}
+.four-mode-forecast-ticket .four-mode-odds{font-size:10px}
+#forecast .prediction-row{min-height:44px;padding:5px 7px}
+#forecast .prediction-row .boat-num{width:24px;height:24px;font-size:13px}
+#forecast .prediction-row .prediction-value{font-size:16px}
+#forecast .prediction-row .prediction-odds small{font-size:10px}
+#forecast .prediction-row .prediction-odds strong{font-size:12px}
+#forecast .prediction-row .prediction-rank{font-size:10px}
+#forecast .prediction-row .prediction-tier{font-size:10px;padding:2px 4px}
+.forecast-statistics{margin-top:9px;padding-top:8px}
+.forecast-statistics h3{font-size:12px;margin:8px 0 5px}
+.forecast-scenario{gap:5px;padding:7px;border-radius:6px}
+.forecast-scenario span{font-size:15px}
+.entry-scenario{padding:8px}
+.entry-scenario h3{font-size:13px}
+.entry-scenario-ticket{padding:5px 7px}
+.entry-scenario-ticket strong{font-size:17px}
+.four-mode-match-summary{padding:9px;border-width:1px;margin:6px 0}
+.four-mode-match-summary>strong{font-size:15px;margin-bottom:6px}
+.four-mode-match-badge{padding:6px;gap:2px}
+.four-mode-match-badge strong{font-size:12px}
+.four-mode-match-badge span{font-size:14px}
+.four-mode-match-total{font-size:14px;margin-bottom:6px}
+.forecast-result-preview{padding:7px;margin:0 0 8px}
+.forecast-result-preview h3{font-size:14px}
+.forecast-result-preview .result-combo{font-size:19px}
+.clean-inline-finish{padding:6px 8px;margin:5px 0}
+.clean-inline-finish strong{font-size:14px}
+.clean-inline-finish span{font-size:11px}
+/* All 6 exhibition boats use compact comparison rows, not large stacked cards.
+   Same-row columns: boat / verified official exhibition / independent original. */
+#raceDataSection[data-view="exhibit"] .exhibition-grid{
+ display:grid;grid-template-columns:minmax(0,1fr);gap:3px;
+ max-width:none;margin:6px 0
+}
+#raceDataSection[data-view="exhibit"] .exhibition-boat{
+ display:grid;grid-template-columns:minmax(95px,1fr) minmax(0,3.1fr) minmax(0,2.8fr);
+ align-items:center;column-gap:6px;row-gap:3px;
+ padding:6px 8px;border-radius:4px;border-left-width:4px;min-height:56px
+}
+#raceDataSection[data-view="exhibit"] .exhibition-top{margin:0;gap:6px;min-width:0}
+#raceDataSection[data-view="exhibit"] .exhibition-name{font-size:12px;line-height:1.25;min-width:0}
+#raceDataSection[data-view="exhibit"] .lane-badge{flex-shrink:0}
+#raceDataSection[data-view="exhibit"] .exhibition-values{
+ display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px
+}
+#raceDataSection[data-view="exhibit"] .exhibition-metric{
+ padding:4px 2px;border-radius:3px;min-width:0
+}
+#raceDataSection[data-view="exhibit"] .exhibition-metric span{
+ font-size:10px;line-height:1.15;white-space:normal;margin-bottom:3px
+}
+#raceDataSection[data-view="exhibit"] .exhibition-metric strong{
+ font-size:15px;line-height:1.2;white-space:nowrap
+}
+#raceDataSection[data-view="exhibit"] .exhibition-original{
+ min-width:0;margin:0;padding:0 0 0 6px;border-top:0;border-left:1px solid #dce6f0
+}
+#raceDataSection[data-view="exhibit"] .exhibition-original-heading{
+ font-size:10px;margin:0 0 3px;gap:3px;line-height:1.2
+}
+#raceDataSection[data-view="exhibit"] .exhibition-original-heading small{display:none}
+#raceDataSection[data-view="exhibit"] .exhibition-original-values{
+ display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px
+}
+#raceDataSection[data-view="exhibit"] .exhibition-original-metric{
+ padding:3px 2px;border-radius:3px;min-width:0
+}
+#raceDataSection[data-view="exhibit"] .exhibition-original-metric span{
+ font-size:10px;line-height:1.15;margin-bottom:2px
+}
+#raceDataSection[data-view="exhibit"] .exhibition-original-metric strong{
+ font-size:14px;line-height:1.2
+}
+#raceDataSection[data-view="exhibit"] .exhibition-summary{
+ padding:7px 9px;font-size:12px;border-left-width:3px
+}
+#raceDataSection[data-view="exhibit"] .exhibition-original-status,
+#raceDataSection[data-view="exhibit"] .exhibition-entry-note,
+#raceDataSection[data-view="exhibit"] .exhibition-weather{
+ padding:6px 8px;font-size:11px;line-height:1.4
+}
+#raceDataSection[data-view="exhibit"] .exhibition-original-pending{
+ font-size:11px;padding:3px 2px
+}
+@media(max-width:760px){
+ body{font-size:13px;line-height:1.4}
+ main{padding:7px 7px 24px}
+ .box{padding:9px 8px}
+ .box h1,.box h2,.venue-list-heading{font-size:14px!important}
+ header .logo{font-size:18px}
+ .muted,.source-chip,.venue-next,.prediction-rank{font-size:11px}
+ .race-data-table th,.race-data-table td{padding:5px 3px}
+ .four-mode-forecast-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
+ .four-mode-forecast-item{padding:6px;min-width:0}
+ .four-mode-forecast-ticket{padding:4px 0;gap:3px}
+ .four-mode-forecast-grid .four-mode-forecast-ticket .four-mode-combo{font-size:16px}
+ #raceDataSection[data-view="exhibit"] .exhibition-boat{
+  grid-template-columns:minmax(0,1fr);padding:6px 7px;gap:4px
+ }
+ #raceDataSection[data-view="exhibit"] .exhibition-top{min-height:21px}
+ #raceDataSection[data-view="exhibit"] .exhibition-values{grid-template-columns:repeat(4,minmax(0,1fr));gap:3px}
+ #raceDataSection[data-view="exhibit"] .exhibition-metric{padding:3px 2px}
+ #raceDataSection[data-view="exhibit"] .exhibition-metric strong{font-size:14px}
+ #raceDataSection[data-view="exhibit"] .exhibition-original{
+  display:grid;grid-template-columns:39px minmax(0,1fr);align-items:center;
+  gap:4px;border-left:0;border-top:1px solid #e0e8f0;padding:4px 0 0
+ }
+ #raceDataSection[data-view="exhibit"] .exhibition-original-heading{margin:0}
+ #raceDataSection[data-view="exhibit"] .exhibition-original-values{grid-template-columns:repeat(3,minmax(0,1fr))}
+ #raceDataSection[data-view="exhibit"] .exhibition-original-metric{padding:3px 2px}
+ #raceDataSection[data-view="exhibit"] .exhibition-original-metric strong{font-size:13px}
+}
+@media(max-width:420px){
+ .four-mode-forecast-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
+ .four-mode-forecast-item{padding:6px}
+ .four-mode-forecast-ticket{padding:4px 0;column-gap:4px}
+ .four-mode-forecast-grid .four-mode-forecast-ticket .four-mode-combo{font-size:15px}
+ .four-mode-forecast-ticket .four-mode-prob{font-size:10px}
+ .four-mode-forecast-ticket .four-mode-odds{font-size:10px}
+ .race-detail-shortcuts button{font-size:10px!important}
+ #raceDataSection[data-view="exhibit"] .exhibition-metric span,
+ #raceDataSection[data-view="exhibit"] .exhibition-original-metric span{font-size:9.5px}
+ #raceDataSection[data-view="exhibit"] .exhibition-metric strong{font-size:13px}
+ #raceDataSection[data-view="exhibit"] .exhibition-original-metric strong{font-size:12px}
+}
+
 </style></head><body data-clean-forecast-ui="research-only-20261030"><header><div class="site-head"><div class="logo">BOAT EDGE CLEAN</div><a class="header-home-tab header-candidate-tab" href="https://boat-edge-clean.onrender.com/" aria-label="締切前3レースと開催場へ戻る">開催場・締切</a><a class="header-candidate-tab" href="/selection" aria-label="候補レースの一覧へ">候補レース</a></div></header><nav class="site-global-nav compact-nav" aria-label="検証"><a href="/review">検証</a></nav><main><section class="box" data-home-only><h1>レースを選ぶ</h1><div class="row"><button id="prev">前日</button><input type="date" id="day" aria-label="開催日"><button id="today">今日</button><button id="next">翌日</button></div><p id="venueState" aria-live="polite">開催情報を確認中…</p><section class="box" id="deadlineSection" hidden><h2>締切前の次の3レース</h2><p class="muted" id="deadlineStatus">締切情報を確認中…</p><div class="deadline-list" id="deadlineList"></div></section><section id="venueChooser" aria-label="全国24場の一覧"><h2 class="venue-list-heading">本日のレース <span class="venue-list-subtitle">全国24場</span></h2><div class="grid" id="venues"></div></section><div class="race-picker"><h2>1〜12R</h2><div class="races" id="races"></div></div></section><div class="race-browser-toolbar" id="raceBrowserToolbar" hidden><button type="button" id="raceViewBack" aria-label="前の画面に戻る">◀ 戻る</button></div><div class="active-race-strip" aria-live="polite"><span>選択中</span><strong id="activeRaceLabel">レースを選択してください</strong><div class="race-nav-actions"><button type="button" id="previousRace" aria-label="前のレースへ">◀ 前R</button><button type="button" id="followingRace" aria-label="次のレースへ">次R ▶</button><button type="button" id="retryPrediction" aria-label="選択中のレースを更新">更新</button></div></div><section class="box" id="raceDataSection"><h2 id="raceDataHeading">出走表・選手成績</h2><nav id="raceCardSubtabs" class="race-card-subtabs" aria-label="出走表の詳細情報"><button type="button" data-race-card-pane="card" aria-selected="true">出走表・基本情報</button><button type="button" data-race-card-pane="rates" aria-selected="false">連対率・展開</button></nav><div id="raceCardCore"><p id="raceDataStatus" class="muted" role="status">出走表を確認中…</p><div id="exhibitionGrid" class="exhibition-grid" hidden aria-label="6艇の展示比較"></div><div id="mobileRaceMatrix" class="mobile-race-matrix" aria-label="6艇の主要成績比較・横スクロール不要"></div><details id="mobileRacerDetails" class="mobile-racer-expand"><summary>6艇の詳しい選手データを見る</summary><div id="mobileRaceCards" class="mobile-race-cards" aria-label="6艇の選手詳細"></div></details><div id="courseDataNotice" class="course-data-notice" role="status"></div><div class="race-data-scroll"><table class="race-data-table"><thead><tr><th>枠</th><th>選手・級別</th><th>全国<br>勝率 / 2連率 / 3連率</th><th>当地<br>勝率 / 2連率 / 3連率</th><th>平均ST<br>F / L</th><th>モーター<br>番号 / 2連率 / 3連率</th><th>ボート<br>番号 / 2連率 / 3連率</th><th>展示<br>タイム / チルト</th><th>展示ST</th></tr></thead><tbody id="raceDataRows"></tbody></table></div><p id="raceDataSource" class="muted"></p></div><section class="race-card-stats-pane" id="raceCardStatistics" aria-label="出走表内の連対率・展開データ" hidden><h2>連対率・選手データ</h2><section class="forecast-statistics" aria-label="AI展開と選手別の成績比較"><h3>６艇の２連対率</h3><p id="forecastQuinellaStatus" class="muted" role="status">未取得</p><div class="race-data-scroll"><table aria-label="全国・当地・モーター・ボートの2連対率"><thead><tr><th>艇</th><th>全国</th><th>当地</th><th>モーター</th><th>ボート</th></tr></thead><tbody id="forecastQuinellaRows"></tbody></table></div>
 <h3>保存済みAI予想｜先頭艇別の確率配分</h3><div id="forecastAiLeaderShares" class="forecast-ai-shares" aria-live="polite">予想の取得待ち</div><h3>AI先頭艇別・相手候補（上位10点内）</h3><p id="forecastAiLeaderDetailStatus" class="muted">先頭艇を選択すると相手候補を表示</p><div class="race-data-scroll"><table aria-label="AI上位10点内の先頭艇別2着3着配分"><thead><tr><th>相手艇</th><th>2着配分</th><th>3着配分</th></tr></thead><tbody id="forecastAiLeaderDetailRows"></tbody></table></div><h3>同場・当日先行レースの実測2着／3着（事後参考）</h3><p id="forecastPriorResultStatus" class="muted" role="status">選択レース前の確定結果を確認中…</p><div class="race-data-scroll"><table aria-label="当日先行レースから計算した先頭艇別相手実績"><thead><tr><th>相手艇</th><th>2着率</th><th>3着率</th><th>分母</th></tr></thead><tbody id="forecastPriorResultRows"></tbody></table></div><h3>先頭艇別・連対率</h3>
 <div class="forecast-leader-picker" role="group" aria-label="先頭艇を選択"><span>先頭艇</span><button type="button" class="on" data-forecast-leader="1" aria-pressed="true">1</button><button type="button" data-forecast-leader="2" aria-pressed="false">2</button><button type="button" data-forecast-leader="3" aria-pressed="false">3</button><button type="button" data-forecast-leader="4" aria-pressed="false">4</button><button type="button" data-forecast-leader="5" aria-pressed="false">5</button><button type="button" data-forecast-leader="6" aria-pressed="false">6</button></div>
