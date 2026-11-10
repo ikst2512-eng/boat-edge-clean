@@ -268,6 +268,50 @@ class T12SeedTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"immutable_conflict"):
             publish_base(raw(),CODE,lambda path:b"changed",
                          lambda p,d:self.fail("write"),clock=lambda:NOW)
+    def test_hours_old_local_prediction_is_never_reclassified_as_t12(self):
+        stale=base()
+        early=(NOW-timedelta(hours=2)).isoformat()
+        for key in ("generated_at","source_title_received_jst","source_cards_received_jst"):
+            stale[key]=early
+        old_bytes=json.dumps(stale,ensure_ascii=False).encode()
+        with self.assertRaisesRegex(ValueError,"generated_before_selection_window"):
+            validate_base(old_bytes,CODE,now=NOW)
+        # The original research_model.predict may return a previously saved
+        # local forecast without regenerating. Refuse ledger publication.
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/(CODE+".json")
+            path.write_bytes(old_bytes)
+            created=[]
+            output=seed_once(
+                now=lambda:NOW,
+                fetch_title=lambda url:title(),
+                predictor=lambda *args:None,
+                record_path=lambda code:path,
+                ledger_ops=(lambda key:None,lambda key,value:created.append(key)))
+            self.assertEqual(output["eligible_count"],1)
+            self.assertEqual(output["stored_count"],0)
+            self.assertEqual(output["failed_count"],1)
+            self.assertEqual(created,[])
+            self.assertIn("generated_before_selection_window",
+                          output["results"][0]["error_code"])
+            self.assertEqual(path.read_bytes(),old_bytes)
+
+    def test_earliest_allowed_t12_generation_still_passes(self):
+        payload=base()
+        earliest=(datetime(2026,11,3,18,21,tzinfo=JST)-
+                  timedelta(minutes=14)).isoformat()
+        for key in ("generated_at","source_title_received_jst","source_cards_received_jst"):
+            payload[key]=earliest
+        self.assertEqual(validate_base(json.dumps(payload).encode(),CODE,now=NOW),
+                         "t12_baselines/20261103/"+CODE+".json")
+
+    def test_source_receipt_after_generated_time_never_counts_as_t12(self):
+        payload=base()
+        payload["source_cards_received_jst"]=(NOW+timedelta(seconds=1)).isoformat()
+        with self.assertRaisesRegex(ValueError,"source_received_after_generation"):
+            validate_base(json.dumps(payload).encode(),CODE,
+                          now=NOW+timedelta(minutes=1))
+
     def test_source_receipts_and_generated_clock_cannot_be_in_future(self):
         for field in ("generated_at","source_title_received_jst",
                       "source_cards_received_jst"):

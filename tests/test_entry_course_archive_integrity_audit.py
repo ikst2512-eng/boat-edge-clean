@@ -16,8 +16,11 @@ def t12_content():
     baseline,card,ev=fixture()
     baseline.update({
         "model_version":"national-beta0.4-exploratory-v1",
-        "source_title_received_jst":"2026-11-03T18:00:00+09:00",
-        "source_cards_received_jst":"2026-11-03T18:00:00+09:00",
+        # T-12 selection permits generation from 18:07 to before 18:21.
+        # Keep this positive fixture genuinely window-timed, not cached at 18:00.
+        "generated_at":"2026-11-03T18:15:00+09:00",
+        "source_title_received_jst":"2026-11-03T18:15:00+09:00",
+        "source_cards_received_jst":"2026-11-03T18:15:00+09:00",
         "source_title_sha256":"a"*64,
         "source_cards_sha256":"b"*64,
         "input_sha256":"c"*64,
@@ -66,6 +69,19 @@ class ArchiveIntegrityTests(unittest.TestCase):
         self.assertEqual(out["invalid_blob_or_payload_count"],0)
         self.assertFalse(out["independent_remote_first_add_time_verified"])
         self.assertFalse(out["pre_cutoff_git_publication_verified"])
+    def test_old_cached_generation_is_not_valid_t12_even_with_matching_git_sha(self):
+        stale=json.loads(t12_content())
+        stale["generated_at"]="2026-11-03T18:00:00+09:00"
+        stale["source_title_received_jst"]=stale["generated_at"]
+        stale["source_cards_received_jst"]=stale["generated_at"]
+        raw_stale=(json.dumps(stale,ensure_ascii=False,sort_keys=True)+"\n").encode()
+        pair=blob(raw_stale,f"t12_baselines/{DAY}/{CODE}.json")
+        result=audit_archive_bytes(DAY,[pair[0]],
+            fake_fetch({pair[0]["sha"]:pair[1]}),repository=REPO)
+        self.assertEqual(result["t12_payload_valid_count"],0)
+        self.assertEqual(result["invalid_blob_or_payload_count"],1)
+        self.assertFalse(result["independent_remote_first_add_time_verified"])
+
     def test_modified_reference_is_unmatched_even_if_pilot_ranking_valid(self):
         tree,store=records(changed_reference=True)
         out=audit_archive_bytes(DAY,tree,fake_fetch(store),repository=REPO)

@@ -163,6 +163,13 @@ def validate_base(raw, code, *, now, expected_deadline=None):
             now.utcoffset() is None or now>=cutoff or
             max(generated,title,card)>now):
         raise ValueError("t12_archive_missed_cutoff")
+    # A pre-existing research_snapshots/<race>.json can be hours old:
+    # research_model.predict() reuses it verbatim. It must not masquerade
+    # as a forecast generated during this T-12 selection window.
+    if generated < cutoff-timedelta(minutes=ALLOWED_WINDOW[1]):
+        raise ValueError("t12_archive_generated_before_selection_window")
+    if title>generated or card>generated:
+        raise ValueError("t12_archive_source_received_after_generation")
     from research_model import probabilities
     rates=d.get("national_win_rates")
     if (type(rates) is not list or len(rates)!=6 or
