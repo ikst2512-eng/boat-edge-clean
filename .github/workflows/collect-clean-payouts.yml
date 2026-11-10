@@ -1,5 +1,10 @@
 name: CLEAN independently verified trifecta payouts
 on:
+  # Reuse the existing confirmed-result collector when GitHub skips payout Cron.
+  # This is ONE extra event on the SAME payout writer, not an extra writer.
+  workflow_run:
+    workflows: ['CLEAN independent confirmed result collection']
+    types: [completed]
   workflow_dispatch:
   push:
     branches: [main]
@@ -15,6 +20,20 @@ concurrency:
   cancel-in-progress: false
 jobs:
   collect:
+    # workflow_run can be fired by PRs or external branches; only the trusted
+    # same-repository main result collector can wake a privileged payout write.
+    # Preserve PR's read-only probe, but block feature-branch manual dispatch.
+    if: >-
+      ${{ github.event_name == 'pull_request' ||
+          (github.event_name == 'workflow_run' &&
+           github.event.workflow_run.conclusion == 'success' &&
+           github.event.workflow_run.head_branch == 'main' &&
+           github.event.workflow_run.head_repository.full_name == github.repository &&
+           contains(fromJSON('["schedule","workflow_dispatch","workflow_run"]'),
+                    github.event.workflow_run.event)) ||
+          (github.ref == 'refs/heads/main' &&
+           contains(fromJSON('["schedule","workflow_dispatch","push"]'),
+                    github.event_name)) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
@@ -30,7 +49,10 @@ jobs:
           import json
           from collect_clean_payouts import collect
           try:
-              print("HISTORICAL_PAYOUT_PROBE", json.dumps(collect("20261030"), sort_keys=True))
+              for day in ("20261030", "20261110"):
+                  # PR job is read-only relative to GitHub: data only written
+                  # to the disposable runner's untracked local files.
+                  print("HISTORICAL_PAYOUT_PROBE", json.dumps(collect(day), sort_keys=True))
           except Exception as error:
               print("HISTORICAL_PAYOUT_PROBE_ERROR", type(error).__name__, str(error))
               raise
@@ -60,6 +82,17 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'data: archive result-matched payout evidence'
-          git fetch origin main
-          git rebase origin/main
-          git push origin HEAD:main
+          # Other append-only main data writers can advance main during this
+          # payout job. Retry non-fast-forward push without changing old payout.
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            git rebase origin/main
+            if git push origin HEAD:main; then
+              break
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              echo "main advanced concurrently; payout append retries exhausted" >&2
+              exit 1
+            fi
+            sleep "$attempt"
+          done
