@@ -10,13 +10,13 @@ on:
       - .github/workflows/verify-real-beforeinfo.yml
   workflow_dispatch:
   schedule:
-    - cron: '40 12 * * *'
+    - cron: '35 10 * * *' # 19:35 JST: evening races still open; no extra cron
 permissions:
   contents: read
 jobs:
   real-source:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - name: Verify current-source probe classification
@@ -24,4 +24,106 @@ jobs:
       - name: Verify official six-boat values and missing-field diagnostics
         run: python -m unittest discover -s tests -p test_official_preview.py -v
       - name: Probe current real HTTPS CSV/official adapter (no fixture)
+        if: github.event_name != 'pull_request'
         run: python scripts/verify_real_beforeinfo_source.py
+      - uses: actions/setup-node@v4
+        if: always()
+        with:
+          node-version: '22'
+      - name: Install existing Playwright browser for read-only live Pages verification
+        if: always()
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install chromium
+      - name: Compare real official six-boat source, Render and public Pages (diagnostic)
+        if: always()
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        timeout-minutes: 4
+        run: |
+          cat > .clean-live-official-pages.cjs <<'JS'
+          const {chromium}=require('playwright');
+          const fs=require('node:fs');
+          const base='https://boat-edge-clean.onrender.com';
+          const pages='https://ikst2512-eng.github.io/boat-edge-clean/';
+          const day=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+          const hd=day.replace(/-/g,'');
+          const report=[];
+          const out=s=>{console.log(s);fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,s+'\n')};
+          const get=async(ctx,url)=>{const r=await ctx.request.get(url,{timeout:20000});if(r.status()!==200)throw Error('HTTP_'+r.status()+' '+new URL(url).pathname);return {data:await r.json(),received:Date.now(),url:r.url()}};
+          const valid6=a=>Array.isArray(a)&&a.length===6&&[1,2,3,4,5,6].every(x=>a.filter(y=>Number(y?.lane??y?.teino)===x).length===1);
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+            let matched=0;
+            try{
+              const schedule=await get(ctx,base+'/api/clean-schedule?date='+hd);
+              if(!Array.isArray(schedule.data.races))throw Error('schedule_races_missing');
+              const now=Date.now();
+              const candidates=schedule.data.races.filter(r=>{
+                const deadline=Date.parse(r.deadline_jst||'');
+                return Number.isFinite(deadline)&&deadline-now>120000&&deadline-now<3600000&&
+                  /^[0-9]{2}$/.test(String(r.venue_code))&&Number.isInteger(r.race_no);
+              }).sort((a,b)=>a.deadline_jst.localeCompare(b.deadline_jst)).slice(0,8);
+              if(!candidates.length)report.push('NO_STILL_OPEN_RACE_WITHIN_60_MIN');
+              for(const race of candidates){
+                const venue=Number(race.venue_code),rno=race.race_no,deadline=Date.parse(race.deadline_jst);
+                const code=hd+String(venue).padStart(2,'0')+String(rno).padStart(2,'0');
+                try{
+                  const officialUrl='https://www.boatrace.jp/owsp/sp/spdata?type=beforeinfo&hd='+hd+'&jcd='+String(venue).padStart(2,'0')+'&rno='+rno;
+                  const src=await get(ctx,officialUrl);
+                  if(src.url!==officialUrl)throw Error('official_redirect');
+                  const main=src.data.maindata;
+                  if(!main||String(main.hd)!==hd||Number(main.jcd)!==venue||Number(main.rno)!==rno||!valid6(main.teiinfolist)||!valid6(main.sttenjiinfolist))throw Error('official_identity_or_six_missing');
+                  const byLane=(arr,l)=>arr.find(x=>Number(x.teino??x.lane)===l);
+                  const courses=main.sttenjiinfolist.map(x=>Number(x.cs)).sort((a,b)=>a-b);
+                  if(courses.join(',')!=='1,2,3,4,5,6')throw Error('official_courses_invalid');
+                  const exp={};
+                  for(let l=1;l<=6;l++){
+                    const x=byLane(main.teiinfolist,l),st=byLane(main.sttenjiinfolist,l);
+                    const time=Number(x.extime),tilt=Number(x.tilt);
+                    if(!x.extime||!x.tilt||!Number.isFinite(time)||time<5||time>9||!Number.isFinite(tilt)||tilt< -1||tilt>3||!/^(?:F|L)?\.\d{1,2}$/.test(String(st.st||'')))throw Error('official_measurements_incomplete');
+                    exp[l]={registration:String(x.racerno),time,tilt,st:String(st.st),course:Number(st.cs)};
+                  }
+                  const apiUrl=base+'/api/clean-racecard?hd='+hd+'&jcd='+venue+'&rno='+rno;
+                  const api=await get(ctx,apiUrl),d=api.data;
+                  if(api.received>=deadline||src.received>=deadline)throw Error('receipt_not_predeadline');
+                  if(d.race_key!==hd+'-'+String(venue).padStart(2,'0')+'-'+String(rno).padStart(2,'0')||
+                    d.source_audit?.beforeinfo?.status!=='ok'||Date.parse(d.source_audit.beforeinfo.fetched_at)>=deadline||
+                    !valid6(d.racers)||!valid6(d.beforeinfo?.racers)||!valid6(d.beforeinfo?.start_exhibition))throw Error('public_api_missing_verified_six');
+                  for(let l=1;l<=6;l++){
+                    const racer=d.racers.find(x=>x.lane===l),ex=d.beforeinfo.racers.find(x=>x.lane===l),st=d.beforeinfo.start_exhibition.find(x=>x.lane===l);
+                    const v=exp[l];
+                    if(String(racer.registration_no)!==v.registration||Number(ex.exhibition_time)!==v.time||Number(ex.tilt)!==v.tilt||String(st.st)!==v.st||Number(st.course)!==v.course)throw Error('public_api_source_mismatch_lane_'+l);
+                  }
+                  const page=await ctx.newPage();
+                  try{
+                    const target=new URL(pages);for(const [k,v] of [['date',day],['venue',String(venue)],['race',String(rno)],['view','exhibit']])target.searchParams.set(k,v);
+                    const loaded=await page.goto(target.href,{waitUntil:'domcontentloaded',timeout:30000});
+                    if(loaded?.status()!==200)throw Error('pages_http_'+loaded?.status());
+                    await page.evaluate(({date,v,r})=>{s.date=date;s.venue=v-1;s.race=r;setView('exhibit');render()},{date:day,v:venue,r:rno});
+                    await page.waitForFunction(()=>document.querySelectorAll('#exhibitionGrid .exhibition-boat').length===6 &&
+                      (document.querySelector('#exhibitionGrid .muted')?.textContent||'').includes('取得記録は締切前'),
+                      null,{timeout:23000});
+                    const shown=await page.evaluate(()=>[...document.querySelectorAll('#exhibitionGrid .exhibition-boat')].map(el=>({
+                      lane:Number(el.querySelector('.lane-badge')?.textContent),
+                      entries:Object.fromEntries([...el.querySelectorAll('.exhibition-metric')].map(m=>[m.querySelector('span')?.textContent,m.querySelector('strong')?.textContent]))
+                    })));
+                    if(shown.length!==6||shown.some((x,i)=>x.lane!==i+1))throw Error('pages_six_lanes_wrong');
+                    for(let l=1;l<=6;l++){
+                      const m=shown[l-1].entries,v=exp[l];
+                      if(m['展示タイム']!==String(v.time)||m['チルト']!==String(v.tilt)||m['展示ST']!==v.st||m['展示進入']!==v.course+'C')throw Error('pages_official_mismatch_lane_'+l);
+                    }
+                    if(Date.now()>=deadline)throw Error('pages_completed_after_cutoff');
+                    matched++;
+                    out('LIVE_OFFICIAL_PAGES_E2E_PASS '+code+' | official JSON -> Render API -> actual Pages browser | 6 lanes x 4 metrics = 24 exact values | before cutoff | not T-12');
+                    break;
+                  }finally{await page.close()}
+                }catch(e){report.push(code+':'+String(e.message).slice(0,130));console.log('LIVE_OFFICIAL_CASE_UNVERIFIED',code,String(e.message))}
+              }
+              if(!matched){out('LIVE_OFFICIAL_PAGES_E2E_UNVERIFIED '+JSON.stringify(report));process.exitCode=1}
+            }catch(e){out('LIVE_OFFICIAL_PAGES_E2E_UNVERIFIED '+String(e));process.exitCode=1}
+            finally{await ctx.close();await browser.close()}
+          })().catch(e=>{console.error(e);process.exitCode=1});
+          JS
+          node --check .clean-live-official-pages.cjs
+          node .clean-live-official-pages.cjs
