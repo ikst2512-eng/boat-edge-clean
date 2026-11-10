@@ -11,8 +11,8 @@ import json
 import re
 
 JST = timezone(timedelta(hours=9))
-CODE = re.compile(r"20[0-9]{10}\\Z")
-DAY = re.compile(r"20[0-9]{6}\\Z")
+CODE = re.compile(r"20[0-9]{10}$")
+DAY = re.compile(r"20[0-9]{6}$")
 WORKFLOW_ID = 405663641
 EVENTS = frozenset(("schedule", "workflow_dispatch"))
 # Exactly matches entry_course_t12_seed.near_t12: (2, 14) minutes
@@ -146,7 +146,7 @@ def main():
     report = audit_snapshot(json.loads(Path(args.input).read_text(encoding="utf-8")))
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(report, indent=2, ensure_ascii=False, sort_keys=True) + "\\n",
+    output.write_text(json.dumps(report, indent=2, ensure_ascii=False, sort_keys=True) + chr(10),
                       encoding="utf-8")
     print(json.dumps({"state_counts": report["state_counts"], "formal": False}, sort_keys=True))
 
