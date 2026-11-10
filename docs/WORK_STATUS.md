@@ -1,3 +1,9 @@
+## 2026-11-11 00時台｜T−12の旧予想再利用を解消・29件の実CI合格
+- **発見した根本原因**：[#1734](https://github.com/ikst2512-eng/boat-edge-clean/pull/1734) の既存29原本監査で、26件はT−12選定窓より古い`generated_at`だった。既存`research_model.predict`は普通の研究予想`research_snapshots/<race>.json`が存在すると、過去の原本をそのまま返すため、T−12の新規収集を試みず古い予想を独立台帳へ凍結していた。旧原本は削除も再時刻付けもしない。
+- **実装済み（新Cron/PRなし）**：[main `d8581593`](https://github.com/ikst2512-eng/boat-edge-clean/commit/d8581593cb36ac7dfe51cd44af418e8ecf5a3500)で既存モデルに任意の`output_dir`を追加。通常呼出しは従来どおり`_saved`でキャッシュを返し、既存スナップショットを書き換えない。[main `bbfdd3eb`](https://github.com/ikst2512-eng/boat-edge-clean/commit/bbfdd3eb13e0aa7c56521da7d09a4f5f89d0b11f)で**新規T−12台帳レースのみ**一時ディレクトリに新しい元ソースを取得・研究予想生成し、厳格な生成時刻/ソース受領/締切検査後に create-only の独立Git台帳へ追加。既存の独立台帳原本があれば先に照合して再生成しない。元ソースが未提供なら失敗として保存0件、旧キャッシュを偽装しない。
+- **再現試験・実行証拠**：[main `ce1e0cd3`](https://github.com/ikst2512-eng/boat-edge-clean/commit/ce1e0cd336ffbc35f422dd777658a0631442b5a4) に「通常モデルは古い保存済み原本を返すがT−12は独立新規生成できる」「新規ソース失敗は保存なし、元原本はバイト不変」を追加。既存[regression workflow `fceee894`](https://github.com/ikst2512-eng/boat-edge-clean/commit/fceee89499585a02aac6104177d3d074c6d63df5)で29件のT−12回帰試験をpush時に追加。**[Actions #42844134322](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42844134322) SUCCESS、29/29 PASS**。新しい正式T−12成果を実際に保存できたという意味ではない。
+- **朝の実測ゲート**：11/11 08:00〜08:59 JSTに既存schedule/watchdogが起動するか、独立台帳で新規Git初回追加が締切前か、予想`generated_at`とtitle/card受領時刻が適切か、ソース実測とSHAがあるかを別々に監査。09:15 JST既存自動監査の指示にこの新生成経路と29件CIを追記済み。初回リモート保存と正式6艇/オッズ120は依然未認定。V1期限12/10維持。
+
 ## 2026-11-11 00時台｜7項目チェックリストの本番証拠判定・11/11監査への引継ぎ
 - **ユーザー入力の区別**：作業チェックリスト7/7にユーザーチェックあり。ただしチェックは進捗の確認依頼であり、各項目の本番合格を証明しない。正式な完了はGitHub main・Actions・公開Pages/Renderの独立実測で判定する。V1期限は**2026-12-10**のまま。
 - **照合したmain**：`0b768a1e68b3e3b3d7034993daf90cc16fe8d230`（[#1734](https://github.com/ikst2512-eng/boat-edge-clean/commit/0b768a1e68b3e3b3d7034993daf90cc16fe8d230)）。古いキャッシュ予想・生成と受領の時系列違反をT−12原本と誤認定しない修正。コード/テスト追加の成功を、翌朝の自動保存実証に代替しない。
