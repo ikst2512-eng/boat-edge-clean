@@ -339,9 +339,9 @@ assert.ok(!script.includes("record.official_finish!==item.match"),'old four-mode
 assert.ok(!script.includes("document.querySelector('.view-tabs').scrollIntoView"),'no removed-tab scroll references');
 
 assert.ok(html.includes('id="forecastPreviewStatus"')&&html.includes('id="forecastPreviewRows"'),'forecast needs visible beforeinfo summary');
-assert.ok(script.includes('async function loadForecastPreview()')&&script.includes('loadForecastPreview();loadForecastCourseStats();loadForecastPriorResults()}'),'forecast must fetch selected race beforeinfo');
+assert.ok(script.includes('async function loadForecastPreview()')&&script.includes('loadForecastCourseStats();loadForecastPriorResults();loadForecastPreview()'),'racecard rates subtab must fetch verified beforeinfo and course statistics');
 assert.ok(script.includes("raw.source_audit?.beforeinfo?.status!=='ok'"),'reject unsupported preview sources');
-console.log('PASS: selected-race beforeinfo panel in forecast');
+console.log('PASS: verified selected-race beforeinfo and card-level rates panel');
 
 // Pages review requires a real CLEAN API origin, not a Pages-relative /api path.
 assert.ok(html.includes("fetchTimed('https://boat-edge-clean.onrender.com/api/clean-result?hd="),'review must fetch CLEAN result via Render');
