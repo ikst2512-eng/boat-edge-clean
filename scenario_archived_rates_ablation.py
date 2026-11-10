@@ -111,17 +111,28 @@ def run_ablation(nov9_zip, nov10_zip, originals_dir, conditional_callback):
                         witness["original_receipt_jst_self_reported"]]
         if not source_clock or any(generated >= x for x in source_clock):
             raise ValueError("original_self_reported_generation_not_before_official_pair")
-        def evaluate(rate_input):
+        def evaluate(rate_input, scenario_input=None):
             out = evaluate_exhibition_mode_lenses(
-                projection, list(rate_input), hypotheses(), weights(),
-                conditional_callback, study_id=STUDY)
+                projection, list(rate_input),
+                hypotheses() if scenario_input is None else scenario_input,
+                weights(), conditional_callback, study_id=STUDY)
             if (out["formal"] or out["forecast_usable"] or out["promotion_allowed"]
                     or out["first_candidate_remote_receipt_verified"]
                     or out["outcomes_read_by_adapter"]):
                 raise ValueError("unapproved_provenance_or_promotion")
             return out
         neutral, archived = evaluate(NEUTRAL_RATES), evaluate(rates)
+        # Strictly controlled negative hypothesis: remove every head log-shift
+        # while preserving actual archived rates, exhibition ST/time/entry,
+        # position coefficients, all scenario weights and ticket budgets.
+        # This is sensitivity to uncalibrated scenario assumptions, NOT
+        # identification of the causal effect or improvement in hit rate.
+        no_head = hypotheses()
+        for scenario in no_head.values():
+            scenario["head_log_shifts"] = [0.0] * 6
+        without_head = evaluate(rates, no_head)
         per_mode = {}
+        head_effect = {}
         for mode in MODES:
             a = neutral["four_mode_research_tickets"][mode]
             b = archived["four_mode_research_tickets"][mode]
@@ -139,6 +150,16 @@ def run_ablation(nov9_zip, nov10_zip, originals_dir, conditional_callback):
                 "shared_ticket_count": len(at & bt),
                 "ticket_count": BUDGETS[mode],
             }
+            h = without_head["four_mode_research_tickets"][mode]
+            ht = {x["combo"] for x in h["tickets"]}
+            head_effect[mode] = {
+                "uncalibrated_head_shift_changes_120_board":
+                    b["distinct_120_mixture_digest"] != h["distinct_120_mixture_digest"],
+                "uncalibrated_head_shift_changes_top1": b["top1"] != h["top1"],
+                "uncalibrated_head_shift_changes_ticket_membership": bt != ht,
+                "shared_ticket_count_without_head_shift": len(bt & ht),
+                "ticket_count": BUDGETS[mode],
+            }
         rows.append({
             "race_code": code,
             "status": "ARCHIVED_SIX_RATES_PLUS_REAL_EXHIBITION_RESEARCH_ONLY",
@@ -152,6 +173,9 @@ def run_ablation(nov9_zip, nov10_zip, originals_dir, conditional_callback):
             "hypothetical_scenario_coefficients_are_calibrated": False,
             "model_uses_actual_final_entry": False,
             "mode_input_ablation": per_mode,
+            "mode_uncalibrated_head_shift_ablation": head_effect,
+            "head_shift_ablation_kept_real_rates_exhibition_and_position_features": True,
+            "head_shift_assumptions_validated_against_results": False,
             "formal": False, "results_read": False,
         })
     if len(rows) != 4 or sum(x["status"].startswith("ARCHIVED_SIX") for x in rows) != 3:
