@@ -133,8 +133,25 @@ def prepare_local_candidate(gateway, registered_protocol, generated_at_jst, froz
         raise ValueError("unverified_six_national_rates")
     registered_scens=registered_protocol.get("scenario_hypotheses")
     registered_weights=registered_protocol.get("mode_weights")
+    # The committed protocol is JSON: 1 and 1.0 mean the same model
+    # coefficient, but produce different raw JSON digests. The actual #1710
+    # model creates mode weights as Python float(0.0/1.0). Canonicalize
+    # numeric type ONLY; do not change any numerical coefficient or
+    # recompute/tune weights from race outcomes. Protocol value equality is
+    # separately pinned and checked by the existing freeze CI.
+    if (type(registered_weights) is not dict
+            or set(registered_weights) != set(BUDGETS)
+            or any(type(v) is not dict or
+                   any(type(w) not in (int,float) or not math.isfinite(w)
+                       or not 0 <= w <= 1 for w in v.values())
+                   for v in registered_weights.values())):
+        raise ValueError("invalid_preregistered_mode_weights")
+    canonical_weights={
+        mode:{world:float(value) for world,value in registered_weights[mode].items()}
+        for mode in BUDGETS
+    }
     expected_signature=hashlib.sha256(json.dumps(
-        {"scenarios":registered_scens,"weights":registered_weights},
+        {"scenarios":registered_scens,"weights":canonical_weights},
         sort_keys=True,ensure_ascii=False,
         separators=(",",":"),allow_nan=False).encode()).hexdigest()
     if gateway.get("hypothesis_signature_sha256")!=expected_signature:
