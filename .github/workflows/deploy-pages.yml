@@ -306,7 +306,28 @@ jobs:
               });
               const status=await page.locator('#raceDataStatus').innerText();
               const count=await page.locator('#raceDataRows tr').count();
-              if(count!==6)throw Error('PUBLIC_HISTORICAL_RACECARD_NOT_SIX_LANES '+JSON.stringify({count,status}));
+              if(count!==6){
+                // Do not convert a failed Render read or invalid card into a
+                // successful browser check. Record actual backend response and
+                // selected race for actionable public deployment diagnostics.
+                const state=await page.evaluate(()=>({
+                  selected:sameRaceKey(),date:s.date,venue:s.venue,race:s.race,
+                  view:activeView,requestId:window.raceDataRequestId,
+                  cached:verifiedRaceCache.has(sameRaceKey())
+                }));
+                const cardUrl='https://boat-edge-clean.onrender.com/api/clean-racecard?hd='+
+                  race.key.slice(0,8)+'&jcd='+Number(race.key.slice(8,10))+
+                  '&rno='+Number(race.key.slice(10,12));
+                let probe;
+                try{
+                  const api=await page.request.get(cardUrl,{timeout:20000,headers:{'Cache-Control':'no-cache'}});
+                  probe={http:api.status(),body:(await api.text()).slice(0,450)};
+                }catch(error){
+                  probe={error:String(error).slice(0,260)};
+                }
+                console.log('PUBLIC_HISTORICAL_RACECARD_UNVERIFIED',JSON.stringify({race:race.key,count,status,state,probe}));
+                throw Error('PUBLIC_HISTORICAL_RACECARD_NOT_SIX_LANES '+JSON.stringify({race:race.key,count,status,state,probe}));
+              }
               const lanes=await page.locator('#raceDataRows tr td:first-child').allTextContents();
               if(lanes.map(x=>x.trim()).join(',')!=='1,2,3,4,5,6')throw Error('PUBLIC_HISTORICAL_RACECARD_LANES '+lanes.join(','));
               if(!(await page.locator('#raceDataSource').innerText()).includes('Git初回登録時刻は未照合'))throw Error('PUBLIC_HISTORICAL_RACECARD_EVIDENCE_NOTICE_MISSING');
