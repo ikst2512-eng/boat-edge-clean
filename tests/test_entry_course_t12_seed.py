@@ -224,6 +224,73 @@ class T12SeedTests(unittest.TestCase):
         self.assertEqual(output["stored_count"],0)
         self.assertEqual(output["results"][0]["status"],"failed")
         self.assertIn("invalid_reference",output["results"][0]["error_code"])
+    def test_git_read_after_create_lag_is_bounded_and_never_creates_twice(self):
+        from unittest.mock import patch
+        payload=raw()
+        for failure_kind in ("missing", "transient_api_error"):
+            with self.subTest(failure_kind=failure_kind):
+                store={}
+                calls=[0]
+                created=[]
+                def read(path):
+                    calls[0]+=1
+                    # First get is the legitimate pre-create absence.
+                    # First two post-PUT reads lag the successful write.
+                    if calls[0] in (2,3):
+                        if failure_kind=="transient_api_error":
+                            raise ValueError("course_ledger_read_failed")
+                        return None
+                    return store.get(path)
+                def create(path,content):
+                    self.assertNotIn(path,store)
+                    store[path]=content
+                    created.append(path)
+                with patch("entry_course_t12_seed.sleep",return_value=None) as delay:
+                    result=publish_base(payload,CODE,read,create,clock=lambda:NOW)
+                self.assertEqual(result["status"],"new_t12_baseline")
+                self.assertEqual(len(created),1)
+                self.assertEqual(store[result["path"]],payload)
+                self.assertEqual(calls[0],4)
+                self.assertEqual(delay.call_count,2)
+
+    def test_git_readback_conflicting_bytes_are_rejected_without_retry(self):
+        from unittest.mock import patch
+        count=[0]
+        def read(_):
+            count[0]+=1
+            return None if count[0]==1 else b"other-payload"
+        created=[]
+        with patch("entry_course_t12_seed.sleep") as delay:
+            with self.assertRaisesRegex(ValueError,"readback_failed"):
+                publish_base(raw(),CODE,read,
+                    lambda path,content:created.append(path),clock=lambda:NOW)
+        self.assertEqual(len(created),1)
+        self.assertEqual(count[0],2)
+        delay.assert_not_called()
+
+    def test_git_readback_cutoff_crossing_cannot_be_reported_as_timely(self):
+        from unittest.mock import patch
+        cutoff=datetime(2026,11,3,18,21,tzinfo=JST)
+        ticks=iter((NOW,NOW,cutoff))
+        created=[]
+        with patch("entry_course_t12_seed.sleep",return_value=None) as delay:
+            with self.assertRaisesRegex(ValueError,"remote_commit_after_cutoff"):
+                publish_base(raw(),CODE,lambda _:None,
+                    lambda path,content:created.append(path),
+                    clock=lambda:next(ticks))
+        self.assertEqual(len(created),1)
+        delay.assert_called_once()
+
+    def test_git_readback_persistent_absence_remains_unverified(self):
+        from unittest.mock import patch
+        created=[]
+        with patch("entry_course_t12_seed.sleep",return_value=None) as delay:
+            with self.assertRaisesRegex(ValueError,"readback_failed"):
+                publish_base(raw(),CODE,lambda _:None,
+                    lambda path,content:created.append(path),clock=lambda:NOW)
+        self.assertEqual(len(created),1)
+        self.assertEqual(delay.call_count,3)
+
     def test_remote_readback_mutation_blocks_existing_baseline(self):
         calls=[raw(), b"mutated"]
         def read(path):
