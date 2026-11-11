@@ -389,10 +389,13 @@ class BundleTests(unittest.TestCase):
             'git_commit_sha': 'c' * 40,
             'git_commit_added_path_verified': True,
         }
-        with patch.dict(os.environ, env), patch.object(sys, 'argv', cli), (
-                patch.object(writer, 'verify_independent_source_and_shadow_replay',
-                             return_value=True) as replay), (
-                patch.object(writer, 'store_once', return_value=expected) as store):
+        with (
+            patch.dict(os.environ, env),
+            patch.object(sys, 'argv', cli),
+            patch.object(writer, 'verify_independent_source_and_shadow_replay',
+                         return_value=True) as replay,
+            patch.object(writer, 'store_once', return_value=expected) as store,
+        ):
             writer.main()
         result = json.loads(receipt_path.read_text(encoding='utf-8'))
         self.assertEqual(result['status'], 'checked')
@@ -414,12 +417,14 @@ class BundleTests(unittest.TestCase):
         rejected = self.root / 'official-source-git-receipt' / 'rejected.json'
         bad_cli = cli[:]
         bad_cli[-1] = str(rejected)
-        with patch.dict(os.environ, {**env, 'GITHUB_REF': 'refs/heads/feature'}), (
-                patch.object(sys, 'argv', bad_cli)), (
-                patch.object(writer, 'verify_independent_source_and_shadow_replay',
-                             side_effect=AssertionError('replay forbidden'))), (
-                patch.object(writer, 'store_once',
-                             side_effect=AssertionError('write forbidden'))):
+        with (
+            patch.dict(os.environ, {**env, 'GITHUB_REF': 'refs/heads/feature'}),
+            patch.object(sys, 'argv', bad_cli),
+            patch.object(writer, 'verify_independent_source_and_shadow_replay',
+                         side_effect=AssertionError('replay forbidden')),
+            patch.object(writer, 'store_once',
+                         side_effect=AssertionError('write forbidden')),
+        ):
             with self.assertRaisesRegex(ValueError, 'guarded_non_main'):
                 writer.main()
         denied = json.loads(rejected.read_text(encoding='utf-8'))
