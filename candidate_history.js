@@ -16,10 +16,10 @@ const today=()=>{
 const validDay=x=>typeof x==='string'&&/^20\d{2}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(x+'T12:00:00+09:00'));
 let selectedDay=validDay(new URLSearchParams(location.search).get('date'))?new URLSearchParams(location.search).get('date'):today();
 let requestId=0;
-let activeFilter="pass";
+let activeFilter="priority";
 let savedRaces=[];
 let selectionAvailable=false;
-document.getElementById('todayCandidateHeading').textContent='候補レース｜研究条件クリア（暫定）';
+document.getElementById('todayCandidateHeading').textContent='候補レース｜研究優先10件（暫定）';
 const toolbar=document.createElement('div');toolbar.className='candidate-history-toolbar';
 const label=document.createElement('label');label.textContent='表示日（日本時間） ';
 const dateInput=document.createElement('input');dateInput.type='date';dateInput.id='candidateHistoryDate';dateInput.value=selectedDay;dateInput.max=today();label.append(dateInput);
@@ -118,11 +118,14 @@ function showRace(race){
  node.append(detail);return node;
 }
 function renderSavedRaces(d){
- const pass=savedRaces.filter(r=>r.selection_status==='research_70_pass');
+ const pass=savedRaces.filter(r=>r.selection_status==='research_70_pass')
+  .sort((a,b)=>(b.head_top2_model_pct??-1)-(a.head_top2_model_pct??-1)||a.race_code.localeCompare(b.race_code));
+ const priority=pass.slice(0,10);
  const below=savedRaces.filter(r=>r.selection_status==='research_70_below');
  const unknown=savedRaces.filter(r=>r.selection_status==='unassessed');
  const categories=[
-  ['pass','研究条件クリア',pass.length],['below','基準未達',below.length],
+  ['priority','研究優先10件',priority.length],['pass','条件通過すべて',pass.length],
+  ['below','基準未達',below.length],
   ['unassessed','判定不能',unknown.length],['all','全保存履歴',savedRaces.length]
  ];
  filters.replaceChildren();
@@ -132,13 +135,18 @@ function renderSavedRaces(d){
   button.addEventListener('click',()=>{activeFilter=key;renderSavedRaces(d);});
   filters.append(button);
  }
- let visible=activeFilter==='pass'?pass:activeFilter==='below'?below:activeFilter==='unassessed'?unknown:savedRaces;
- if(activeFilter==='pass')visible=[...visible].sort((a,b)=>(b.head_top2_model_pct??-1)-(a.head_top2_model_pct??-1)||a.race_code.localeCompare(b.race_code));
+ const visible=activeFilter==='priority'?priority:activeFilter==='pass'?pass:
+  activeFilter==='below'?below:activeFilter==='unassessed'?unknown:savedRaces;
+ document.getElementById('todayCandidateHeading').textContent={
+  priority:'候補レース｜研究優先10件（暫定）',pass:'候補レース｜研究条件クリア全件',
+  below:'候補レース｜研究基準未達',unassessed:'候補レース｜判定不能',
+  all:'候補レース｜全保存履歴'
+ }[activeFilter];
  const fragment=document.createDocumentFragment();
  for(const race of visible)fragment.append(showRace(race));
- if(!visible.length)fragment.append(text('p',activeFilter==='pass'?'この日に研究条件を満たした保存済みレースはありません。全保存履歴も確認できます。':'この区分に保存済みレースはありません。','notes candidate-empty'));
+ if(!visible.length)fragment.append(text('p',activeFilter==='priority'||activeFilter==='pass'?'この日に研究条件を満たした保存済みレースはありません。全保存履歴も確認できます。':'この区分に保存済みレースはありません。','notes candidate-empty'));
  root.replaceChildren(fragment);
- status.textContent='保存候補 '+d.candidate_count+'件｜研究条件クリア '+pass.length+'件｜基準未達 '+below.length+'件｜判定不能 '+unknown.length+'件｜表示 '+visible.length+'件｜研究予想あり '+d.research_forecast_count+'件｜確定結果あり '+d.confirmed_result_count+'件｜払戻照合済み '+(Number.isInteger(d.payout_verified_count)?d.payout_verified_count:'未集計')+'件'+(selectionAvailable?'（保存原本からの未検証研究判定）':'（選定情報は未配信・全履歴を表示）');
+ status.textContent='保存候補 '+d.candidate_count+'件｜研究優先 '+priority.length+'件｜研究条件クリア '+pass.length+'件｜基準未達 '+below.length+'件｜判定不能 '+unknown.length+'件｜表示 '+visible.length+'件｜研究予想あり '+d.research_forecast_count+'件｜確定結果あり '+d.confirmed_result_count+'件｜払戻照合済み '+(Number.isInteger(d.payout_verified_count)?d.payout_verified_count:'未集計')+'件'+(selectionAvailable?'（保存原本からの未検証研究判定）':'（選定情報は未配信・全履歴を表示）');
 }
 async function loadDay(){
  const token=++requestId;
@@ -179,7 +187,7 @@ async function loadDay(){
       counts.unassessed!==d.research_unassessed_count)throw Error('研究分類の件数不一致');
   }else for(const race of d.races){race.selection_status='unassessed';race.head_top2_model_pct=null;}
   savedRaces=d.races;
-  activeFilter=selectionAvailable?'pass':'all';
+  activeFilter=selectionAvailable?'priority':'all';
   renderSavedRaces(d);
  }catch(err){
   if(token!==requestId)return;
