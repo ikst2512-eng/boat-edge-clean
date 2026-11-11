@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from scripts.audit_three_official_t12_originals import audit_three_originals
+from scripts.audit_joint_official_receipts import audit_pair
 
 RACE = re.compile(r"20[0-9]{6}(?:0[1-9]|1[0-9]|2[0-4])(?:0[1-9]|1[0-2])\Z")
 IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,31}\Z")
@@ -92,7 +93,7 @@ def snapshot_timing(directory, race, official):
         return {"status": "forecast_record_unverified", "generated_at_jst": None}
 
 
-def locate_sources(batch_dir, race):
+def locate_sources(batch_dir, race, *, parts=("racelist_", "before_", "odds_")):
     observation_root = batch_dir / "observations"
     if observation_root.is_symlink() or not observation_root.is_dir():
         raise ValueError("official_sources_unavailable")
@@ -105,7 +106,7 @@ def locate_sources(batch_dir, race):
         raise ValueError("official_observation_identity_ambiguous")
     ident = ids[0]
     folders = []
-    for prefix in ("racelist_", "before_", "odds_"):
+    for prefix in parts:
         directory = observation_root / (prefix + ident) / race[:8] / race
         if directory.is_symlink() or not directory.is_dir():
             raise ValueError("official_source_directory_missing")
@@ -118,7 +119,7 @@ def locate_sources(batch_dir, race):
     return folders
 
 
-def audit_batch(batch_dir, forecast_root, *, official_auditor=audit_three_originals):
+def audit_batch(batch_dir, forecast_root, *, official_auditor=audit_three_originals, pair_auditor=audit_pair):
     """No certification is possible even when official raw evidence reaudits."""
     batch_dir, forecast_root = Path(batch_dir), Path(forecast_root)
     try:
@@ -172,11 +173,58 @@ def audit_batch(batch_dir, forecast_root, *, official_auditor=audit_three_origin
             except (ValueError, KeyError, OSError, TypeError, UnicodeError) as exc:
                 row["official_original_status"] = "official_original_reaudit_failed"
                 row["reason"] = type(exc).__name__
+        elif item.get("status") in ("pair_not_ready", "pair_complete"):
+            # Full three-source evidence may be absent because the exhibition
+            # has not published. Still independently audit the two actual raw
+            # official receipts, so this run can establish whether they were
+            # chronologically impossible inputs to the frozen forecast.
+            try:
+                before_dir, odds_dir = locate_sources(
+                    batch_dir, race, parts=("before_", "odds_"))
+                pair = pair_auditor(before_dir, odds_dir)
+                declared = item["joint_audit"]
+                if (not isinstance(declared, dict)
+                        or pair.get("race_code") != race
+                        or pair.get("originals_hash_verified") is not True
+                        or pair.get("both_complete_before_t12") is not (
+                            item["status"] == "pair_complete")
+                        or any(pair.get(k) != declared.get(k) for k in (
+                            "race_code", "cutoff_jst", "before_received_jst",
+                            "odds_received_jst", "component_checks",
+                            "missing_components", "both_complete_before_t12"))):
+                    raise ValueError("official_pair_reaudit_mismatch")
+                cutoff = jst(pair["cutoff_jst"])
+                latest = max(jst(pair["before_received_jst"]),
+                             jst(pair["odds_received_jst"]))
+                observed = {
+                    "official_deadline_jst": (cutoff + timedelta(minutes=12)).isoformat(),
+                    "cutoff_jst": cutoff.isoformat(),
+                    "latest_original_received_jst": latest.isoformat(),
+                }
+                row["official_original_status"] = (
+                    "official_pair_complete_no_racelist_audit"
+                    if pair["both_complete_before_t12"] else
+                    "two_official_originals_reaudited_incomplete")
+                row["source_scope"] = "official_beforeinfo_odds_only"
+                row["latest_official_received_jst"] = latest.isoformat()
+                row["official_received_before_t12"] = (
+                    pair["component_checks"]["beforeinfo_received_by_t12"] is True
+                    and pair["component_checks"]["odds_received_by_t12"] is True)
+                row["forecast_statuses"] = {
+                    name: snapshot_timing(forecast_root / name, race, observed)
+                    for name in ("prospective_predictions", "four_mode_forecasts")
+                }
+            except (ValueError, KeyError, OSError, TypeError, UnicodeError) as exc:
+                row["official_original_status"] = "official_pair_reaudit_failed"
+                row["reason"] = type(exc).__name__
         results.append(row)
     counts = Counter(row["official_original_status"] for row in results)
     return {"schema": "OFFICIAL_FORECAST_TEMPORAL_LINK_AUDIT_V1",
             "status": "read_only_research_audited", "checked": len(results),
             "research_three_originals_reaudited": counts["three_originals_reaudited_research_only"],
+            "official_pairs_reaudited": (
+                counts["official_pair_complete_no_racelist_audit"] +
+                counts["two_official_originals_reaudited_incomplete"]),
             "official_consumed_forecasts": 0, "formal_t12_certified": 0,
             "production_forecast": False, "purchase_approved": False,
             "rows": results}
