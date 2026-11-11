@@ -9,6 +9,7 @@ from pathlib import Path
 
 from scripts.persist_official_research_bundle import (
     JST, SOURCE_FILES, blob_sha, build_bundle, store_once,
+    verify_independent_source_and_shadow_replay,
 )
 
 
@@ -152,6 +153,54 @@ class BundleTests(unittest.TestCase):
         clock = lambda: datetime(2026,11,11,19,45,30,tzinfo=JST)
         a = store_once(path,body,cutoff,'test',getter=forbidden,putter=forbidden,clock=clock)
         self.assertEqual(a['status'],'cutoff_near_or_passed_no_write')
+
+    def test_privileged_job_replays_source_and_prediction(self):
+        original_manifest=json.loads(json.dumps(self.row['official_input_manifest']))
+        original_shadow=json.loads(json.dumps(self.row['official_research_shadow']))
+        calls=[]
+        official={
+            'race_code':self.race,
+            'all_research_components_observed_by_t12':True,
+            'three_originals_hash_verified':True,
+            'missing_components':[],
+            'final_race_entry_verified':False
+        }
+        def auditor(*folders):
+            calls.append([Path(x).name for x in folders])
+            return official
+        rebuild_manifest=lambda folders, audit: original_manifest
+        rebuild_shadow=lambda manifest, stamp: original_shadow
+
+        self.assertTrue(verify_independent_source_and_shadow_replay(
+            self.row,self.dirs,auditor=auditor,
+            manifest_builder=rebuild_manifest,shadow_builder=rebuild_shadow))
+        self.assertEqual(calls,[list(SOURCE_FILES)])
+
+        self.row['official_research_shadow']['predictions']['balance']['tickets'].append('2-3-1')
+        with self.assertRaisesRegex(ValueError,'privileged_shadow_predictions_replay_mismatch'):
+            verify_independent_source_and_shadow_replay(
+                self.row,self.dirs,auditor=auditor,
+                manifest_builder=rebuild_manifest,shadow_builder=rebuild_shadow)
+
+        self.row['official_research_shadow']=original_shadow
+        self.row['official_input_manifest']['official_sources']['odds']['sha256']='f'*64
+        with self.assertRaisesRegex(ValueError,'privileged_original_manifest_replay_mismatch'):
+            verify_independent_source_and_shadow_replay(
+                self.row,self.dirs,auditor=auditor,
+                manifest_builder=rebuild_manifest,shadow_builder=rebuild_shadow)
+
+    def test_privileged_job_rejects_incomplete_official_triple(self):
+        incomplete={'race_code':self.race,
+                    'all_research_components_observed_by_t12':False,
+                    'three_originals_hash_verified':True,
+                    'missing_components':['odds_120'],
+                    'final_race_entry_verified':False}
+        def forbidden(*args):
+            raise AssertionError('missing triple must not reach manifest/forecast')
+        with self.assertRaisesRegex(ValueError,'privileged_official_three_source_reaudit_failed'):
+            verify_independent_source_and_shadow_replay(
+                self.row,self.dirs,auditor=lambda *paths: incomplete,
+                manifest_builder=forbidden,shadow_builder=forbidden)
 
     def test_write_permission_isolated_from_pull_request_capture(self):
         workflow=(Path(__file__).resolve().parents[1] /
