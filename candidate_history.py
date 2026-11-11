@@ -19,6 +19,21 @@ JST = timedelta(hours=9)
 RACE_SUFFIX = r"(0[1-9]|1[0-9]|2[0-4])(0[1-9]|1[0-2])"
 TICKET = re.compile(r"^[1-6]-[1-6]-[1-6]$")
 
+# Existing candidate archives contain a 6-racer national-win-rate research
+# model, not source-matched official exhibition, final entry, or water evidence.
+# These IDs denote evidence absent from THIS stored candidate record; an
+# external service may have the data, but it cannot be retroactively attributed
+# to this immutable forecast. No inferred "buy" verdict is permitted.
+REVIEW_MISSING = (
+    "official_exhibition_six",
+    "start_exhibition_entry_st",
+    "course_2_wall_escape",
+    "wind_waves_water",
+    "odds_120_before_cutoff",
+    "independent_first_seen_and_formal_attestation",
+)
+
+
 
 def _jst(value):
     if not isinstance(value, str) or not value.endswith("+09:00"):
@@ -85,6 +100,9 @@ def _candidate(path, code):
         "deadline_jst": data["source_deadline_jst"],
         "tickets": tickets,
         "model_version": str(data.get("model_version", ""))[:100],
+        "research_input_received_jst": max(title_received, cards_received).isoformat(),
+        "purchase_review_status": "hold_evidence_not_attested",
+        "purchase_review_missing": list(REVIEW_MISSING),
         **_research_selection(data),
     }
 
@@ -136,6 +154,9 @@ def daily_candidate_history(day, root=ROOT):
             "forecast_status": "unverified",
             "selection_status": "unassessed",
             "head_top2_model_pct": None,
+            "research_input_received_jst": None,
+            "purchase_review_status": "unassessed",
+            "purchase_review_missing": list(REVIEW_MISSING),
             "tickets": [],
             "deadline_jst": None,
         }
@@ -169,6 +190,8 @@ def daily_candidate_history(day, root=ROOT):
         "research_70_pass_count": sum(r["selection_status"] == "research_70_pass" for r in rows),
         "research_70_below_count": sum(r["selection_status"] == "research_70_below" for r in rows),
         "research_unassessed_count": sum(r["selection_status"] == "unassessed" for r in rows),
+        "purchase_review_schema": "candidate_evidence_hold_v1",
+        "purchase_review_approved_count": 0,
         "research_forecast_count": sum(r["forecast_status"] == "saved_research_unattested" for r in rows),
         "confirmed_result_count": sum(r["result_status"] == "confirmed_archive" for r in rows),
         "payout_verified_count": sum(r["payout_status"] == "verified_independent" for r in rows),
