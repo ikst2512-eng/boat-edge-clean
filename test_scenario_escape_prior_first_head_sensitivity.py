@@ -14,6 +14,8 @@ from scenario_escape_prior_first_head_sensitivity import (
 )
 from test_scenario_signed_st_four_mode_shadow import feature, RATES, TIMES
 from test_scenario_mode_specific_exhibition_end_to_end import hypotheses
+from unittest.mock import patch
+import scenario_escape_prior_first_head_sensitivity as lab
 
 
 def history():
@@ -108,6 +110,16 @@ class StrictC1HistoricalEvidenceTests(unittest.TestCase):
             with self.subTest(field=field),self.assertRaisesRegex(
                 ValueError,"source_claim_or_schema_forbidden"):
                 historical_C1_escape_proxy(h,feature())
+
+    def test_frozen_existing_world_protocol_is_enforced_before_math(self):
+        h=history()
+        with patch.object(lab,"FROZEN_1710_PROTOCOL_BLOB","0"*40):
+            with self.assertRaisesRegex(ValueError,"frozen_1710_protocol_changed"):
+                lab.sensitivity_only(h,feature(),RATES,TIMES,hypotheses(),None)
+        plan=hypotheses()
+        plan["escape_wall"]["position_coefficients"]["exhibition_st_s"]["second"]=.77
+        with self.assertRaisesRegex(ValueError,"frozen_scenario_coefficients_not_identical"):
+            lab.sensitivity_only(h,feature(),RATES,TIMES,plan,None)
 
     def test_roster_registration_duplicate_and_length_fail(self):
         h=history()
