@@ -126,6 +126,58 @@ class OfficialForecastConsumptionTests(unittest.TestCase):
                                  "official_original_reaudit_failed")
                 self.assertEqual(changed["official_consumed_forecasts"], 0)
 
+    def test_partial_official_pair_is_still_independently_joined_to_forecast_clock(self):
+        from scripts.audit_joint_official_receipts import audit_pair
+        with tempfile.TemporaryDirectory() as tmp:
+            batch = Path(tmp) / "official_joint_evidence"
+            card, before, odds = self.setup_sources(batch)
+            self.write_forecast(tmp, "2026-11-02T21:19:30+09:00")
+            # Turn an otherwise valid raw beforeinfo into an independently
+            # hash-verified but exhibition-incomplete official receipt.
+            before_file = before / "beforeinfo.json"
+            raw = json.loads(before_file.read_text())
+            raw["maindata"]["sttenjiinfolist"] = []
+            edited = json.dumps(raw).encode()
+            before_file.write_bytes(edited)
+            manifest_path = before / "manifest.json"
+            manifest = json.loads(manifest_path.read_text())
+            manifest["sha256"] = hashlib.sha256(edited).hexdigest()
+            manifest["bytes"] = len(edited)
+            manifest_path.write_text(json.dumps(manifest))
+
+            with patch("scripts.audit_joint_official_receipts.parse_official_odds_table",
+                       return_value={"fixture": 1}), patch(
+                    "scripts.audit_joint_official_receipts.inspect_odds_receipt",
+                    return_value={"valid_120_combinations": True,
+                                  "complete_odds_observed_before_t12": True}):
+                pair = audit_pair(before, odds)
+                self.assertFalse(pair["both_complete_before_t12"])
+                report = {
+                    "formal": False, "forecast_usable": False,
+                    "observations": [{
+                        "race_code": RACE, "status": "pair_not_ready",
+                        "joint_audit": pair,
+                    }]
+                }
+                (batch / "batch_report.json").write_text(json.dumps(report))
+                result = audit_batch(batch, tmp)
+                self.assertEqual(result["official_pairs_reaudited"], 1)
+                row = result["rows"][0]
+                self.assertEqual(row["official_original_status"],
+                                 "two_official_originals_reaudited_incomplete")
+                self.assertEqual(row["source_scope"],
+                                 "official_beforeinfo_odds_only")
+                self.assertEqual(row["forecast_statuses"]["prospective_predictions"]["status"],
+                                 "official_originals_arrived_after_forecast")
+                self.assertEqual(result["official_consumed_forecasts"], 0)
+                self.assertEqual(result["formal_t12_certified"], 0)
+
+                before_file.write_bytes(edited + b"tampered")
+                changed = audit_batch(batch, tmp)
+                self.assertEqual(changed["official_pairs_reaudited"], 0)
+                self.assertEqual(changed["rows"][0]["official_original_status"],
+                                 "official_pair_reaudit_failed")
+
     def test_forged_report_cannot_approve_official_source_without_originals(self):
         with tempfile.TemporaryDirectory() as tmp:
             self.write_forecast(tmp)
