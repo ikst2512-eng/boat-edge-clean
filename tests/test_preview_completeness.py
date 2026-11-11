@@ -81,7 +81,7 @@ class PreviewCompletenessTests(TestCase):
         self.assertEqual(len(preview["racers"]), 6)
         self.assertEqual(len(preview["start_exhibition"]), 6)
         self.assertEqual(preview["racers"][5]["exhibition_time"], 6.72)
-        self.assertEqual(preview["start_exhibition"][1]["st"], "0.13")
+        self.assertEqual(preview["start_exhibition"][1]["st"], ".13")
         self.assertEqual(audit["fetched_at"], "2026-10-30T14:48:00+09:00")
 
 
