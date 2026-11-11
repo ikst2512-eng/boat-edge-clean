@@ -41,7 +41,22 @@ jobs:
           if [ "$rc" -ne 0 ]; then
             echo "RENDER_PREWARM_UNVERIFIED curl_exit=$rc"
           fi
-          echo "Render pre-warm is readiness-only; NOT a LIVE official 24-value pass." >> "$GITHUB_STEP_SUMMARY"
+          # Read-only provenance: /healthz HEAD exposes the actual deployed
+          # Render revision, not the SHA merely checked out in this job.
+          observed_sha=$(grep -i '^x-boat-edge-deploy-commit:' /tmp/clean-render-prewarm.headers \
+            | tail -n 1 | cut -d: -f2- | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+          if [[ "$observed_sha" =~ ^[a-f0-9]{40}$ ]]; then
+            echo "RENDER_DEPLOY_SHA $observed_sha"
+            echo "WORKFLOW_CHECKOUT_SHA $GITHUB_SHA"
+            if [ "$observed_sha" = "$GITHUB_SHA" ]; then
+              echo "RENDER_DEPLOY_SHA_MATCHES_RUN true"
+            else
+              echo "RENDER_DEPLOY_SHA_MATCHES_RUN false"
+            fi
+          else
+            echo "RENDER_DEPLOY_SHA_UNVERIFIED"
+          fi
+          echo "Render pre-warm and deploy SHA are diagnostic; NOT a LIVE official 24-value pass." >> "$GITHUB_STEP_SUMMARY"
           exit 0
       - name: Verify current-source probe classification
         run: python -m unittest discover -s tests -p test_real_preview_probe.py -v
