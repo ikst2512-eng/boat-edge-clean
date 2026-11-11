@@ -33,6 +33,8 @@ on:
       - 'scenario_signed_st_racelist_rates.py'
       - 'scenario_signed_st_registered_shadow.py'
       - 'test_scenario_signed_st_registered_shadow.py'
+      - 'scenario_signed_st_future_pre_t12_handoff.py'
+      - 'test_scenario_signed_st_future_pre_t12_handoff.py'
       - 'research/signed_F_four_mode_future_protocol_20261111.json'
       - 'research/flagged_st_signed_feature_feasibility_20261111.json'
       - 'test_scenario_official_st_intake_diagnostic.py'
@@ -80,7 +82,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Check scenario bridge safety and all four mode contracts
-        run: python -m unittest -v test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway test_scenario_official_racelist_rates test_scenario_future_protocol_freeze test_scenario_future_local_candidate_handoff test_scenario_future_github_research_adapter test_scenario_future_archived_receipts_to_candidate test_scenario_official_st_intake_diagnostic test_scenario_flagged_st_feature_study test_scenario_signed_st_four_mode_shadow test_scenario_signed_st_registered_shadow
+        run: python -m unittest -v test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway test_scenario_official_racelist_rates test_scenario_future_protocol_freeze test_scenario_future_local_candidate_handoff test_scenario_future_github_research_adapter test_scenario_future_archived_receipts_to_candidate test_scenario_official_st_intake_diagnostic test_scenario_flagged_st_feature_study test_scenario_signed_st_four_mode_shadow test_scenario_signed_st_registered_shadow test_scenario_signed_st_future_pre_t12_handoff
       - name: Materialize pinned existing #1698 conditional lab for integration (read-only)
         run: |
           set -euo pipefail
@@ -266,6 +268,19 @@ jobs:
           assert shadow["prospective_candidate_generated"] is False
           assert shadow["results_or_payouts_read"] is False
           assert shadow["formal"] is False and shadow["promotion_allowed"] is False
+          from datetime import datetime, timezone, timedelta
+          from scenario_signed_st_future_pre_t12_handoff import run_one_shot_unpublished
+          try:
+              run_one_shot_unpublished(
+                  *groups,experimental_conditional_board,
+                  lambda:datetime.now(timezone(timedelta(hours=9))))
+          except ValueError as exc:
+              assert str(exc)=="signed_F_future_T12_cutoff_or_current_clock_failed",str(exc)
+          else:
+              raise AssertionError("HISTORICAL_20261111_RACE_CANNOT_BECOME_FUTURE_F_CANDIDATE")
+          print("REAL_ARCHIVED_F_MATH_VALID_BUT_FUTURE_T12_HANDOFF_DENIED "+json.dumps({
+              "race_code":race,"historical_replay_only":True,
+              "candidate_created":False,"Git_written":False,"formal":False},sort_keys=True))
           assert {name:len(x["tickets"]) for name,x in shadow["math_4_modes_signed_F"].items()}=={
               "narrow":5,"hit":10,"balance":16,"hole":22}
           assert {name:len(x["tickets"]) for name,x in shadow["math_4_modes_ST_zero_control"].items()}=={
@@ -430,6 +445,19 @@ jobs:
           assert shadow["prospective_candidate_generated"] is False
           assert shadow["results_or_payouts_read"] is False
           assert shadow["formal"] is False and shadow["promotion_allowed"] is False
+          from datetime import datetime, timezone, timedelta
+          from scenario_signed_st_future_pre_t12_handoff import run_one_shot_unpublished
+          try:
+              run_one_shot_unpublished(
+                  *groups,experimental_conditional_board,
+                  lambda:datetime.now(timezone(timedelta(hours=9))))
+          except ValueError as exc:
+              assert str(exc)=="signed_F_future_T12_cutoff_or_current_clock_failed",str(exc)
+          else:
+              raise AssertionError("HISTORICAL_20261111_RACE_CANNOT_BECOME_FUTURE_F_CANDIDATE")
+          print("REAL_ARCHIVED_F_MATH_VALID_BUT_FUTURE_T12_HANDOFF_DENIED "+json.dumps({
+              "race_code":race,"historical_replay_only":True,
+              "candidate_created":False,"Git_written":False,"formal":False},sort_keys=True))
           assert {name:len(x["tickets"]) for name,x in shadow["math_4_modes_signed_F"].items()}=={
               "narrow":5,"hit":10,"balance":16,"hole":22}
           assert {name:len(x["tickets"]) for name,x in shadow["math_4_modes_ST_zero_control"].items()}=={
@@ -479,4 +507,4 @@ jobs:
       - name: Confirm all-mode scenario composition uses actual reviewed #1698 conditional math
         env:
           RESEARCH_1698_PIN_REQUIRED: '1'
-        run: PYTHONPATH="$RUNNER_TEMP/position1698:$PWD" python -m unittest -v test_scenario_exhibition_all_mode_runner test_scenario_mode_specific_exhibition_end_to_end test_scenario_future_three_original_gateway test_scenario_future_archived_receipts_to_candidate test_scenario_signed_st_four_mode_shadow test_scenario_signed_st_registered_shadow
+        run: PYTHONPATH="$RUNNER_TEMP/position1698:$PWD" python -m unittest -v test_scenario_exhibition_all_mode_runner test_scenario_mode_specific_exhibition_end_to_end test_scenario_future_three_original_gateway test_scenario_future_archived_receipts_to_candidate test_scenario_signed_st_four_mode_shadow test_scenario_signed_st_registered_shadow test_scenario_signed_st_future_pre_t12_handoff
