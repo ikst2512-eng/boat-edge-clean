@@ -29,10 +29,10 @@ def _official_display_csv_st(value):
     if not isinstance(value,str):
         return None
     raw=value.strip()
-    f=re.fullmatch(r"F\\.?(\\d{2})",raw)
+    f=re.fullmatch(r"F\.?(\d{2})",raw)
     if f:
         return "F."+f.group(1)
-    if not re.fullmatch(r"[+-]?(?:\\d+(?:\\.\\d{1,2})?|\\.\\d{1,2})",raw):
+    if not re.fullmatch(r"[+-]?(?:\d+(?:\.\d{1,2})?|\.\d{1,2})",raw):
         return None
     try:
         st=Decimal(raw)
