@@ -87,10 +87,30 @@ function showRace(race){
   research_70_below:'研究基準未達',
   unassessed:'選定不能'
  }[race.selection_status]||'選定不能';
- const summary=text('summary',category+'｜'+name+'｜締切 '+deadline+'｜'+resultText);
+ const summary=text('summary',category+'｜'+name+'｜締切 '+deadline+'｜'+resultText+'｜買い未認定');
  node.append(summary);
  const detail=document.createElement('div');detail.className='candidate-detail';
  const saved=race.forecast_status==='saved_research_unattested'&&Array.isArray(race.tickets)&&race.tickets.length;
+ // This is an evidence audit of the frozen candidate record, not an
+ // aftermarket judgment or a substitute for a verified live race preview.
+ const missingLabel={
+  official_exhibition_six:'公式展示（6艇）',
+  start_exhibition_entry_st:'展示進入・展示ST',
+  course_2_wall_escape:'2コースの壁・逃がし率',
+  wind_waves_water:'風・波・水面',
+  odds_120_before_cutoff:'締切前3連単オッズ120通り',
+  independent_first_seen_and_formal_attestation:'初回保存証明・正式予想認定'
+ };
+ const audit=race.purchase_review_status==='hold_evidence_not_attested'&&
+  Array.isArray(race.purchase_review_missing)&&
+  race.purchase_review_missing.every(x=>Object.hasOwn(missingLabel,x));
+ detail.append(text('p','購入判断：'+(audit?'見送り（直前の根拠が未照合）':'判定不能（原本の検証不足）')+
+  '｜研究順位は購入推奨ではありません。','candidate-signal'));
+ if(audit){
+  detail.append(text('p','候補保存原本で未照合：'+race.purchase_review_missing.map(x=>missingLabel[x]).join('／'),'notes'));
+  if(typeof race.research_input_received_jst==='string')
+   detail.append(text('p','研究用の出走表入力受領 '+race.research_input_received_jst.slice(11,16)+' JST（直前展示・オッズとは別）','notes'));
+ }else detail.append(text('p','この保存原本では直前根拠を確認できず、買い判定はできません。','notes'));
  if(race.selection_status==='research_70_pass'||race.selection_status==='research_70_below'){
   detail.append(text('p','1着候補上位2艇のモデル確率合計 '+race.head_top2_model_pct.toFixed(2)+'%｜研究用・3連単的中率ではありません。','candidate-signal'));
  }else detail.append(text('p','研究基準の判定に必要な保存済み入力が不足・未検証です。','notes'));
@@ -172,6 +192,17 @@ async function loadDay(){
   if(Number.isInteger(d.payout_verified_count)&&d.payout_verified_count!==d.races.filter(x=>x.payout_status==='verified_independent').length)throw Error('払戻原本の件数が不一致');
   selectionAvailable=d.selection_rule==='top2_head_mass_ge_70_research_only_v1';
   if(d.selection_rule!==undefined&&!selectionAvailable)throw Error('未知の研究選定ルール');
+  if(d.purchase_review_schema!==undefined&&d.purchase_review_schema!=='candidate_evidence_hold_v1')
+   throw Error('未知の購入根拠監査スキーマ');
+  if(d.purchase_review_schema==='candidate_evidence_hold_v1'){
+   if(d.purchase_review_approved_count!==0)throw Error('未認定研究に購入承認を付けられません');
+   for(const race of d.races){
+    if(!['hold_evidence_not_attested','unassessed'].includes(race.purchase_review_status)||
+       !Array.isArray(race.purchase_review_missing)||
+       race.purchase_review_missing.length!==6||
+       new Set(race.purchase_review_missing).size!==6)throw Error('購入根拠監査データが不正');
+   }
+  }
   if(selectionAvailable){
    const counts={research_70_pass:0,research_70_below:0,unassessed:0};
    for(const race of d.races){
