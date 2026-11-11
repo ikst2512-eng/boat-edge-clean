@@ -93,6 +93,101 @@ def snapshot_timing(directory, race, official):
         return {"status": "forecast_record_unverified", "generated_at_jst": None}
 
 
+
+def verified_official_input_manifest(dirs, audited):
+    """Read-only six-lane input reconstruction from verified official bytes.
+
+    This does NOT prove that any predictor consumed the fields. No new forecast
+    is generated and no retrospective first Git receipt is attested.
+    """
+    import hashlib
+    import math
+    cutoff = jst(audited["cutoff_jst"])
+    if (audited.get("all_research_components_observed_by_t12") is not True
+            or audited.get("three_originals_hash_verified") is not True
+            or audited.get("missing_components") != []
+            or audited.get("final_race_entry_verified") is not False
+            or jst(audited["latest_original_received_jst"]) >= cutoff):
+        raise ValueError("official_input_not_prospectively_complete")
+    race = audited["race_code"]
+    source_map = {}
+    raw_before = None
+    for kind, directory, filename in zip(
+            ("racelist", "beforeinfo", "odds"), dirs,
+            ("racelist.html", "beforeinfo.json", "original.html")):
+        path = Path(directory) / filename
+        meta = read_json(Path(directory) / "manifest.json")
+        if path.is_symlink() or not path.is_file():
+            raise ValueError("official_input_source_invalid")
+        raw = path.read_bytes()
+        digest = hashlib.sha256(raw).hexdigest()
+        received = jst(meta["received_at_jst"])
+        if (meta.get("race_code") != race or meta.get("sha256") != digest
+                or meta.get("bytes") != len(raw) or not raw or received > cutoff):
+            raise ValueError("official_input_raw_or_clock_mismatch")
+        source_map[kind] = {"sha256": digest, "bytes": len(raw),
+                            "received_at_jst": received.isoformat()}
+        if kind == "beforeinfo":
+            raw_before = raw
+    before = json.loads(raw_before)["maindata"]
+    if (not isinstance(before, dict) or str(before.get("hd")) != race[:8]
+            or str(before.get("jcd")).zfill(2) != race[8:10]
+            or str(before.get("rno")) != str(int(race[10:]))):
+        raise ValueError("official_input_race_identity_invalid")
+
+    def six_by_lane(rows):
+        if not isinstance(rows, list) or len(rows) != 6:
+            raise ValueError("official_input_six_rows_missing")
+        found = {}
+        for r in rows:
+            if not isinstance(r, dict) or str(r.get("teino")) not in ("1","2","3","4","5","6"):
+                raise ValueError("official_input_lane_invalid")
+            lane = str(r["teino"])
+            if lane in found:
+                raise ValueError("official_input_lane_duplicate")
+            found[lane] = r
+        return found
+
+    boats = six_by_lane(before.get("teiinfolist"))
+    starts = six_by_lane(before.get("sttenjiinfolist"))
+    rows, courses = [], {}
+    for lane in range(1, 7):
+        key = str(lane)
+        b, s = boats[key], starts[key]
+        registration, st = str(b.get("racerno")), s.get("st")
+        if registration != audited["registrations_by_lane"].get(key):
+            raise ValueError("official_input_registration_mismatch")
+        try:
+            time, tilt, course = float(b["extime"]), float(b["tilt"]), int(s["cs"])
+        except (KeyError, ValueError, TypeError, OverflowError):
+            raise ValueError("official_input_measurement_invalid") from None
+        if (not math.isfinite(time) or not 5 <= time <= 9
+                or not math.isfinite(tilt) or not -1 <= tilt <= 3
+                or type(st) is not str
+                or not re.fullmatch(r"(?:[FL])?\.\d{1,2}|\d?\.\d{1,2}", st.strip())
+                or course not in range(1, 7) or str(course) in courses):
+            raise ValueError("official_input_measurement_invalid")
+        courses[str(course)] = key
+        rows.append({"lane": lane, "registration": registration,
+                     "exhibition_time": time, "tilt": tilt,
+                     "exhibition_st": st.strip(), "exhibition_course": course})
+    if courses != audited["exhibition_course_to_boat"]:
+        raise ValueError("official_input_course_mismatch")
+    inputs = {"race_code": race, "cutoff_jst": cutoff.isoformat(),
+              "official_sources": source_map, "six_boat_inputs": rows}
+    input_digest = hashlib.sha256(json.dumps(
+        inputs, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")).hexdigest()
+    return {"schema": "OFFICIAL_REAUDITED_INPUT_MANIFEST_V1",
+            **inputs, "input_sha256": input_digest,
+            "official_source_fields_reconstructed": True,
+            "model_actually_consumed_fields": False,
+            "independent_remote_first_seen_verified": False,
+            "final_race_entry_verified": False,
+            "formal_t12_certified": False, "research_only": True,
+            "purchase_approved": False}
+
+
 def locate_sources(batch_dir, race, *, parts=("racelist_", "before_", "odds_")):
     observation_root = batch_dir / "observations"
     if observation_root.is_symlink() or not observation_root.is_dir():
@@ -164,6 +259,7 @@ def audit_batch(batch_dir, forecast_root, *, official_auditor=audit_three_origin
                             "latest_original_received_jst", "t12_receipt_margin_seconds",
                             "component_checks", "missing_components"))):
                     raise ValueError("official_three_source_reaudit_mismatch")
+                row["official_input_manifest"] = verified_official_input_manifest(dirs, audited)
                 row["official_original_status"] = "three_originals_reaudited_research_only"
                 row["latest_official_received_jst"] = audited["latest_original_received_jst"]
                 row["forecast_statuses"] = {
