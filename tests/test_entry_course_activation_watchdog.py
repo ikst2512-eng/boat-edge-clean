@@ -126,6 +126,37 @@ class ActivationTests(unittest.TestCase):
             fetch_runs=lambda file,event:[],
             dispatch=lambda file:None)["unattended_scheduled_capture_verified"])
 
+    def test_four_mode_watchdog_existing_schedule_can_wake_eight_and_nineteen_only(self):
+        # The existing independent workflow has actual 11/11 schedule runs,
+        # but is not a T12 schedule event or evidence of source receipt.
+        # Parent completion only wakes the same guarded rescue job at UTC
+        # 23 (08 JST) or 10 (19 JST); no new Cron, no feedback loop.
+        from pathlib import Path
+        root=Path(__file__).resolve().parent.parent
+        independent=(root/".github/workflows/four-mode-capture-watchdog.yml").read_text()
+        watcher=(root/".github/workflows/entry-course-activation-watchdog.yml").read_text()
+        self.assertIn("name: Four-mode capture schedule watchdog",independent)
+        self.assertIn("cron: '13,28,43,58 22-23,0-12 * * *'",independent)
+        self.assertIn('- "Four-mode capture schedule watchdog"',watcher)
+        self.assertIn("github.event.workflow_run.name != 'Four-mode capture schedule watchdog'",watcher)
+        self.assertIn("contains(github.event.workflow_run.created_at, 'T23:')",watcher)
+        self.assertIn("contains(github.event.workflow_run.created_at, 'T10:')",watcher)
+        self.assertIn("github.event.workflow_run.event == 'schedule'",watcher)
+        self.assertIn("github.event.workflow_run.head_branch == 'main'",watcher)
+        self.assertIn("github.event.workflow_run.head_repository.full_name == github.repository",watcher)
+        self.assertNotIn('- "Entry course missed-cron activation watchdog"',independent)
+        self.assertEqual(watcher.count("- cron:"),1)
+        self.assertEqual(independent.count("- cron:"),4)
+        attempted=[]
+        now=datetime(2026,11,11,19,44,tzinfo=JST)
+        result=official_live_probe_fallback(now,lambda file,event:[],
+                                           lambda file:attempted.append(file))
+        self.assertEqual(attempted,[OFFICIAL_PROBE_WORKFLOW])
+        self.assertEqual(result["decision"],"requested_missing_official_probe")
+        self.assertFalse(result["live_24_values_verified"])
+        self.assertFalse(result["trigger_is_schedule"])
+        self.assertFalse(result["formal_t12_certified"])
+
     def test_existing_readonly_audit_completions_can_opportunistically_wake_t12(self):
         # 11/11 real GitHub schedules: AI audit completed ~08:31 JST,
         # cross-model audit completed ~08:36 JST despite 03 JST cron times.

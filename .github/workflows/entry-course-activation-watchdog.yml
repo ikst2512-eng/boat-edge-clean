@@ -20,6 +20,10 @@ on:
       - "Four-mode prospective capture (research only)"
       - "CLEAN prospective pre-cutoff capture"
       - "CLEAN V236 verification queue"
+      # Existing independently scheduled four-mode watchdog can rescue an
+      # absent 19:35 official probe after 19:40, or missed 08 JST T12.
+      # The job gate limits this parent to UTC 10/23; no new Cron or writer.
+      - "Four-mode capture schedule watchdog"
       # Existing unrelated read-only schedules give independent wakeups if
       # the T12/watchdog own cron does not fire; dispatch remains cooldown-
       # guarded, same-repo/main/schedule-only and research-only.
@@ -46,6 +50,9 @@ jobs:
           github.event.workflow_run.head_branch == 'main' &&
           github.event.workflow_run.head_repository.full_name == github.repository &&
           (github.event.workflow_run.name != 'CLEAN V236 verification queue' ||
+           contains(github.event.workflow_run.created_at, 'T23:') ||
+           contains(github.event.workflow_run.created_at, 'T10:')) &&
+          (github.event.workflow_run.name != 'Four-mode capture schedule watchdog' ||
            contains(github.event.workflow_run.created_at, 'T23:') ||
            contains(github.event.workflow_run.created_at, 'T10:'))))))
     runs-on: ubuntu-latest
