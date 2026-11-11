@@ -12,7 +12,7 @@ import math
 from scripts.audit_three_official_t12_originals import audit_three_originals
 from scenario_future_archived_receipts_to_candidate import _load_receipt
 from scenario_flagged_st_feature_study import encode_signed_st_only
-from scenario_official_racelist_rates import extract_six_official_racelist_rates
+from scenario_signed_st_racelist_rates import parse_signed_st_study_racelist_rates
 from scenario_official_st_intake_diagnostic import _no_duplicate_keys
 
 SCHEMA="SIGNED_F_OFFICIAL_TRIPLE_SIX_LANE_INPUT_RESEARCH_V1"
@@ -30,7 +30,7 @@ def extract_archived_signed_F_input(card_dir,beforeinfo_dir,odds_dir):
     before,beforemeta=_load_receipt(beforeinfo_dir,"beforeinfo.json")
     odds,oddsmeta=_load_receipt(odds_dir,"original.html")
     signed=encode_signed_st_only(audit,before,beforemeta)
-    rates=extract_six_official_racelist_rates(card)
+    rates=parse_signed_st_study_racelist_rates(card)
     try:
         root=json.loads(before.decode("utf-8"),object_pairs_hook=_no_duplicate_keys,
                         parse_constant=lambda x: (_ for _ in ()).throw(
