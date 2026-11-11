@@ -68,6 +68,16 @@ on:
       - tests/test_entry_waku10_score.py
       - tests/test_entry_waku10_score_recent.py
       - .github/workflows/entry-scenario-tests.yml
+  push:
+    branches: [main]
+    paths:
+      # Existing T2 predeadline and shared racecard regressions must run
+      # on direct main fixes, not solely on pull requests.
+      - entry_course_collector.py
+      - clean_racecard.py
+      - tests/test_entry_course_collector.py
+      - tests/test_entry_t2_batch.py
+      - .github/workflows/entry-scenario-tests.yml
   workflow_dispatch:
 permissions:
   contents: read
