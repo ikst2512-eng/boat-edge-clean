@@ -510,6 +510,68 @@ class BundleTests(unittest.TestCase):
         self.assertIn('if-no-files-found: warn', workflow)
         self.assertIn('      - name: Retain immutable Git write/readback receipt as independent Action artifact\n        if: always()', workflow)
 
+    def test_official_handoff_report_corruption_does_not_abort_csv_capture(self):
+        """Run the literal workflow readiness code, not a duplicate Python model."""
+        import os
+        import subprocess
+        import sys
+
+        workflow = (Path(__file__).resolve().parents[1] /
+                    '.github/workflows/research-live-preview-evidence.yml').read_text()
+        readiness = workflow.split(
+            '      - name: Identify genuinely pre-cutoff official shadow for privileged handoff',
+            1)[1].split('      - name: Hand off already received official originals', 1)[0]
+        literal = readiness.split("          python - <<'PY'\n", 1)[1].split(
+            "\n          PY", 1)[0]
+        script = "\n".join(line[10:] for line in literal.splitlines()) + "\n"
+        sandbox = self.root / 'handoff_execution'
+        official = sandbox / 'official_joint_evidence'
+        official.mkdir(parents=True)
+        output = sandbox / 'github_output.txt'
+        valid_batch = {'status': 'complete_pairs_observed',
+                       'three_originals_complete_before_t12': 1}
+        valid_report = {
+            'status': 'read_only_research_audited',
+            'formal_t12_certified': 0,
+            'official_consumed_forecasts': 0,
+            'rows': [{
+                'official_original_status': 'three_originals_reaudited_research_only',
+                'official_research_shadow': {'generated': True},
+            }],
+        }
+        tests = (
+            ('valid', json.dumps(valid_batch), json.dumps(valid_report),
+             'success', 'success', 'true'),
+            ('bad-batch-json', '{', json.dumps(valid_report),
+             'success', 'success', 'false'),
+            ('bad-report-json', json.dumps(valid_batch), '{',
+             'success', 'success', 'false'),
+            ('wrong-report-shape', json.dumps(valid_batch), '[]',
+             'success', 'success', 'false'),
+            ('failed-capture-outcome', json.dumps(valid_batch), json.dumps(valid_report),
+             'failure', 'success', 'false'),
+            ('failed-audit-outcome', json.dumps(valid_batch), json.dumps(valid_report),
+             'success', 'failure', 'false'),
+        )
+        for label, batch, report, captured, audited, expected in tests:
+            with self.subTest(case=label):
+                (official / 'batch_report.json').write_text(batch, encoding='utf-8')
+                (official / 'forecast_temporal_link_report.json').write_text(
+                    report, encoding='utf-8')
+                output.write_text('', encoding='utf-8')
+                run = subprocess.run(
+                    [sys.executable, '-c', script], cwd=sandbox,
+                    env={**os.environ, 'GITHUB_OUTPUT': str(output),
+                         'OFFICIAL_CAPTURE_OUTCOME': captured,
+                         'OFFICIAL_AUDIT_OUTCOME': audited},
+                    capture_output=True, text=True, timeout=10, check=False,
+                )
+                self.assertEqual(run.returncode, 0, run.stderr)
+                self.assertEqual(output.read_text(encoding='utf-8'),
+                                 'ready=' + expected + '\n')
+                self.assertIn('OFFICIAL_RESEARCH_BUNDLE_READY ' + expected,
+                              run.stdout)
+
     def test_write_permission_isolated_from_pull_request_capture(self):
         workflow=(Path(__file__).resolve().parents[1] /
                   '.github/workflows/research-live-preview-evidence.yml').read_text()
