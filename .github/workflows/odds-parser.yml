@@ -11,6 +11,8 @@ on:
       - .github/workflows/odds-parser.yml
       - scripts/capture_joint_preview_batch.py
       - tests/test_capture_joint_preview_batch.py
+      - entry_course_collector.py
+      - tests/test_entry_course_collector.py
 jobs:
   parser:
     runs-on: ubuntu-latest
@@ -25,6 +27,8 @@ jobs:
           python test_predictions.py
       - name: Verify same-run official preview/odds/racecard research guards
         run: python -m unittest discover -s tests -p 'test_capture_joint_preview_batch.py' -v
+      - name: Verify T-minus-2 exact race-number formatting and immutable cohort
+        run: python -m unittest discover -s tests -p 'test_entry_course_collector.py' -v
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
