@@ -18,13 +18,22 @@ const { chromium } = require('playwright');
   const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:20000});
   if(response?.status()!==200)throw Error('candidate_static_page_http_'+response?.status());
   await page.waitForFunction(()=>document.querySelector('#candidateStatus')?.textContent?.startsWith('保存候補 '));
+  const shortlist=await page.evaluate(()=>({
+    count:document.querySelectorAll('#candidateCards > details.candidate-history-card').length,
+    selected:document.querySelector('#candidateHistoryFilters [data-candidate-filter="pass"]')?.getAttribute('aria-pressed'),
+    text:document.querySelector('#candidateStatus')?.textContent||''
+  }));
+  if(shortlist.selected!=='true'||!shortlist.text.includes('研究条件クリア '))
+   throw Error('research_shortlist_not_default_'+JSON.stringify(shortlist));
+  await page.locator('#candidateHistoryFilters [data-candidate-filter="all"]').click();
   const first=await page.evaluate(()=>{
    const cards=[...document.querySelectorAll('#candidateCards > details.candidate-history-card')];
    return {count:cards.length,unique:new Set(cards.map(x=>x.dataset.raceCode)).size,
     status:document.getElementById('candidateStatus').textContent,
     first:cards[0]?.querySelector('summary')?.textContent};
   });
-  if(first.count<=6||first.count!==first.unique||!first.status.includes('保存候補 '+first.count+'件'))throw Error('candidate_count_or_duplicates_'+JSON.stringify(first));
+  if(first.count<=6||first.count!==first.unique||!first.status.includes('保存候補 '+first.count+'件')||
+     shortlist.count>first.count)throw Error('candidate_count_or_duplicates_'+JSON.stringify({first,shortlist}));
   await page.locator('#candidateCards > details').first().locator('summary').click();
   const opened=await page.evaluate(()=>{
    const card=document.querySelector('#candidateCards > details');
@@ -40,9 +49,10 @@ const { chromium } = require('playwright');
   await dateInput.dispatchEvent('change');
   await page.waitForFunction(()=>new URL(location.href).searchParams.get('date')==='2026-11-07'&&
     document.querySelector('#candidateStatus')?.textContent?.startsWith('保存候補 '));
+  await page.locator('#candidateHistoryFilters [data-candidate-filter="all"]').click();
   const yesterday=await page.locator('#candidateCards > details.candidate-history-card').count();
   if(yesterday<=6)throw Error('historical_day_candidate_rows_missing_'+yesterday);
   if(errors.length||renderCalls.length)throw Error('browser_error_or_render_dependency_'+JSON.stringify({errors,renderCalls}));
-  console.log('CANDIDATE_STATIC_BROWSER_PASS '+JSON.stringify({nov8:first.count,nov7:yesterday,saved_forecast:true,results_and_links:true,no_render_dependency:true}));
+  console.log('CANDIDATE_STATIC_BROWSER_PASS '+JSON.stringify({nov8:first.count,nov7:yesterday,saved_forecast:true,shortlist:shortlist.count,full_history_preserved:true,results_and_links:true,no_render_dependency:true}));
  } finally {await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
