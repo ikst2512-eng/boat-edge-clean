@@ -372,10 +372,18 @@ class BundleTests(unittest.TestCase):
         (batch / 'forecast_temporal_link_report.json').write_text(
             json.dumps(report), encoding='utf-8')
         batch_report_path = batch / 'batch_report.json'
-        batch_report_path.write_text(json.dumps({
+        clean_batch = {
             'status': 'complete_pairs_observed',
+            'event': 'workflow_dispatch',
             'three_originals_complete_before_t12': 1,
-        }), encoding='utf-8')
+            'observations': [{
+                'race_code': self.race,
+                'status': 'pair_complete',
+                'racecard_followup': 'three_originals_research_complete',
+            }],
+        }
+        batch_report_path.write_text(
+            json.dumps(clean_batch), encoding='utf-8')
         receipt_path = self.root / 'official-source-git-receipt' / 'receipt.json'
         cli = ['persist_official_research_bundle.py', '--batch-dir', str(batch),
                '--receipt-output', str(receipt_path)]
@@ -441,6 +449,39 @@ class BundleTests(unittest.TestCase):
         self.assertEqual(rejected_partial['status'], 'failed')
         self.assertEqual(rejected_partial['newly_stored'], 0)
         self.assertEqual(rejected_partial['error_code'], 'capture_batch_not_clean_complete')
+
+        # An apparently complete counter cannot authorize some OTHER race,
+        # and a stale PR report cannot impersonate a scheduled main batch.
+        for change, reason in (
+            ({'observations': [{
+                'race_code': '202611112411',
+                'status': 'pair_complete',
+                'racecard_followup': 'three_originals_research_complete',
+            }]}, 'source_audit_race_not_in_batch'),
+            ({'observations': []}, 'capture_batch_race_count_mismatch'),
+            ({'event': 'pull_request'}, 'capture_batch_event_or_rows_invalid'),
+        ):
+            with self.subTest(change=change):
+                batch_report_path.write_text(json.dumps(
+                    {**clean_batch, **change}), encoding='utf-8')
+                rejected = self.root / (
+                    'official-source-git-receipt/bad-batch-'
+                    + reason + '.json')
+                forged_cli = cli[:]
+                forged_cli[-1] = str(rejected)
+                with (
+                    patch.dict(os.environ, env),
+                    patch.object(sys, 'argv', forged_cli),
+                    patch.object(writer, 'verify_independent_source_and_shadow_replay',
+                                 side_effect=AssertionError('replay forbidden')),
+                    patch.object(writer, 'store_once',
+                                 side_effect=AssertionError('write forbidden')),
+                ):
+                    with self.assertRaisesRegex(ValueError, reason):
+                        writer.main()
+                denial = json.loads(rejected.read_text(encoding='utf-8'))
+                self.assertEqual(denial['error_code'], reason)
+                self.assertEqual(denial['newly_stored'], 0)
 
         # Non-main, including PR code, must fail before ANY write or replay.
         rejected = self.root / 'official-source-git-receipt' / 'rejected.json'
