@@ -6,6 +6,8 @@ on:
     paths:
       - 'scripts/collect_live_preview_evidence.py'
       - 'scripts/capture_joint_preview_batch.py'
+      - 'scripts/audit_official_forecast_consumption.py'
+      - 'tests/test_audit_official_forecast_consumption.py'
       - 'tests/test_capture_joint_preview_batch.py'
       - '.github/workflows/research-live-preview-evidence.yml'
       - 'tests/test_late_preview_paired_coverage.py'
@@ -57,10 +59,17 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_evaluate_late_research_topn.py' -v
       - name: Test bounded official source-pair capture
         run: python -m unittest discover -s tests -p 'test_capture_joint_preview_batch.py' -v
+      - name: Test strict official-original-to-forecast chronology (read-only)
+        run: python -m unittest discover -s tests -p 'test_audit_official_forecast_consumption.py' -v
       - name: Preserve official preview and odds originals before CSV collection
         id: official_pair_capture
         continue-on-error: true  # Keep the existing CSV collection independent.
         run: python -m scripts.capture_joint_preview_batch
+      - name: Independently recheck official originals against frozen prediction clocks
+        id: official_forecast_clock
+        if: always()
+        continue-on-error: true
+        run: python -m scripts.audit_official_forecast_consumption
       - name: Capture eligible predeadline preview rows
         run: python scripts/collect_live_preview_evidence.py
       - name: Report strict twelve-minute source-and-receipt pair coverage
@@ -135,9 +144,9 @@ jobs:
               out.write("\\n".join(lines)+"\\n")
           PY
       - name: Fail official capture only after preserving independent CSV work
-        if: always() && steps.official_pair_capture.outcome == 'failure'
+        if: always() && (steps.official_pair_capture.outcome == 'failure' || steps.official_forecast_clock.outcome == 'failure')
         run: |
-          echo 'Official acquisition failed; independent CSV evidence was still attempted.'
+          echo 'Official acquisition or read-only temporal evidence audit failed; independent CSV work was still attempted.'
           exit 1
       - name: Archive separately from research predictions
         if: always()
