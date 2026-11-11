@@ -36,14 +36,16 @@ on:
         required: false
         type: string
 permissions:
-  # Only the main schedule/dispatch writer step uses github.token; PR tests are read-only.
-  contents: write
+  # Untrusted PR tests and official collection MUST remain read-only.
+  contents: read
 concurrency:
   group: independent-late-preview-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   capture:
     runs-on: ubuntu-latest
+    outputs:
+      official_bundle_ready: ${{ steps.bundle_ready.outputs.ready }}
     timeout-minutes: 4
     steps:
       - uses: actions/checkout@v4
@@ -81,11 +83,41 @@ jobs:
         if: always()
         continue-on-error: true
         run: python -m scripts.audit_official_forecast_consumption
-      - name: Append official raw originals plus generated research shadow to independent Git ledger
-        if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
-        run: python -m scripts.persist_official_research_bundle
-        env:
-          GH_TOKEN: ${{ github.token }}
+      # This is a local source audit only, NOT permission to write from PR code.
+      - name: Identify genuinely pre-cutoff official shadow for privileged handoff
+        id: bundle_ready
+        if: always()
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=Path("official_joint_evidence/forecast_temporal_link_report.json")
+          ready=False
+          if p.is_file():
+              report=json.loads(p.read_text(encoding="utf-8"))
+              ready=(
+                  report.get("status")=="read_only_research_audited"
+                  and report.get("formal_t12_certified")==0
+                  and report.get("official_consumed_forecasts")==0
+                  and any(
+                      row.get("official_original_status")=="three_originals_reaudited_research_only"
+                      and isinstance(row.get("official_research_shadow"),dict)
+                      and row["official_research_shadow"].get("generated") is True
+                      for row in report.get("rows",[]) if isinstance(row,dict)
+                  )
+              )
+          with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as out:
+              out.write(f"ready={'true' if ready else 'false'}\n")
+          print("OFFICIAL_RESEARCH_BUNDLE_READY "+str(ready).lower()+" (not Git saved)")
+          PY
+      - name: Hand off already received official originals + shadow (no new HTTP)
+        if: steps.bundle_ready.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-raw-shadow-handoff-${{ github.run_id }}-${{ github.run_attempt }}
+          path: official_joint_evidence/
+          if-no-files-found: error
+          retention-days: 7
       - name: Capture eligible predeadline preview rows
         run: python scripts/collect_live_preview_evidence.py
       - name: Report strict twelve-minute source-and-receipt pair coverage
@@ -177,3 +209,33 @@ jobs:
             late_research_topn_report.json
           retention-days: 90
           if-no-files-found: ignore
+
+  # Privileged job never executes PR code and never modifies the source collector.
+  # Its separate job token keeps the source-auditing capture job read-only.
+  persist-official-research:
+    needs: capture
+    if: >-
+      always() && needs.capture.outputs.official_bundle_ready == 'true' &&
+      github.repository == 'ikst2512-eng/boat-edge-clean' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download the same-run immutable official raw/manifest/shadow bytes
+        uses: actions/download-artifact@v4
+        with:
+          name: official-raw-shadow-handoff-${{ github.run_id }}-${{ github.run_attempt }}
+          path: official_joint_evidence/
+      - name: Validate and create only NEW pre-cutoff research Git path
+        run: python -m scripts.persist_official_research_bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
