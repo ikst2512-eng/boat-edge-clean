@@ -11,6 +11,7 @@ import binascii
 from datetime import datetime, timezone, timedelta
 import hashlib
 import json
+import math
 import re
 import urllib.parse
 
@@ -28,6 +29,22 @@ SHA40=re.compile(r"[0-9a-f]{40}\Z")
 SHA64=re.compile(r"[0-9a-f]{64}\Z")
 CODE=re.compile(r"20[0-9]{6}(?:0[1-9]|1[0-9]|2[0-4])(?:0[1-9]|1[0-2])\Z")
 JST=timedelta(hours=9)
+CANDIDATE_FIELDS={
+    "schema","study_id","race_code","official_deadline_jst",
+    "T_minus_12_cutoff_jst","first_archive_source_received_claim_jst",
+    "latest_archive_source_received_claim_jst","model_started_local_jst",
+    "model_finished_local_jst","protocol_git_blob_sha1",
+    "source_original_sha256","signed_feature_vector_sha256",
+    "F_display_boat_count","arm_signed_F","arm_ST_zero_control",
+    "registered_same_race_paired_comparison","ticket_count_by_mode",
+    "source_HTTP_first_remote_receipt_independently_proven",
+    "candidate_first_remote_receipt_independently_proven",
+    "future_cohort_admitted","first_add_git_commit_proven",
+    "producer_local_clock_is_independent_witness","result_or_payout_read",
+    "formal","calibrated","promotion_allowed","production_changed",
+    "accuracy_improvement_proven","warning",
+}
+TICKET=re.compile(r"[1-6]-[1-6]-[1-6]\\Z")
 
 
 def _validate_preflight(prepared):
@@ -68,6 +85,8 @@ def _validate_preflight(prepared):
         raise ValueError("F_remote_candidate_json_invalid") from exc
     if type(data) is not dict or _canonical(data)!=raw:
         raise ValueError("F_remote_candidate_not_canonical")
+    if set(data)!=CANDIDATE_FIELDS:
+        raise ValueError("F_remote_unregistered_candidate_field_or_result_smuggling")
     if (data.get("schema")!=BODY_SCHEMA or data.get("study_id")!=STUDY_ID
             or data.get("race_code")!=race
             or data.get("protocol_git_blob_sha1")!=PROTOCOL_BLOB
@@ -84,8 +103,12 @@ def _validate_preflight(prepared):
                 "promotion_allowed","production_changed",
                 "accuracy_improvement_proven"))):
         raise ValueError("F_remote_unregistered_or_false_formal_candidate")
-    if set(data.get("source_original_sha256",{}))!={"racelist","beforeinfo","odds120"}:
+    if (type(data.get("source_original_sha256")) is not dict
+            or set(data["source_original_sha256"])!={"racelist","beforeinfo","odds120"}):
         raise ValueError("F_remote_candidate_source_hash_missing")
+    if (type(data.get("signed_feature_vector_sha256")) is not str
+            or SHA64.fullmatch(data["signed_feature_vector_sha256"]) is None):
+        raise ValueError("F_remote_signed_feature_sha_invalid")
     if any(type(x) is not str or SHA64.fullmatch(x) is None
            for x in data["source_original_sha256"].values()):
         raise ValueError("F_remote_candidate_source_hash_invalid")
@@ -95,18 +118,41 @@ def _validate_preflight(prepared):
             raise ValueError("F_remote_four_mode_pair_missing")
         for mode,count in VALID_MODES.items():
             v=rows[mode]
-            if (type(v) is not dict or type(v.get("tickets")) is not list
-                    or len(v["tickets"])!=count):
+            if (type(v) is not dict
+                    or set(v)!={"tickets","top1","full_120_mixture_sha256"}
+                    or type(v["full_120_mixture_sha256"]) is not str
+                    or SHA64.fullmatch(v["full_120_mixture_sha256"]) is None
+                    or type(v["tickets"]) is not list
+                    or len(v["tickets"])!=count
+                    or type(v["top1"]) is not str):
                 raise ValueError("F_remote_ticket_budget_mismatch")
+            seen=set()
+            for item in v["tickets"]:
+                if (type(item) is not dict or set(item)!={"combo","p"}
+                        or type(item["combo"]) is not str
+                        or TICKET.fullmatch(item["combo"]) is None
+                        or len(set(item["combo"].split("-")))!=3
+                        or item["combo"] in seen
+                        or type(item["p"]) not in (float,int)
+                        or not math.isfinite(item["p"])
+                        or not 0<=item["p"]<=100):
+                    raise ValueError("F_remote_invalid_unranked_or_duplicate_ticket")
+                seen.add(item["combo"])
+            if v["top1"]!=v["tickets"][0]["combo"]:
+                raise ValueError("F_remote_top1_not_first_ranked_ticket")
     try:
         cutoff=datetime.fromisoformat(data["T_minus_12_cutoff_jst"])
         began=datetime.fromisoformat(data["model_started_local_jst"])
         finished=datetime.fromisoformat(data["model_finished_local_jst"])
         source=datetime.fromisoformat(data["latest_archive_source_received_claim_jst"])
+        first=datetime.fromisoformat(data["first_archive_source_received_claim_jst"])
+        official_deadline=datetime.fromisoformat(data["official_deadline_jst"])
     except (ValueError,TypeError,KeyError) as exc:
         raise ValueError("F_remote_clock_unreadable") from exc
-    if (any(dt.utcoffset()!=JST for dt in (cutoff,began,finished,source))
-            or not source<began<=finished<cutoff-timedelta(seconds=60)
+    if (any(dt.utcoffset()!=JST for dt in (
+                cutoff,began,finished,source,first,official_deadline))
+            or not first<=source<began<=finished<cutoff-timedelta(seconds=60)
+            or official_deadline-cutoff!=timedelta(minutes=12)
             or cutoff.date().strftime("%Y%m%d")!=race[:8]
             or cutoff<datetime(2026,11,12,tzinfo=timezone(JST))):
         raise ValueError("F_remote_claimed_pre_T12_source_or_model_clock_invalid")
