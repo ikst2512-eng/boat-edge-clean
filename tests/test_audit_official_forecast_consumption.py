@@ -67,6 +67,48 @@ class OfficialForecastConsumptionTests(unittest.TestCase):
             "latest_original_received_jst": "2026-11-02T21:20:05+09:00",
         }
 
+
+    def test_official_six_lane_shadow_uses_raw_features_only_before_t12(self):
+        from scripts.audit_official_forecast_consumption import (
+            generate_official_research_shadow, verified_official_input_manifest,
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            card, before, odds = ThreeOriginalAuditTests().make(tmp)
+            with patch("scripts.audit_joint_official_receipts.parse_official_odds_table",
+                       return_value={"fixture": 1}), patch(
+                    "scripts.audit_joint_official_receipts.inspect_odds_receipt",
+                    return_value={"valid_120_combinations": True,
+                                  "complete_odds_observed_before_t12": True}):
+                official = audit_three_originals(card, before, odds)
+                m = verified_official_input_manifest((card, before, odds), official)
+                valid_time = "2026-11-02T21:20:40+09:00"
+                output = generate_official_research_shadow(m, valid_time)
+                self.assertTrue(output["generated"])
+                self.assertTrue(output["model_consumed_official_exhibition_fields"])
+                self.assertFalse(output["model_consumed_official_odds_prices"])
+                self.assertFalse(output["formal_t12_certified"])
+                self.assertFalse(output["purchase_approved"])
+                self.assertEqual(len(output["top_probability_order"]), 10)
+                self.assertEqual(set(output["predictions"]),
+                                 {"narrow", "hit", "balance", "hole"})
+                self.assertEqual(
+                    generate_official_research_shadow(m, valid_time)["top_probability_order"],
+                    output["top_probability_order"])
+                late = generate_official_research_shadow(
+                    m, "2026-11-02T21:39:00+09:00")
+                self.assertFalse(late["generated"])
+                self.assertEqual(late["status"], "t12_window_closed_no_shadow_generation")
+                too_early = generate_official_research_shadow(
+                    m, "2026-11-02T21:19:00+09:00")
+                self.assertFalse(too_early["generated"])
+                self.assertEqual(too_early["status"], "source_receipt_after_requested_generation")
+
+                forged = json.loads(json.dumps(m))
+                forged["six_boat_inputs"][0]["exhibition_time"] += 0.2
+                with self.assertRaisesRegex(ValueError, "unverified_official_shadow_manifest"):
+                    generate_official_research_shadow(forged, valid_time)
+
+
     def test_snapshot_rejects_unproven_consumption_both_clock_directions(self):
         with tempfile.TemporaryDirectory() as tmp:
             original = self.write_forecast(tmp)
