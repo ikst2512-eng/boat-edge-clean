@@ -27,6 +27,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Syntax-check retained-history public acceptance probe
+        run: node --check tests/live_candidate_history_full_postdeploy.cjs
       - name: Install browser runner
         timeout-minutes: 8
         run: |
