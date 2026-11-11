@@ -91,6 +91,28 @@ function showRace(race){
  node.append(summary);
  const detail=document.createElement('div');detail.className='candidate-detail';
  const saved=race.forecast_status==='saved_research_unattested'&&Array.isArray(race.tickets)&&race.tickets.length;
+ const linked=race.four_mode_source_link;
+ if(linked&&typeof linked==='object'){
+  const state=linked.status;
+  const descriptions={
+   same_research_source_unattested:'研究入力の同一SHA・6艇勝率・締切前時刻が一致（公式直前認定ではありません）',
+   source_digest_mismatch:'研究予想と4モードの元データSHAが異なるため、同一入力とは認定しません',
+   six_racer_input_mismatch:'6艇勝率が異なるため、同一研究入力とは認定しません',
+   four_mode_invalid:'4モード側の原本または締切前時刻を検証できません',
+   four_mode_missing:'対応する4モード研究原本がありません',
+   candidate_unverified:'候補の研究原本が未検証です'
+  };
+  detail.append(text('p','研究入力の紐付け：'+(descriptions[state]||'照合状態を検証できません'),'notes'));
+  if(state==='same_research_source_unattested'&&
+     linked.formal_attested===false&&linked.official_beforeinfo_verified===false&&
+     typeof linked.source_sha256?.title==='string'&&
+     typeof linked.source_sha256?.race_cards==='string'){
+   detail.append(text('p','出走表元SHA256：'+linked.source_sha256.title+' ／ 6艇カード元SHA256：'+linked.source_sha256.race_cards,'notes'));
+   if(typeof linked.four_mode_source_received_jst==='string')
+    detail.append(text('p','4モード元入力の受領 '+linked.four_mode_source_received_jst.slice(11,16)+' JST｜公式展示・オッズの受領証明ではありません。','notes'));
+  }
+ }
+
  // This is an evidence audit of the frozen candidate record, not an
  // aftermarket judgment or a substitute for a verified live race preview.
  const missingLabel={
@@ -194,6 +216,23 @@ async function loadDay(){
   if(d.selection_rule!==undefined&&!selectionAvailable)throw Error('未知の研究選定ルール');
   if(d.purchase_review_schema!==undefined&&d.purchase_review_schema!=='candidate_evidence_hold_v1')
    throw Error('未知の購入根拠監査スキーマ');
+  if(d.four_mode_research_source_link_count!==undefined){
+   const statuses=['same_research_source_unattested','source_digest_mismatch',
+    'six_racer_input_mismatch','four_mode_invalid','four_mode_missing','candidate_unverified'];
+   let linkedCount=0;
+   for(const race of d.races){
+    const item=race.four_mode_source_link;
+    if(!item||!statuses.includes(item.status)||
+       item.official_beforeinfo_verified!==false||item.formal_attested!==false)
+      throw Error('4モード研究入力の紐付け形式が不正');
+    if(item.status==='same_research_source_unattested'){
+     linkedCount++;
+     if(!['title','race_cards'].every(k=>/^[a-f0-9]{64}$/.test(item.source_sha256?.[k]||'')))
+      throw Error('研究原本SHAが不正');
+    }
+   }
+   if(linkedCount!==d.four_mode_research_source_link_count)throw Error('研究原本の同一性件数が不一致');
+  }
   if(d.purchase_review_schema==='candidate_evidence_hold_v1'){
    if(d.purchase_review_approved_count!==0)throw Error('未認定研究に購入承認を付けられません');
    for(const race of d.races){
