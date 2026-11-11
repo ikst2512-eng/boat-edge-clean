@@ -11,6 +11,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from evaluate_clean_prospective_cohort import independently_verified_payout
+from research_model import probabilities
+from selection_dual import MINIMUM_CONFIDENCE
 
 ROOT = Path(__file__).resolve().parent
 JST = timedelta(hours=9)
@@ -34,6 +36,27 @@ def _read_record(path, max_bytes):
     if not isinstance(data, dict):
         raise ValueError("invalid archive")
     return data
+
+
+def _research_selection(data):
+    """Read-only 70% *model head mass* research signal, never a purchase verdict.
+
+    Reuse the existing selection_dual policy on the exact saved model inputs.
+    Missing/incompatible pre-race data stays unassessed; never use results.
+    """
+    unassessed = {"selection_status": "unassessed", "head_top2_model_pct": None}
+    if data.get("model_version") != "clean-prospective-national-beta0.4-v1":
+        return unassessed
+    try:
+        board = probabilities(data.get("national_win_rates"))
+        masses = [sum(p for ticket, p in board if ticket[0] == boat) for boat in range(1, 7)]
+        signal = sum(sorted(masses, reverse=True)[:2])
+    except (ValueError, TypeError, ArithmeticError):
+        return unassessed
+    return {
+        "selection_status": "research_70_pass" if signal >= MINIMUM_CONFIDENCE else "research_70_below",
+        "head_top2_model_pct": round(100 * signal, 2),
+    }
 
 
 def _candidate(path, code):
@@ -62,6 +85,7 @@ def _candidate(path, code):
         "deadline_jst": data["source_deadline_jst"],
         "tickets": tickets,
         "model_version": str(data.get("model_version", ""))[:100],
+        **_research_selection(data),
     }
 
 
@@ -110,6 +134,8 @@ def daily_candidate_history(day, root=ROOT):
             "venue": int(code[8:10]),
             "race": int(code[10:12]),
             "forecast_status": "unverified",
+            "selection_status": "unassessed",
+            "head_top2_model_pct": None,
             "tickets": [],
             "deadline_jst": None,
         }
@@ -139,6 +165,10 @@ def daily_candidate_history(day, root=ROOT):
         "first_git_add_verified": False,
         "production_forecast": False,
         "candidate_count": len(rows),
+        "selection_rule": "top2_head_mass_ge_70_research_only_v1",
+        "research_70_pass_count": sum(r["selection_status"] == "research_70_pass" for r in rows),
+        "research_70_below_count": sum(r["selection_status"] == "research_70_below" for r in rows),
+        "research_unassessed_count": sum(r["selection_status"] == "unassessed" for r in rows),
         "research_forecast_count": sum(r["forecast_status"] == "saved_research_unattested" for r in rows),
         "confirmed_result_count": sum(r["result_status"] == "confirmed_archive" for r in rows),
         "payout_verified_count": sum(r["payout_status"] == "verified_independent" for r in rows),
