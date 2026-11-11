@@ -199,7 +199,7 @@ async function checkOfficialReplay(page,ctx,engine){
    console.log('PUBLIC_P2_SIX_BOAT_CROSS_ENGINE_VERIFIED '+JSON.stringify({
      browsers:['chromium','webkit'],historicalOriginalRaces:fixtures.length,
      originalMeasurementsPerEngine:fixtures.length*18,
-     nonProvided:'Edogawa',historicalOfficialFieldsPerEngine:24,
+     nonProvided:'Edogawa',historicalOfficialFieldsCheckedPerEngine:24,mayBeWithheld:true,
      noMocks:true,formalT12:false
    }));
  }finally{await ctx.dispose();}
