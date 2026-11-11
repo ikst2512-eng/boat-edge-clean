@@ -579,6 +579,11 @@ class BundleTests(unittest.TestCase):
         self.assertIn("\n  persist-official-research:\n",workflow)
         self.assertIn("    permissions:\n      contents: write",workflow)
         self.assertIn("needs.capture.result == 'success'",workflow)
+        self.assertIn("needs.capture.result == 'failure'",workflow)
+        self.assertIn("needs.capture.outputs.official_tests_passed == 'true'",workflow)
+        self.assertIn("needs.capture.outputs.official_capture_outcome == 'success'",workflow)
+        self.assertIn("needs.capture.outputs.official_audit_outcome == 'success'",workflow)
+        self.assertIn("needs.capture.outputs.official_handoff_outcome == 'success'",workflow)
         self.assertIn("needs.capture.outputs.official_bundle_ready == 'true'",workflow)
         # continue-on-error step 'conclusion' is green even when 'outcome' fails.
         self.assertIn("steps.official_pair_capture.outcome",workflow)
@@ -590,6 +595,69 @@ class BundleTests(unittest.TestCase):
         self.assertIn("github.ref == 'refs/heads/main'",workflow)
         self.assertIn("(github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')",workflow)
         self.assertNotIn("github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'",workflow)
+
+    def test_later_csv_failure_does_not_erase_verified_official_handoff(self):
+        """Evaluate the literal privileged job gate for real GitHub job outcomes."""
+        workflow = (Path(__file__).resolve().parents[1] /
+                    '.github/workflows/research-live-preview-evidence.yml').read_text()
+        capture_block = workflow.split('  capture:\n', 1)[1].split(
+            '  persist-official-research:\n', 1)[0]
+        for required in (
+            "official_tests_passed: ${{ steps.official_tests_passed.outputs.passed }}",
+            "official_capture_outcome: ${{ steps.official_pair_capture.outcome }}",
+            "official_audit_outcome: ${{ steps.official_forecast_clock.outcome }}",
+            "official_handoff_outcome: ${{ steps.official_handoff_upload.outcome }}",
+            "id: official_tests_passed",
+            "id: official_handoff_upload",
+        ):
+            self.assertIn(required, capture_block)
+        self.assertLess(capture_block.index('id: official_tests_passed'),
+                        capture_block.index('id: official_pair_capture'))
+        self.assertLess(capture_block.index('id: official_handoff_upload'),
+                        capture_block.index('Capture eligible predeadline preview rows'))
+
+        write_job = workflow.split('  persist-official-research:\n', 1)[1]
+        raw = write_job.split('    if: >-\n', 1)[1].split('    runs-on:', 1)[0]
+        expression = ' '.join(raw.split()).replace('always()', 'True').replace(
+            '&&', ' and ').replace('||', ' or ')
+        defaults = {
+            'needs.capture.result': 'success',
+            'needs.capture.outputs.official_tests_passed': 'true',
+            'needs.capture.outputs.official_capture_outcome': 'success',
+            'needs.capture.outputs.official_audit_outcome': 'success',
+            'needs.capture.outputs.official_handoff_outcome': 'success',
+            'needs.capture.outputs.official_bundle_ready': 'true',
+            'github.repository': 'ikst2512-eng/boat-edge-clean',
+            'github.ref': 'refs/heads/main',
+            'github.event_name': 'schedule',
+        }
+
+        def gate(**updates):
+            values = {**defaults, **updates}
+            evaluated = expression
+            for name in sorted(values, key=len, reverse=True):
+                evaluated = evaluated.replace(name, repr(values[name]))
+            return eval(evaluated, {'__builtins__': {}}, {})
+
+        # The sole job failure here is downstream CSV analysis after a
+        # successful official capture and immutable artifact handoff.
+        self.assertTrue(gate(**{'needs.capture.result': 'failure'}))
+        self.assertTrue(gate(**{'github.event_name': 'workflow_dispatch'}))
+        self.assertTrue(gate())
+        for field, fail_value in (
+            ('needs.capture.result', 'cancelled'),
+            ('needs.capture.result', 'skipped'),
+            ('needs.capture.outputs.official_tests_passed', 'false'),
+            ('needs.capture.outputs.official_capture_outcome', 'failure'),
+            ('needs.capture.outputs.official_audit_outcome', 'failure'),
+            ('needs.capture.outputs.official_handoff_outcome', 'failure'),
+            ('needs.capture.outputs.official_bundle_ready', 'false'),
+            ('github.ref', 'refs/heads/research'),
+            ('github.repository', 'different/repo'),
+            ('github.event_name', 'pull_request'),
+        ):
+            with self.subTest(field=field):
+                self.assertFalse(gate(**{field: fail_value}))
 
     def test_noncanonical_namespace_rejected(self):
         _, body, cutoff = build_bundle(self.row, self.dirs)
