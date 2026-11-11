@@ -27,7 +27,7 @@ assert.ok(script.includes('/api/legacy-scenario-preview?hd='));
 assert.ok(script.includes('LEGACY_SCENARIO_SCORE_RESTORED_FOUR_MODE_REFERENCE_V1'));
 assert.ok(script.includes('head_top2_is_not_trifecta_hit70!==true'));
 assert.ok(script.includes('未検証・未保存のため独立的中率に加算しません。'));
-assert.ok(html.includes('V2保存済み4モード（原本変更なし）'));
+assert.ok(html.includes('V2全国勝率基準｜保存済み4モード（原本変更なし）'));
 console.log('PASS: restored scenario-first preview and original V2 comparator remain distinct');
 // A national-win-rate-only baseline must never silently masquerade as
 // scenario/entry/ST/exhibition/wind-aware production prediction.
