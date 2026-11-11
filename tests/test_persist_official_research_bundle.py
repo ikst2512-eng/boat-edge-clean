@@ -10,7 +10,7 @@ from pathlib import Path
 from scripts.persist_official_research_bundle import (
     JST, SOURCE_FILES, blob_sha, build_bundle, store_once,
     verify_independent_source_and_shadow_replay, receipt_snapshot,
-    bind_same_action_source_paths,
+    bind_same_action_source_paths, verify_commit_initial_add,
 )
 
 
@@ -137,7 +137,11 @@ class BundleTests(unittest.TestCase):
             return 201, {'content':{'sha':blob_sha(files[item])},
                          'commit':{'sha':'b'*40}}
         clock = lambda: datetime(2026,11,11,19,42,tzinfo=JST)
-        a = store_once(path, body, cutoff, 'test',getter=get,putter=put,clock=clock)
+        commit_fetcher = lambda sha, token: {
+            'sha': sha, 'files': [{'filename': path, 'status': 'added', 'sha': blob_sha(body)}]
+        }
+        a = store_once(path, body, cutoff, 'test',getter=get,putter=put,
+                       commit_fetcher=commit_fetcher,clock=clock)
         self.assertTrue(a['newly_stored'])
         self.assertFalse(a['independent_remote_first_seen_verified'])
         self.assertEqual(a['git_commit_sha'],'b'*40)
@@ -145,11 +149,41 @@ class BundleTests(unittest.TestCase):
         self.assertEqual(a['put_response_observed_at_jst'], '2026-11-11T19:42:00+09:00')
         self.assertEqual(a['readback_response_observed_at_jst'], '2026-11-11T19:42:00+09:00')
         self.assertEqual(a['sha256'], hashlib.sha256(body).hexdigest())
+        self.assertTrue(a['git_commit_added_path_verified'])
+        self.assertEqual(a['git_commit_file_status'], 'added')
+        self.assertEqual(a['git_commit_file_blob_sha1'], blob_sha(body))
+        self.assertEqual(a['commit_status_observed_at_jst'], '2026-11-11T19:42:00+09:00')
         b = store_once(path, body, cutoff, 'test',getter=get,putter=put,clock=clock)
         self.assertEqual(b['status'],'preexisting_identical_reused')
         self.assertEqual(len(commits),1)
         with self.assertRaisesRegex(RuntimeError,'immutable_path_content_conflict'):
             store_once(path,b'other',cutoff,'test',getter=get,putter=put,clock=clock)
+
+    def test_git_commit_status_is_added_not_modified(self):
+        path,body,cutoff=build_bundle(self.row,self.dirs)
+        def details(status='added',filename=None,sha=None,files=None):
+            return {'sha':'a'*40,'files': files if files is not None else [{
+                'filename': filename or path,'status':status,'sha':sha or blob_sha(body)}]}
+        result=verify_commit_initial_add(
+            'a'*40,path,body,'token',commit_fetcher=lambda a,b:details())
+        self.assertTrue(result['git_commit_added_path_verified'])
+        for item in (details(status='modified'),
+                     details(filename='t12_baselines/20261111/old.json'),
+                     details(sha='b'*40),
+                     details(files=[]),
+                     {'sha':'c'*40,'files':details()['files']},
+                     details(files=details()['files']*2)):
+            with self.assertRaisesRegex(RuntimeError, 'git_initial_add_'):
+                verify_commit_initial_add(
+                    'a'*40,path,body,'token',commit_fetcher=lambda a,b,item=item:item)
+
+    def test_git_commit_read_error_never_claims_initial_add(self):
+        path,body,cutoff=build_bundle(self.row,self.dirs)
+        def failed_commit(*args):
+            raise RuntimeError('git_initial_add_commit_identity_unverified')
+        with self.assertRaisesRegex(RuntimeError,'git_initial_add_'):
+            verify_commit_initial_add('a'*40,path,body,'token',
+                                      commit_fetcher=failed_commit)
 
     def test_cutoff_guard_blocks_all_network_calls(self):
         path, body, cutoff = build_bundle(self.row, self.dirs)
