@@ -100,22 +100,31 @@ jobs:
           if (os.environ.get("OFFICIAL_CAPTURE_OUTCOME")=="success"
                   and os.environ.get("OFFICIAL_AUDIT_OUTCOME")=="success"
                   and p.is_file() and batch_path.is_file()):
-              batch=json.loads(batch_path.read_text(encoding="utf-8"))
-              report=json.loads(p.read_text(encoding="utf-8"))
-              ready=(
-                  batch.get("status")=="complete_pairs_observed"
-                  and type(batch.get("three_originals_complete_before_t12")) is int
-                  and batch["three_originals_complete_before_t12"] > 0
-                  and report.get("status")=="read_only_research_audited"
-                  and report.get("formal_t12_certified")==0
-                  and report.get("official_consumed_forecasts")==0
-                  and any(
-                      row.get("official_original_status")=="three_originals_reaudited_research_only"
-                      and isinstance(row.get("official_research_shadow"),dict)
-                      and row["official_research_shadow"].get("generated") is True
-                      for row in report.get("rows",[]) if isinstance(row,dict)
+              try:
+                  batch=json.loads(batch_path.read_text(encoding="utf-8"))
+                  report=json.loads(p.read_text(encoding="utf-8"))
+                  ready=(
+                      isinstance(batch,dict)
+                      and isinstance(report,dict)
+                      and batch.get("status")=="complete_pairs_observed"
+                      and type(batch.get("three_originals_complete_before_t12")) is int
+                      and batch["three_originals_complete_before_t12"] > 0
+                      and report.get("status")=="read_only_research_audited"
+                      and report.get("formal_t12_certified")==0
+                      and report.get("official_consumed_forecasts")==0
+                      and isinstance(report.get("rows"),list)
+                      and any(
+                          row.get("official_original_status")=="three_originals_reaudited_research_only"
+                          and isinstance(row.get("official_research_shadow"),dict)
+                          and row["official_research_shadow"].get("generated") is True
+                          for row in report["rows"] if isinstance(row,dict)
+                      )
                   )
-              )
+              except (OSError, UnicodeError, ValueError, TypeError):
+                  # A corrupted/unreadable official report forbids writer handoff,
+                  # but must NOT block the unrelated existing CSV research work.
+                  print("OFFICIAL_RESEARCH_HANDOFF_UNVERIFIED invalid_official_report")
+                  ready=False
           with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as out:
               out.write(f"ready={'true' if ready else 'false'}\n")
           print("OFFICIAL_RESEARCH_BUNDLE_READY "+str(ready).lower()+" (not Git saved)")
