@@ -118,6 +118,7 @@ jobs:
               kind==='LIVE_OFFICIAL_PAGES_E2E_EVIDENCE'||
               kind==='LIVE_OFFICIAL_PAGES_E2E_PASS'||
               kind==='LIVE_OFFICIAL_PAGES_E2E_UNVERIFIED'||
+              kind==='LIVE_OFFICIAL_CASE_UNVERIFIED_EVIDENCE'||
               kind==='RENDER_POST_E2E_DEPLOY'||
               kind==='RENDER_POST_E2E_DEPLOY_UNVERIFIED')){
               const raw=s.slice(kind.length).trim();
@@ -401,6 +402,13 @@ jobs:
                   report.push(code+':'+String(e.message).slice(0,130));
                   console.log('LIVE_OFFICIAL_CASE_UNVERIFIED',code,String(e.message),
                     'SOURCE_GAP',JSON.stringify(gap));
+                  // Keep source-specific gaps as structured diagnostics even
+                  // if another race in the same run achieves 24/24 parity.
+                  // Do not turn partial source coverage into a formal PASS.
+                  out('LIVE_OFFICIAL_CASE_UNVERIFIED_EVIDENCE '+JSON.stringify({
+                    race_code:code,deadline_jst:race.deadline_jst,
+                    reason:String(e.message).slice(0,130),
+                    source_gap:gap,formal_t12_certified:false}));
                 }
               }
               if(!matched){out('LIVE_OFFICIAL_PAGES_E2E_UNVERIFIED '+JSON.stringify(report));process.exitCode=1}
