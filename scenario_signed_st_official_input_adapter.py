@@ -28,7 +28,7 @@ def extract_archived_signed_F_input(card_dir,beforeinfo_dir,odds_dir):
         raise ValueError("signed_F_official_triple_not_complete")
     card,cardmeta=_load_receipt(card_dir,"racelist.html")
     before,beforemeta=_load_receipt(beforeinfo_dir,"beforeinfo.json")
-    odds,oddsmeta=_load_receipt(odds_dir,"odds3t.html")
+    odds,oddsmeta=_load_receipt(odds_dir,"original.html")
     signed=encode_signed_st_only(audit,before,beforemeta)
     rates=extract_six_official_racelist_rates(card)
     try:
