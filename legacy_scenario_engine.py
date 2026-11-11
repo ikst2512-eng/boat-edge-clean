@@ -89,6 +89,8 @@ def restored_scenario_preview(card, now=None):
     if (not isinstance(now, datetime) or now.utcoffset() != timedelta(hours=9)
             or type(card) is not dict or card.get("schema_version") != "boat-edge-race-v5"):
         raise ValueError("invalid_current_race_evidence")
+    if any(k in card for k in ("result", "finish_order", "payout", "confirmed_result", "winning_ticket")):
+        raise ValueError("outcome_contamination_denied")
     key = card.get("race_key")
     meta = card.get("meta")
     if (type(key) is not str or re.fullmatch(r"20\d{6}-(?:0[1-9]|1\d|2[0-4])-(?:0[1-9]|1[0-2])", key) is None
@@ -153,9 +155,10 @@ def restored_scenario_preview(card, now=None):
     entry = {}
     if verified_before:
         courses = [bs[i].get("course") for i in range(1, 7)]
-        if (all(type(c) is int and 1 <= c <= 6 for c in courses)
+        if (all(type(c) in (int, float) and math.isfinite(c)
+                and c == int(c) and 1 <= c <= 6 for c in courses)
                 and len(set(courses)) == 6):
-            entry = {i: courses[i-1] for i in range(1, 7)}
+            entry = {i: int(courses[i-1]) for i in range(1, 7)}
         # Preview course is NOT confirmed actual race entry.
     ex_times = {lane: _field(r, "exhibition_time") for lane, r in br.items()}
     times = [t for t in ex_times.values() if t is not None]
