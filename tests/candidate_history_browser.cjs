@@ -40,6 +40,12 @@ const { chromium } = require('playwright');
    return {open:card?.open,saved:card?.querySelector('.candidate-tickets')?.textContent,
     links:[...card.querySelectorAll('.candidate-links a')].map(x=>x.href)};
   });
+  const review=await page.locator('#candidateCards > details').first().locator('.candidate-detail').innerText();
+  if(!review.includes('購入判断：見送り')||
+     !review.includes('2コースの壁・逃がし率')||
+     !review.includes('風・波・水面')||
+     !review.includes('初回保存証明・正式予想認定'))
+   throw Error('candidate_evidence_hold_missing_'+review.slice(0,500));
   if(!opened.open||!opened.saved?.includes('1-2-4')||
       !opened.links.some(x=>x.includes('screen=forecast'))||
       !opened.links.some(x=>x.includes('screen=result')))
