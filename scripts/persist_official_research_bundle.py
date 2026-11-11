@@ -382,6 +382,13 @@ def main():
         token = os.environ.get("GH_TOKEN")
         if not token:
             raise ValueError("github_writer_token_unavailable")
+        # Job-step failures may be masked by 'continue-on-error' in capture.
+        # Never use an apparently good row from a partially failed batch.
+        batch = read_json(args.batch_dir / "batch_report.json")
+        if (batch.get("status") != "complete_pairs_observed"
+                or type(batch.get("three_originals_complete_before_t12")) is not int
+                or batch["three_originals_complete_before_t12"] < 1):
+            raise ValueError("capture_batch_not_clean_complete")
         report = read_json(args.batch_dir / "forecast_temporal_link_report.json")
         if (report.get("status") != "read_only_research_audited"
                 or report.get("formal_t12_certified") != 0
