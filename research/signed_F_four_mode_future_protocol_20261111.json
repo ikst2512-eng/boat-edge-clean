@@ -1,0 +1,208 @@
+{
+  "schema": "SIGNED_F_ST_FOUR_MODE_FUTURE_ONLY_PREREGISTRATION_V1",
+  "study_id": "EXPLORATORY_ONLY_SIGNED_F_ST_4MODE_SHADOW_V1",
+  "registered_date_jst": "2026-11-11",
+  "eligible_new_race_deadline_start_jst": "2026-11-12T00:00:00+09:00",
+  "eligible_new_race_deadline_end_jst": "2026-12-31T23:59:59+09:00",
+  "status": "methods_frozen_research_math_only_no_future_collector_or_candidate_publisher_installed",
+  "original_1693_1710_future_600_unchanged": true,
+  "historical_20261111_artifacts_replay_only_not_accuracy_cohort": [
+    "202611111911",
+    "202611110711"
+  ],
+  "method_git_blob_sha1": {
+    "scenario_signed_st_four_mode_shadow.py": "9426d48ac705c06d94e6e70738c585cb428d64fa",
+    "scenario_signed_st_official_input_adapter.py": "2b835504956cac136710bee5e167e5cd2a0af079",
+    "scenario_signed_st_racelist_rates.py": "39356b2f3022a664c211c65ef62222c1204d663b",
+    "scenario_flagged_st_feature_study.py": "3d5ba9e022ad487eeabd33c21bcafd0c9f6af48d",
+    "scenario_official_st_intake_diagnostic.py": "60a2ac02e8309fbe9e863af88c314739d5bd5ef1",
+    "research_model.py": "19137116f8ec79d467f73c57c537a9a95f50110d",
+    "scenario_first_head_research.py": "e82f34fedb44c4b6096b37dff6281f50b92387b0",
+    "scenario_exhibition_all_mode_runner.py": "70de2a5f6169787d4ee412f689977446384d6182",
+    "scenario_four_mode_bridge.py": "2e2bb135d3f72dbf27339f9f7f2cd2de78f54eff",
+    "clean_four_modes.py": "c143b836e6e833ff1ff6ee0d8f13dca6a8408c7d",
+    "scripts/audit_three_official_t12_originals.py": "fb9d98e7329c0d8423c58d94f9618380eb3ad876"
+  },
+  "pinned_external_1698_conditional": {
+    "commit": "e152b57033f825e02343b004a9c013a8998f9954",
+    "code_path": "position_sensitive_conditioned_lab.py",
+    "git_blob_sha1": "0019978a4e27a1235d0b466c11f514bd7105f261"
+  },
+  "method_inherited_from_frozen_1710_prior_protocol_blob": "bf60d2879065d1f9ecbd6b442db17fcb8fbcb8b7",
+  "selected_observable_features": [
+    "official_six_national_win_rates",
+    "exhibition_st_seconds_signed_F_preserved",
+    "exhibition_time_s",
+    "exhibition_course_only"
+  ],
+  "excluded_or_unverified": [
+    "actual_final_entry",
+    "wind",
+    "wave",
+    "tide",
+    "motor",
+    "two_course_wall",
+    "odds_as_probability_sort",
+    "post_result_features"
+  ],
+  "same_fixed_scenarios_as_original_1710": {
+    "escape_wall": {
+      "head_log_shifts": [
+        3.5,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "position_coefficients": {
+        "exhibition_st_s": {
+          "second": 0.3,
+          "third": 0.15
+        },
+        "exhibition_time_s": {
+          "second": 0.15,
+          "third": 0.08
+        }
+      }
+    },
+    "two_sashi": {
+      "head_log_shifts": [
+        0,
+        3.5,
+        0,
+        0,
+        0,
+        0
+      ],
+      "position_coefficients": {
+        "exhibition_st_s": {
+          "second": 0.3,
+          "third": 0.15
+        },
+        "exhibition_time_s": {
+          "second": 0.15,
+          "third": 0.08
+        }
+      }
+    },
+    "third_attack": {
+      "head_log_shifts": [
+        0,
+        0,
+        3.5,
+        0,
+        0,
+        0
+      ],
+      "position_coefficients": {
+        "exhibition_st_s": {
+          "second": 0.3,
+          "third": 0.15
+        },
+        "exhibition_time_s": {
+          "second": 0.15,
+          "third": 0.08
+        }
+      }
+    },
+    "outer_benefit": {
+      "head_log_shifts": [
+        0,
+        0,
+        0,
+        0,
+        3.5,
+        0
+      ],
+      "position_coefficients": {
+        "exhibition_st_s": {
+          "second": 0.3,
+          "third": 0.15
+        },
+        "exhibition_time_s": {
+          "second": 0.15,
+          "third": 0.08
+        }
+      }
+    }
+  },
+  "same_mode_weights_as_original_1710": {
+    "narrow": {
+      "escape_wall": 1,
+      "two_sashi": 0,
+      "third_attack": 0,
+      "outer_benefit": 0
+    },
+    "hit": {
+      "escape_wall": 0,
+      "two_sashi": 1,
+      "third_attack": 0,
+      "outer_benefit": 0
+    },
+    "balance": {
+      "escape_wall": 0.5,
+      "two_sashi": 0,
+      "third_attack": 0.5,
+      "outer_benefit": 0
+    },
+    "hole": {
+      "escape_wall": 0,
+      "two_sashi": 0,
+      "third_attack": 0.5,
+      "outer_benefit": 0.5
+    }
+  },
+  "mode_ticket_budgets": {
+    "narrow": 5,
+    "hit": 10,
+    "balance": 16,
+    "hole": 22
+  },
+  "candidate_arms": {
+    "primary": "SIGNED_F_ST_NONZERO_REGISTERED_COEFFICIENTS",
+    "paired_control": "ZERO_ST_COEFFICIENTS_SAME_HEAD_TIME_SCENARIO_WEIGHTS",
+    "control_spec": "for each scenario retain head_log_shifts, exhibition_time_s coefficients, weights, but set exhibition_st_s coefficients for second and third to 0.0; no odds-driven reordering, no forced ticket diversity"
+  },
+  "source_eligibility": {
+    "all_three_official_originals_same_race": true,
+    "all_12_existing_independent_components_pass": true,
+    "six_racer_registration_ids_same_between_card_and_beforeinfo": true,
+    "all_three_originals_received_and_prediction_generated_and_Git_first_receipt_before_T12": true,
+    "ST_rule": "at least one official exhibition boat F; no L; all 6 signed numeric in [-0.50,+1.00]; F labels preserved, not main-race disqualification",
+    "local_win_rate_0_00": "accept as observed value, do not fill, do not claim local races count",
+    "national_rates_rule": "6 nonzero rates from same original racelist, bounded 0 < rate <= 10",
+    "exhibition_time_rule": "6 real official time readings within 5-10 seconds",
+    "final_entry_not_claimed": true,
+    "forbid_outcomes_during_candidate_creation": true,
+    "reject_unknown_missing_or_out_of_range_no_imputation": true
+  },
+  "prospective_pairing": "enumerate eligible first 600 future F-inclusive races by actual independent remote candidate first-receipt timestamp then race_code; reserve all slots including later missing result; no historic 11/11 sample; never substitute post-result candidates",
+  "pilot_eligible_samples": 300,
+  "independent_confirmation_eligible_samples": 300,
+  "primary_endpoint": "same-race exact 3T Top1 difference (signed F arm vs ST-zero control), repeated by 4 modes, multiplicity corrected",
+  "secondary_endpoints": [
+    "Top3",
+    "Top5",
+    "Top10 where applicable",
+    "first-head Top1",
+    "pairwise gains/losses",
+    "Brier if separately verified true predeadline 120 probabilities",
+    "ROI only if verified original odds and confirmed payout"
+  ],
+  "non_inferiority_guardrails": [
+    "Top5 not lower than paired control on same F-races",
+    "Top10 not lower than paired control on modes with >=10 tickets"
+  ],
+  "all_probability_scores_unvalidated": true,
+  "source_witness_requirement": "new independent GitHub server first receipt not inferred from self-reported clocks, local git commit or green CI",
+  "scoring": "existing #1693 outcome-LAST independent scorer reused only after frozen candidate first receipt, do not score current after-result tests",
+  "deployment": {
+    "collector_installed": false,
+    "prospective_candidate_publisher_installed": false,
+    "recorded_new_candidates": 0,
+    "formal_scored_races": 0,
+    "production_enabled": false,
+    "auto_merge_allowed": false
+  }
+}
