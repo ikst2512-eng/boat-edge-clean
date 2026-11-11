@@ -157,6 +157,40 @@ class ActivationTests(unittest.TestCase):
         self.assertFalse(result["trigger_is_schedule"])
         self.assertFalse(result["formal_t12_certified"])
 
+    def test_existing_result_native_tick_wakes_only_evening_official_rescue(self):
+        # On Nov 11 this independent result collector had a real native
+        # schedule at 19:48 JST while the 19:35 official cron was unobserved.
+        # Wake is allowed for UTC 10:40-10:59 only; never promote the
+        # collector to a native official verification or a saved forecast.
+        from pathlib import Path
+        root=Path(__file__).resolve().parent.parent
+        collector=(root/".github/workflows/collect-clean-results.yml").read_text()
+        watchdog=(root/".github/workflows/entry-course-activation-watchdog.yml").read_text()
+        self.assertIn("name: CLEAN independent confirmed result collection",collector)
+        self.assertIn("cron: '*/10 * * * *'",collector)
+        self.assertIn('- "CLEAN independent confirmed result collection"',watchdog)
+        self.assertIn(
+            "github.event.workflow_run.name != 'CLEAN independent confirmed result collection'",
+            watchdog)
+        self.assertIn("contains(github.event.workflow_run.created_at, 'T10:4')",watchdog)
+        self.assertIn("contains(github.event.workflow_run.created_at, 'T10:5')",watchdog)
+        self.assertIn("github.event.workflow_run.event == 'schedule'",watchdog)
+        self.assertIn("github.event.workflow_run.head_branch == 'main'",watchdog)
+        self.assertIn(
+            "github.event.workflow_run.head_repository.full_name == github.repository",
+            watchdog)
+        self.assertEqual(watchdog.count("- cron:"),1)
+        self.assertNotIn('- "Entry course missed-cron activation watchdog"',collector)
+        callbacks=[]
+        result=official_live_probe_fallback(
+            datetime(2026,11,11,19,48,tzinfo=JST),
+            lambda file,event:[],
+            lambda file:callbacks.append(file))
+        self.assertEqual(callbacks,[OFFICIAL_PROBE_WORKFLOW])
+        self.assertEqual(result["decision"],"requested_missing_official_probe")
+        self.assertFalse(result["trigger_is_schedule"])
+        self.assertFalse(result["formal_t12_certified"])
+
     def test_existing_readonly_audit_completions_can_opportunistically_wake_t12(self):
         # 11/11 real GitHub schedules: AI audit completed ~08:31 JST,
         # cross-model audit completed ~08:36 JST despite 03 JST cron times.
