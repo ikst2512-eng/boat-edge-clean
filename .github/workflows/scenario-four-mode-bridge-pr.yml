@@ -199,17 +199,23 @@ jobs:
           spec=importlib.util.spec_from_file_location("real_source_only_semantic1693",str(frozen_parser))
           module=importlib.util.module_from_spec(spec)
           spec.loader.exec_module(module)
-          check,bundle,candidate=build_archive_bundle(
-              *groups,"2026-11-11T19:52:58.374593+09:00",
-              before_parser=module._beforeinfo_features)
-          assert check==audit and bundle["race_code"]==race
-          assert candidate["formal"] is False
-          assert set(bundle["originals"])=={"racelist","beforeinfo","odds120"}
-          assert len(bundle["normalized_source_claim"]["odds_3t"])==120
-          assert len(bundle["normalized_source_claim"]["racelist_registration_ids"])==6
-          print("REAL_COMPLETE_OFFICIAL_SOURCE_INPUT_ONLY_PASS "+json.dumps({
-              "race_code":race,"components":12,"odds":120,
-              "source_bundle_checked":True,"model_run":False,
+          # Complete raw-source evidence does not imply model eligibility.
+          # The frozen #1693 parser deliberately refuses F/L exhibition ST.
+          # This real race contains F.05 / F.11 / F.02 / F.04 / F.03,
+          # so fail CLOSED rather than rewriting the registered selector.
+          try:
+              build_archive_bundle(
+                  *groups,"2026-11-11T19:52:58.374593+09:00",
+                  before_parser=module._beforeinfo_features)
+          except ValueError as exc:
+              assert str(exc)=="official_start_flagged_or_ambiguous_st",str(exc)
+          else:
+              raise AssertionError("FLAGGED_OFFICIAL_ST_MUST_NOT_GENERATE_MODEL_INPUT")
+          print("REAL_COMPLETE_OFFICIAL_TRIPLE_FLAGGED_ST_REJECTED "+json.dumps({
+              "race_code":race,"raw_source_components":12,
+              "source_complete_but_frozen_parser_ineligible":True,
+              "rejection":"official_start_flagged_or_ambiguous_st",
+              "research_model_executed":False,
               "retrospective_candidate_generated":False,
               "Git_written":False,"prospective_samples_admitted":0,
               "formal":False,"accuracy_improvement_proven":False},sort_keys=True))
