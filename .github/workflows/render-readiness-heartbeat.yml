@@ -1,0 +1,120 @@
+name: CLEAN Render readiness heartbeat (draft mitigation)
+
+# Draft / unmerged. GitHub schedule only works from the default branch.
+# A 10-minute heartbeat may reduce 15-minute Render Free idle spin-down,
+# but delayed/missed GitHub jobs, quotas and platform failures remain possible.
+on:
+  schedule:
+    - cron: '3,13,23,33,43,53 * * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/render-readiness-heartbeat.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: render-readiness-heartbeat
+  cancel-in-progress: false
+
+jobs:
+  public-http-health:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Verify external health and classify Render idle signal
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          robots="$(mktemp)"
+          robots_after="$(mktemp)"
+          pages="$(mktemp)"
+          trap 'rm -f "$body" "$robots" "$robots_after" "$pages"' EXIT
+          echo "RENDER_CHECK_CONTEXT event=${GITHUB_EVENT_NAME:-unknown} utc=$(date -u +%Y-%m-%dT%H:%M:%SZ) sha=${GITHUB_SHA:-unknown}"
+          base='https://boat-edge-clean.onrender.com'
+          # /robots.txt is served by the edge while asleep and does NOT wake Free instances.
+          # Diagnostic only: its status never substitutes for GET /healthz success.
+          robot_http="$(curl --silent --show-error --connect-timeout 5 --max-time 8             --retry 0 --output "$robots" --write-out '%{http_code}'             "$base/robots.txt")" || robot_http='000'
+          if [[ "$robot_http" == '200' ]] &&
+             grep -Eiq '^[[:space:]]*Disallow:[[:space:]]*/[[:space:]]*$' "$robots"; then
+            echo 'RENDER_IDLE_SIGNAL possible-free-idle-response'
+          elif [[ "$robot_http" == '404' ]] && cmp -s "$robots" <(printf 'not found'); then
+            echo 'RENDER_IDLE_SIGNAL origin-404'
+          else
+            echo "RENDER_IDLE_SIGNAL unclassified_http=$robot_http"
+          fi
+          # Observe idle->origin after the GET. Robots alone is never readiness.
+          report_robots_after() {
+            local after_http
+            after_http="$(curl --silent --show-error --connect-timeout 5 --max-time 8 \
+              --retry 0 --output "$robots_after" --write-out '%{http_code}' \
+              "$base/robots.txt")" || after_http='000'
+            if [[ "$after_http" == '200' ]] &&
+               grep -Eiq '^[[:space:]]*Disallow:[[:space:]]*/[[:space:]]*$' "$robots_after"; then
+              echo 'RENDER_IDLE_AFTER possible-free-idle-response'
+            elif [[ "$after_http" == '404' ]] && cmp -s "$robots_after" <(printf 'not found'); then
+              echo 'RENDER_IDLE_AFTER origin-404'
+            else
+              echo "RENDER_IDLE_AFTER unclassified_http=$after_http"
+            fi
+          }
+          # A request can prevent idle while the instance is active; fail closed on
+          # HTTP non-200, timeout, or incorrect body. Never hide missed wakeups.
+          if ! result="$(curl --silent --show-error             --connect-timeout 5 --max-time 30 --retry 0             --output "$body"             --write-out 'http=%{http_code} total=%{time_total} ttfb=%{time_starttransfer}'             "$base/healthz" 2>&1)"; then
+            echo "::error::RENDER_HTTP_UNAVAILABLE $(printf '%s' "$result" | head -c 300)"
+            report_robots_after
+            exit 1
+          fi
+          echo "RENDER_READINESS_PROBE $result"
+          report_robots_after
+          # >10s time to first byte is a user-visible slow wake, not a fast pass.
+          ttfb="${result##*ttfb=}"
+          if [[ "$ttfb" =~ ^[0-9]+([.][0-9]+)?$ ]] &&
+             awk -v ms="$ttfb" 'BEGIN {exit !(ms > 10)}'; then
+            echo "::warning::RENDER_HTTP_SLOW_START ttfb_seconds=$ttfb threshold_seconds=10"
+          fi
+          if [[ ! "$result" =~ ^http=200[[:space:]] ]] ||
+             ! cmp -s "$body" <(printf 'ok'); then
+            echo "::error::RENDER_HEALTH_NOT_EXACT_200_OK bytes=$(wc -c < "$body" | tr -d ' ')"
+            exit 1
+          fi
+          echo 'RENDER_PUBLIC_HEALTH_PASS'
+          # Verify the public UI independently from the Render API origin.
+          # An HTTP 200 from /healthz alone does not prove the UI is reachable.
+          if ! pages_result="$(curl --silent --show-error --location --max-redirs 2 \
+            --connect-timeout 5 --max-time 15 --retry 0 --output "$pages" \
+            --write-out 'http=%{http_code} total=%{time_total}' \
+            'https://ikst2512-eng.github.io/boat-edge-clean/' 2>&1)"; then
+            echo "::error::PAGES_UNAVAILABLE $(printf '%s' "$pages_result" | head -c 250)"
+            exit 1
+          fi
+          echo "PAGES_READINESS_PROBE $pages_result"
+          if [[ ! "$pages_result" =~ ^http=200[[:space:]] ]] ||
+             ! grep -Fq 'BOAT EDGE CLEAN' "$pages"; then
+            echo '::error::PAGES_NOT_VALID_HTML'
+            exit 1
+          fi
+          echo 'PAGES_PUBLIC_HTTP_PASS'
+          # A single low-volume archive/API CORS diagnostic for the Pages origin.
+          # This DOES NOT replace #1679's real browser E2E.
+          archive_headers="$(mktemp)"
+          archive_body="$(mktemp)"
+          trap 'rm -f "$body" "$robots" "$robots_after" "$pages" "$archive_headers" "$archive_body"' EXIT
+          archive_result="$(curl --silent --show-error --connect-timeout 5 --max-time 8 \
+            --retry 0 --header 'Origin: https://ikst2512-eng.github.io' \
+            --dump-header "$archive_headers" --output "$archive_body" \
+            --write-out 'http=%{http_code} total=%{time_total} ttfb=%{time_starttransfer}' \
+            "$base/api/four-mode-archive?code=202610300101" 2>&1)" || archive_result='http=000 transport_error'
+          cors_origin="$(awk 'tolower($1)=="access-control-allow-origin:"{gsub(/\r/,"",$2);print $2}' "$archive_headers" | tail -n 1)"
+          echo "PUBLIC_UI_ARCHIVE_CANARY $archive_result cors_origin=$cors_origin"
+          if [[ "$archive_result" =~ ^http=200[[:space:]] ]] &&
+             [[ "$cors_origin" == 'https://ikst2512-eng.github.io' ]]; then
+            echo 'PUBLIC_UI_ARCHIVE_CORS_HEADER_PASS'
+          else
+            # Keep CORS and slow API failures visible, but the heartbeat's
+            # success means only transport and Pages HTML are reachable.
+            echo "::warning::PUBLIC_UI_ARCHIVE_NOT_BROWSER_READY status_or_cors_failed"
+          fi
+          echo 'UI_BROWSER_E2E_NOT_CERTIFIED_BY_HEARTBEAT'
