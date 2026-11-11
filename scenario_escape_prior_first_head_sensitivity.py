@@ -12,9 +12,10 @@ Until the actual first course and source age are independently attested,
 exhibition course is only a PROXY; changed 1C exhibition is rejected because
 the frozen "escape_wall" hypothesis boosts boat 1 rather than course 1.
 """
-import copy
-from datetime import date, datetime, timedelta
+from datetime import date
+import json
 import math
+from pathlib import Path
 import re
 
 from research_model import probabilities
@@ -22,12 +23,14 @@ from scenario_first_head_research import hypothetical_head_board
 from scenario_signed_st_four_mode_shadow import _signed_vector
 from scenario_exhibition_all_mode_runner import _conditional_result
 from scenario_four_mode_bridge import BUDGETS, compose_scenario_research
+from scenario_future_local_candidate_handoff import _git_blob_sha1
 
 SCHEMA="SEPARATE_ATHLETE_HISTORY_FIRST_HEAD_SENSITIVITY_V1"
 HISTORY_SCHEMA="UNATTESTED_BEFORE_EVENT_OFFICIAL_K_C1_HISTORY_SUMMARY_V1"
 STUDY="EXPLORATORY_ONLY_C1_ATHLETE_ESCAPE_DYNAMIC_HEAD_V1"
 RACE=re.compile(r"20[0-9]{10}\Z")
 K92_ZIP_SHA256="c668f545bae54f8148616315e307ed2a2b04a77a0cb8abf88bf3ea078749ce8e"
+FROZEN_1710_PROTOCOL_BLOB="bf60d2879065d1f9ecbd6b442db17fcb8fbcb8b7"
 WORLDS=("escape_wall","two_sashi","third_attack","outer_benefit")
 HISTORY_FIELDS={
     "schema","race_code","historic_training_end_date_jst",
@@ -158,12 +161,19 @@ def sensitivity_only(history, signed_feature, national_rates, exhibition_times,
     if (type(registered_plans) is not dict
             or set(registered_plans)!=set(WORLDS)):
         raise ValueError("C1_history_complete_four_frozen_worlds_required")
-    # Caller supplies original frozen hypotheses, never learns weights from a
-    # target outcome. Original hypothetical head distributions are retained.
+    # Immutable old head worlds: no silent shift or coefficient tuning.
+    # This is a new, separate response to historical 1C evidence, NOT a
+    # change to the frozen existing forecast method.
+    manifest=(Path(__file__).resolve().parent/
+        "research/four_mode_triple_source_forward_protocol_20261110.json")
+    original=manifest.read_bytes()
+    if _git_blob_sha1(original)!=FROZEN_1710_PROTOCOL_BLOB:
+        raise ValueError("C1_history_frozen_1710_protocol_changed")
+    registered=json.loads(original)
+    if registered_plans!=registered["scenario_hypotheses"]:
+        raise ValueError("C1_history_frozen_scenario_coefficients_not_identical")
     normal=_world_weights(hist["venue_C1_escape_proxy"])
     athlete=_world_weights(hist["athlete_adjusted_C1_escape_proxy"])
-    mode_control={m:copy.deepcopy(normal) for m in BUDGETS}
-    mode_athlete={m:copy.deepcopy(athlete) for m in BUDGETS}
     base=probabilities(national_rates)
     head={}
     for world in WORLDS:
