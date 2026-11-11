@@ -280,6 +280,22 @@ jobs:
               assert str(exc)=="signed_F_future_T12_cutoff_or_current_clock_failed",str(exc)
           else:
               raise AssertionError("HISTORICAL_20261111_RACE_CANNOT_BECOME_FUTURE_F_CANDIDATE")
+          # Exercise the REAL operator entrypoint as a separate process.
+          # It uses current OS time, no injectable date flag and no writer.
+          import subprocess
+          operator=subprocess.run([
+              sys.executable,"scenario_signed_st_future_pre_t12_cli.py",
+              "--card-dir",str(groups[0]),
+              "--before-dir",str(groups[1]),
+              "--odds-dir",str(groups[2]),
+              "--pinned-1698-file",str(tmp/"position1698"/"position_sensitive_conditioned_lab.py"),
+          ],capture_output=True,text=True,timeout=20)
+          assert operator.returncode!=0,operator.stdout
+          assert "signed_F_future_T12_cutoff_or_current_clock_failed" in operator.stderr
+          assert operator.stdout.strip()=="",operator.stdout
+          print("REAL_HISTORICAL_F_RACE_REJECTED_BY_ACTUAL_CLOCK_OPERATOR "+json.dumps({
+              "race_code":race,"operator_exit_nonzero":True,
+              "candidate_stdout_empty":True,"Git_written":False,"formal":False},sort_keys=True))
           print("REAL_ARCHIVED_F_MATH_VALID_BUT_FUTURE_T12_HANDOFF_DENIED "+json.dumps({
               "race_code":race,"historical_replay_only":True,
               "candidate_created":False,"Git_written":False,"formal":False},sort_keys=True))
@@ -457,6 +473,22 @@ jobs:
               assert str(exc)=="signed_F_future_T12_cutoff_or_current_clock_failed",str(exc)
           else:
               raise AssertionError("HISTORICAL_20261111_RACE_CANNOT_BECOME_FUTURE_F_CANDIDATE")
+          # Exercise the REAL operator entrypoint as a separate process.
+          # It uses current OS time, no injectable date flag and no writer.
+          import subprocess
+          operator=subprocess.run([
+              sys.executable,"scenario_signed_st_future_pre_t12_cli.py",
+              "--card-dir",str(groups[0]),
+              "--before-dir",str(groups[1]),
+              "--odds-dir",str(groups[2]),
+              "--pinned-1698-file",str(tmp/"position1698"/"position_sensitive_conditioned_lab.py"),
+          ],capture_output=True,text=True,timeout=20)
+          assert operator.returncode!=0,operator.stdout
+          assert "signed_F_future_T12_cutoff_or_current_clock_failed" in operator.stderr
+          assert operator.stdout.strip()=="",operator.stdout
+          print("REAL_HISTORICAL_F_RACE_REJECTED_BY_ACTUAL_CLOCK_OPERATOR "+json.dumps({
+              "race_code":race,"operator_exit_nonzero":True,
+              "candidate_stdout_empty":True,"Git_written":False,"formal":False},sort_keys=True))
           print("REAL_ARCHIVED_F_MATH_VALID_BUT_FUTURE_T12_HANDOFF_DENIED "+json.dumps({
               "race_code":race,"historical_replay_only":True,
               "candidate_created":False,"Git_written":False,"formal":False},sort_keys=True))
