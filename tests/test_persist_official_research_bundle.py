@@ -202,6 +202,34 @@ class BundleTests(unittest.TestCase):
                 self.row,self.dirs,auditor=lambda *paths: incomplete,
                 manifest_builder=forbidden,shadow_builder=forbidden)
 
+    def test_concurrent_git_409_is_not_hidden_or_retried(self):
+        path, body, cutoff = build_bundle(self.row, self.dirs)
+        attempts=[]
+        def missing(method,item,token,data=None):
+            return 404, {}
+        def conflict(method,item,token,data=None):
+            attempts.append((method,item))
+            return 409, {}
+        clock=lambda:datetime(2026,11,11,19,42,tzinfo=JST)
+        with self.assertRaisesRegex(RuntimeError,'git_create_unverified_or_too_late_http_409'):
+            store_once(path,body,cutoff,'test',getter=missing,
+                       putter=conflict,clock=clock)
+        self.assertEqual(attempts,[('PUT',path)])
+
+    def test_github_response_after_cutoff_is_never_certified(self):
+        path, body, cutoff = build_bundle(self.row, self.dirs)
+        stamps=iter([datetime(2026,11,11,19,42,tzinfo=JST),
+                     datetime(2026,11,11,19,42,tzinfo=JST),
+                     datetime(2026,11,11,19,46,tzinfo=JST)])
+        def missing(method,item,token,data=None):
+            return 404, {}
+        def accepted(method,item,token,data=None):
+            return 201,{'content':{'sha':blob_sha(body)},
+                        'commit':{'sha':'b'*40}}
+        with self.assertRaisesRegex(RuntimeError,'git_create_unverified_or_too_late_http_201'):
+            store_once(path,body,cutoff,'test',getter=missing,
+                       putter=accepted,clock=lambda:next(stamps))
+
     def test_write_permission_isolated_from_pull_request_capture(self):
         workflow=(Path(__file__).resolve().parents[1] /
                   '.github/workflows/research-live-preview-evidence.yml').read_text()
