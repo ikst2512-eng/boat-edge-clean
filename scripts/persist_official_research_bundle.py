@@ -246,39 +246,98 @@ def store_once(path, body, cutoff, token, *, getter=api_request, putter=api_requ
             "independent_remote_first_seen_verified": False}
 
 
+
+def receipt_snapshot(outcomes, *, status, event, run_id, run_attempt,
+                     observed_at_jst, error_type=None, error_code=None):
+    """An Action-local receipt, not independent GitHub remote first-seen proof.
+
+    Report only identifiers, hashes, observed times and safe classification.
+    Never serialize auth tokens or the raw source bytes into the receipt.
+    """
+    if status not in ("checked", "failed"):
+        raise ValueError("invalid_git_store_audit_status")
+    if not isinstance(outcomes, list):
+        raise ValueError("invalid_git_store_audit_outcomes")
+    timestamp(observed_at_jst)
+    stored = sum(x.get("newly_stored") is True for x in outcomes)
+    return {
+        "schema": "OFFICIAL_RESEARCH_GIT_WRITE_RECEIPT_V1",
+        "status": status,
+        "repository": REPO, "ledger_branch": BRANCH,
+        "action_event": event, "action_run_id": run_id,
+        "action_run_attempt": run_attempt,
+        "observed_at_jst": observed_at_jst,
+        "newly_stored": stored,
+        "outcomes": outcomes,
+        "error_type": error_type, "error_code": error_code,
+        "research_only": True, "formal_t12_certified": False,
+        "production_forecast": False,
+        "independent_remote_first_seen_verified": False,
+        "purchase_approved": False,
+    }
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch-dir", type=Path, default=Path("official_joint_evidence"))
+    parser.add_argument("--receipt-output", type=Path,
+                        default=Path("official-source-git-receipt/receipt.json"))
     args = parser.parse_args()
-    from scripts.audit_official_forecast_consumption import read_json, locate_sources
-    if (os.environ.get("GITHUB_REPOSITORY") != REPO
-            or os.environ.get("GITHUB_REF") != "refs/heads/main"
-            or os.environ.get("GITHUB_EVENT_NAME") not in ("schedule", "workflow_dispatch")):
-        raise SystemExit("OFFICIAL_RESEARCH_GIT_STORE guarded_non_main_or_non_scheduled_event")
-    token = os.environ.get("GH_TOKEN")
-    report = read_json(args.batch_dir / "forecast_temporal_link_report.json")
-    if (report.get("status") != "read_only_research_audited"
-            or report.get("formal_t12_certified") != 0
-            or report.get("official_consumed_forecasts") != 0):
-        raise SystemExit("OFFICIAL_RESEARCH_GIT_STORE source_audit_unverified")
     outcomes = []
-    for row in report.get("rows", []):
-        if row.get("official_original_status") != "three_originals_reaudited_research_only":
-            continue
-        shadow = row.get("official_research_shadow")
-        if not isinstance(shadow, dict) or shadow.get("generated") is not True:
-            outcomes.append({"race_code": row.get("race_code"), "status": "shadow_not_generated"})
-            continue
-        folders = locate_sources(args.batch_dir, row["race_code"])
-        source_dirs = dict(zip(SOURCE_FILES, folders))
-        path, body, cutoff = build_bundle(row, source_dirs)
-        # Privileged job must repeat the triple-source parsing and prediction
-        # computation before any network PUT, not trust the transfer artifact.
-        verify_independent_source_and_shadow_replay(row, source_dirs)
-        outcomes.append(store_once(path, body, cutoff, token))
-    print("OFFICIAL_RESEARCH_GIT_STORE " + json.dumps({"outcomes": outcomes,
-          "newly_stored": sum(x.get("newly_stored") is True for x in outcomes),
-          "formal_t12_certified": 0, "research_only": True}, ensure_ascii=False, sort_keys=True))
+    status = "failed"
+    error_type = error_code = None
+    try:
+        from scripts.audit_official_forecast_consumption import read_json, locate_sources
+        if (os.environ.get("GITHUB_REPOSITORY") != REPO
+                or os.environ.get("GITHUB_REF") != "refs/heads/main"
+                or os.environ.get("GITHUB_EVENT_NAME") not in ("schedule", "workflow_dispatch")):
+            raise ValueError("guarded_non_main_or_non_scheduled_event")
+        token = os.environ.get("GH_TOKEN")
+        if not token:
+            raise ValueError("github_writer_token_unavailable")
+        report = read_json(args.batch_dir / "forecast_temporal_link_report.json")
+        if (report.get("status") != "read_only_research_audited"
+                or report.get("formal_t12_certified") != 0
+                or report.get("official_consumed_forecasts") != 0):
+            raise ValueError("source_audit_unverified")
+        for row in report.get("rows", []):
+            if row.get("official_original_status") != "three_originals_reaudited_research_only":
+                continue
+            shadow = row.get("official_research_shadow")
+            if not isinstance(shadow, dict) or shadow.get("generated") is not True:
+                outcomes.append({"race_code": row.get("race_code"), "status": "shadow_not_generated"})
+                continue
+            folders = locate_sources(args.batch_dir, row["race_code"])
+            source_dirs = dict(zip(SOURCE_FILES, folders))
+            path, body, cutoff = build_bundle(row, source_dirs)
+            # Reparse all three original sources and rederive the exact research
+            # forecast before ANY Git PUT; never trust the handoff summary.
+            verify_independent_source_and_shadow_replay(row, source_dirs)
+            outcomes.append(store_once(path, body, cutoff, token))
+        status = "checked"
+    except Exception as exc:
+        error_type = type(exc).__name__
+        # Safe finite error codes ONLY; never leak HTTP headers/auth payloads.
+        if isinstance(exc, (ValueError, RuntimeError)):
+            text = str(exc)
+            if re.fullmatch(r"[a-zA-Z0-9_:-]{1,120}", text):
+                error_code = text
+        raise
+    finally:
+        receipt = receipt_snapshot(
+            outcomes, status=status,
+            event=os.environ.get("GITHUB_EVENT_NAME", "unavailable"),
+            run_id=os.environ.get("GITHUB_RUN_ID", "unavailable"),
+            run_attempt=os.environ.get("GITHUB_RUN_ATTEMPT", "unavailable"),
+            observed_at_jst=datetime.now(JST).isoformat(),
+            error_type=error_type, error_code=error_code,
+        )
+        args.receipt_output.parent.mkdir(parents=True, exist_ok=True)
+        # Local Action Artifact only; this does NOT add/modify a Git original.
+        args.receipt_output.write_bytes(serialized(receipt))
+        print("OFFICIAL_RESEARCH_GIT_STORE " +
+              json.dumps(receipt, ensure_ascii=False, sort_keys=True))
+
 
 
 if __name__ == "__main__":
