@@ -2,13 +2,35 @@
 import json
 import csv
 import io
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 from research_model import JST
 from late_preview_capture import save_preview, KINDS, six_lane_status
-from scripts.preview_timing_integrity import classify
+from scripts.preview_timing_integrity import classify, parse_jst
+
+
+def _late_row_reason(row, received, margin_minutes=2):
+    """Explain a known late source without changing classify() eligibility."""
+    if classify(row, received, margin_minutes=margin_minutes) != "too_late":
+        return None
+    deadline = parse_jst(row.get("締切時刻"))
+    if deadline is None:
+        code, hhmm = row.get("レースコード"), row.get("締切時刻")
+        if isinstance(code, str) and len(code) == 12 and code.isascii() and code.isdigit() and isinstance(hhmm, str):
+            try:
+                deadline = datetime.strptime(code[:8] + hhmm, "%Y%m%d%H:%M").replace(tzinfo=JST)
+            except ValueError:
+                pass
+    observed = parse_jst(row.get("取得日時"))
+    if deadline is None or observed is None:
+        return "late_reason_unverified"
+    # A late source observation implies its HTTP receipt is late too; do
+    # not misdiagnose that case as mere transport/scheduler delay.
+    if observed >= deadline - timedelta(minutes=margin_minutes):
+        return "source_and_http_late"
+    return "http_receipt_late_only"
 from scripts.collect_live_preview_evidence import paired_six_lane_coverage
 
 BASE="https://boatracecsv.github.io/data/previews/"
@@ -35,16 +57,30 @@ def collect(day=None, root=None, fetch=None, clock=None):
             gate={"pre_cutoff_observed":0,"too_late":0,"unknown_time":0}
             early={"pre_cutoff_observed":0,"too_late":0,"unknown_time":0}
             six_lanes={"complete":0,"incomplete":0,"not_applicable":0}
+            late_reasons={"source_and_http_late":0,"http_receipt_late_only":0,
+                          "late_reason_unverified":0}
+            late_samples=[]
             for row in rows:
-                gate[classify(row,received,margin_minutes=2)]+=1
+                state=classify(row,received,margin_minutes=2)
+                gate[state]+=1
                 early[classify(row,received,margin_minutes=12)]+=1
                 six_lanes[six_lane_status(kind,row)]+=1
+                if state=="too_late":
+                    reason=_late_row_reason(row,received,margin_minutes=2)
+                    late_reasons[reason]+=1
+                    if len(late_samples)<2:
+                        late_samples.append({"race_code":row.get("レースコード"),
+                            "deadline":row.get("締切時刻"),
+                            "source_observed_at":row.get("取得日時"),
+                            "http_received_at":received.isoformat(),"reason":reason})
             written=save_preview(raw,kind,day,received,root)
             report["kinds"][kind]={"status":"retrieved","request_started_at_jst":started.isoformat(),
                                    "fetch_elapsed_ms":elapsed_ms,
                                    "received_at_jst":received.isoformat(),"saved":len(written),
                                    "race_codes":written[:5],"source_rows":len(rows),
-                                   "pre_deadline_2min":gate,"pre_deadline_12min":early,"six_lane_validation":six_lanes}
+                                   "pre_deadline_2min":gate,"pre_deadline_12min":early,
+                                   "late_reasons_2min":late_reasons,"late_examples_2min":late_samples,
+                                   "six_lane_validation":six_lanes}
         except (HTTPError,URLError,TimeoutError,OSError,ValueError,UnicodeError,FileExistsError) as err:
             # A missing upstream daily CSV is different from invalid rows or a transport failure.
             # Never log full response bodies, credentials, or make a failed read look successful.
