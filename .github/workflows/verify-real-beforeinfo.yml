@@ -1,5 +1,11 @@
 name: Verify REAL beforeinfo source
 on:
+  # An edit to this existing verifier can exercise current real sources
+  # before the fixed evening gate. Push is diagnostic only and adds no Cron.
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/verify-real-beforeinfo.yml
   pull_request:
     paths:
       - clean_racecard.py
@@ -64,7 +70,10 @@ jobs:
           npx playwright install chromium
       - name: Compare real official six-boat source, Render and public Pages (diagnostic)
         if: always()
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        # Only the existing 19:35 schedule and explicit manual dispatch
+        # are hard operational gates. A push/PR is an earlier read-only
+        # diagnostic whose failure cannot certify or disprove that gate.
+        continue-on-error: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
         timeout-minutes: 4
         run: |
           cat > .clean-live-official-pages.cjs <<'JS'
