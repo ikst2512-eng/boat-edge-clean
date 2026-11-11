@@ -21,7 +21,9 @@
 
 ## 最新の引継ぎ：本番の実態／次にやること
 
-**最新スナップショット：2026-11-11 17:15 JST（以降の過去記録より優先）**
+**最新スナップショット：2026-11-11 17:25 JST（以降の過去記録より優先）**
+- **初めてT−2研究原本を実Git初回追加**：[実Action #42986829552](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42986829552) SUCCESS、蒲郡6R `202611110706`の`waku10/20261111/202611110706.json`を独立ブランチへ17:25:00 JSTに初回追加。T−2締切17:26、事前source receiptと凍結済み研究120順位×3方式が一致、6艇のコース別走数`10/9/9/10/9/10`ですべて既定の8以上。**研究のみ（formal=false、精度未証明）**。T−12研究原本と別系列。
+- **Waku10不成立の見える化**：[main `3eeb396f`](https://github.com/ikst2512-eng/boat-edge-clean/commit/3eeb396fdb3096b38c10ac838ca1d537e8241b25)は元データを再HTTP取得せず、不足時に艇別コース走数・不足艇をログ出力するだけの診断。[CI #42986796766](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42986796766)で公式3原本12件＋T−2キー9件＋Waku10 7件PASS。8走基準も予想モデルも不変。不成立例の本番診断はまだ未検証。
 - **公式3原本の現場成功が2レース**：[#42984181854](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42984181854) 大村5R、[#42985280575](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42985280575) 蒲郡6Rで、公式出走表・beforeinfoの展示6艇・公式3連単120通りの元HTTPを同一runで収集、内容SHA・艇登録番号・締切12分前の受領を独立照合PASS。原本はGitHub Actions artifactに保存。**最終進入、Git first-seen、当該公式原本を使用した正式予想は未証明（formal T−12=0）**。既存研究ワークフロー内の収集で、新Cron・原本改変なし。
 - **T−2`invalid_race_key`を原因修復**：main [`e027d901`](https://github.com/ikst2512-eng/boat-edge-clean/commit/e027d901bd9ec6754208bbcf9a028aa3ab7c5c93)でレース番号05等の出走表呼び出しを整数表記へ正規化。既存[CI #42985271052](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42985271052)の回帰9件PASS。実T−2 [#42985274575](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42985274575)はキー不正を抜け、次のコース別実サンプル不足で安全に未保存。**T−2研究保存0のケースを成功と呼ばない**。
 - **公開Pagesブラウザは総合SUCCESS**：[Action #42983846376](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42983846376) の6艇×4表示、保存Top10・確定結果・払戻・日付別144R・ナビを実本番照合PASS。**公式元→Render→公開Pagesの独立24/24は19:35監査待ち**。Renderの最新backend SHA一致も未証明。
