@@ -87,16 +87,26 @@ jobs:
       - name: Identify genuinely pre-cutoff official shadow for privileged handoff
         id: bundle_ready
         if: always()
+        env:
+          OFFICIAL_CAPTURE_OUTCOME: ${{ steps.official_pair_capture.outcome }}
+          OFFICIAL_AUDIT_OUTCOME: ${{ steps.official_forecast_clock.outcome }}
         run: |
           python - <<'PY'
           import json,os
           from pathlib import Path
           p=Path("official_joint_evidence/forecast_temporal_link_report.json")
+          batch_path=Path("official_joint_evidence/batch_report.json")
           ready=False
-          if p.is_file():
+          if (os.environ.get("OFFICIAL_CAPTURE_OUTCOME")=="success"
+                  and os.environ.get("OFFICIAL_AUDIT_OUTCOME")=="success"
+                  and p.is_file() and batch_path.is_file()):
+              batch=json.loads(batch_path.read_text(encoding="utf-8"))
               report=json.loads(p.read_text(encoding="utf-8"))
               ready=(
-                  report.get("status")=="read_only_research_audited"
+                  batch.get("status")=="complete_pairs_observed"
+                  and type(batch.get("three_originals_complete_before_t12")) is int
+                  and batch["three_originals_complete_before_t12"] > 0
+                  and report.get("status")=="read_only_research_audited"
                   and report.get("formal_t12_certified")==0
                   and report.get("official_consumed_forecasts")==0
                   and any(
