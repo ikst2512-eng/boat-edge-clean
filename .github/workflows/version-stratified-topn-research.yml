@@ -3,11 +3,55 @@ on:
   pull_request:
     paths:
       - four_mode_version_topn_audit.py
+      - four_mode_nov05_08_daily_reference_audit.py
+      - four_mode_result_raw_csv_audit.py
+      - research/four_mode_nov05_08_official_non_scoreable_reference.json
+      - test_four_mode_result_raw_csv_audit.py
+      - test_four_mode_nov05_08_daily_reference_audit.py
       - test_four_mode_version_topn_audit.py
+      - four_mode_forward_paired_score.py
+      - four_mode_all_mode_same_job_shadow.py
+      - test_four_mode_all_mode_same_job_shadow.py
+      - four_mode_all_shadow_reference_review.py
+      - test_four_mode_all_shadow_reference_review.py
+      - four_mode_all_shadow_durable_ledger.py
+      - test_four_mode_all_shadow_durable_ledger.py
+      - test_four_mode_forward_paired_score.py
+      - research/four_mode_all_modes_forward_protocol_20261106.json
+      - research/four_mode_top1_pair_forward_protocol_20261108.json
+      - four_mode_top1_forward_reference.py
+      - four_mode_top1_head_exposure_audit.py
+      - test_four_mode_top1_head_exposure_audit.py
+      - test_four_mode_top1_forward_reference.py
+      - four_mode_top1_bias_input_audit.py
+      - four_mode_nov09_main_original_input_readiness.py
+      - four_mode_official_feature_sensitivity_audit.py
+      - four_mode_official_future_lineage_preflight.py
+      - four_mode_official_raw_semantic_replay.py
+      - four_mode_official_exhibition_exploratory.py
+      - test_four_mode_official_exhibition_exploratory.py
+      - test_four_mode_official_raw_semantic_replay.py
+      - test_four_mode_official_future_lineage_preflight.py
+      - test_four_mode_official_feature_sensitivity_audit.py
+      - test_four_mode_nov09_main_original_input_readiness.py
+      - four_mode_top1_head_prior_shadow.py
+      - test_four_mode_top1_head_prior_shadow.py
+      - research/four_mode_hit_head_prior_forward_protocol_20261108.json
+      - test_four_mode_top1_bias_input_audit.py
+      - four_mode_top1_capture_run_inventory.py
+      - four_mode_capture_attempt_inventory.py
+      - test_four_mode_capture_attempt_inventory.py
+      - four_mode_candidate_ledger_readiness.py
+      - four_mode_main_shadow_deployment_audit.py
+      - test_four_mode_main_shadow_deployment_audit.py
+      - test_four_mode_candidate_ledger_readiness.py
+      - test_four_mode_top1_capture_run_inventory.py
+      - docs/research/four_mode_forward_all_modes_20261106.md
       - .github/workflows/version-stratified-topn-research.yml
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 jobs:
   read-only-audit:
     runs-on: ubuntu-latest
@@ -17,12 +61,1089 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Enforce preregistered Top1 selector byte pin before research replay
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+          policy = json.loads(Path("research/four_mode_top1_pair_forward_protocol_20261108.json").read_bytes())
+          selector = Path("four_mode_all_mode_same_job_shadow.py").read_bytes()
+          git_blob = hashlib.sha1(b"blob " + str(len(selector)).encode("ascii") + b"\0" + selector).hexdigest()
+          if (policy.get("schema") != "FOUR_MODE_TOP1_PAIR_FORWARD_PREREGISTRATION_V1"
+                  or policy.get("selector_file") != "four_mode_all_mode_same_job_shadow.py"
+                  or policy.get("pinned_selector_git_blob_sha1") != git_blob
+                  or policy.get("eligible_deadline_start_jst") != "2026-11-09T00:00:00+09:00"
+                  or policy.get("eligible_deadline_end_jst") != "2026-12-31T23:59:59+09:00"
+                  or policy.get("promotion_allowed") is not False
+                  or policy.get("formal_count") != 0):
+              raise SystemExit("preregistered_top1_selector_or_cohort_drift")
+          print("TOP1_SELECTOR_PREREGISTERED_BLOB_VERIFIED:" + git_blob)
+          PY
+      - name: Validate independent HIT-head prior selector source pin
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+          p = json.loads(Path("research/four_mode_hit_head_prior_forward_protocol_20261108.json").read_bytes())
+          src = Path("four_mode_top1_head_prior_shadow.py").read_bytes()
+          sha = hashlib.sha1(b"blob " + str(len(src)).encode("ascii") + b"\0" + src).hexdigest()
+          dependency_pins = p.get("pinned_dependency_git_blob_sha1")
+          if not isinstance(dependency_pins, dict) or set(dependency_pins) != {
+                  "research_model.py", "four_mode_all_mode_same_job_shadow.py", "clean_four_modes.py"}:
+              raise SystemExit("head_prior_dependency_pin_missing")
+          for name, expected in dependency_pins.items():
+              data = Path(name).read_bytes()
+              actual = hashlib.sha1(b"blob " + str(len(data)).encode("ascii") + b"\0" + data).hexdigest()
+              if actual != expected:
+                  raise SystemExit("head_prior_dependency_drift:" + name)
+          if (p.get("schema") != "FOUR_MODE_HIT_WINNER_HEAD_PRIOR_FORWARD_PREREGISTRATION_V1"
+                  or p.get("selector_file") != "four_mode_top1_head_prior_shadow.py"
+                  or p.get("pinned_selector_git_blob_sha1") != sha
+                  or p.get("registered_jst_date") != "2026-11-08"
+                  or p.get("eligible_deadline_start_jst") != "2026-11-09T00:00:00+09:00"
+                  or p.get("primary_metric") != "paired_HIT_Top1_exact_trifecta_original_versus_head_prior_shadow"
+                  or p.get("pilot_races") != 300 or p.get("confirmation_races") != 300
+                  or p.get("formal_count") != 0 or p.get("promotion_allowed") is not False):
+              raise SystemExit("head_prior_source_or_registration_drift")
+          print("HIT_HEAD_PRIOR_SELECTOR_BLOB_VERIFIED:" + sha)
+          PY
       - name: Validate audit logic
         run: python -m unittest -v test_four_mode_version_topn_audit
+      - name: Check frozen future-only four-mode study policy and leakage refusal
+        run: python -m unittest -v test_four_mode_forward_paired_score
+      # Bounded REAL Nov10 #1694 audit report, not model/forecast evidence.
+      # Reuse its immutable upstream zip+report SHA rather than reimplement
+      # the official HTTP/racelist parser in this evaluation-only owner.
+      - name: Cross-check actual pinned official T12 audit artifact and four-mode blockers (read-only)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import io
+          import json
+          import os
+          import pathlib
+          import zipfile
+          from urllib.parse import urlsplit
+          from urllib.request import HTTPRedirectHandler, Request, build_opener
+
+          repo = "ikst2512-eng/boat-edge-clean"
+          run_id = 42777088623
+          artifact_id = 13743674560
+          zip_sha = "7a5a22c43108a889429d673b9a83d935d1152b543d7d83e225eccf2740080329"
+          member_name = "official_t12_nov10_pair_frozen.json"
+          member_sha = "9e243d93c62886ed6a6d3a1f31a5a1c309a3dd25d4308f2d29bc7c78f5854742"
+          api = f"https://api.github.com/repos/{repo}/actions/artifacts/{artifact_id}"
+          token = os.environ["GH_TOKEN"]
+
+          class DropAuthOnCrossHostRedirect(HTTPRedirectHandler):
+              def redirect_request(self, request, fp, code, msg, headers, newurl):
+                  redirected = super().redirect_request(
+                      request, fp, code, msg, headers, newurl)
+                  if redirected is None:
+                      return None
+                  if (urlsplit(redirected.full_url).scheme != "https"
+                          or urlsplit(redirected.full_url).hostname is None):
+                      raise SystemExit("unsafe_github_artifact_redirect")
+                  # GitHub API may redirect to a time-limited signed artifact
+                  # URL. Do not forward the GitHub bearer token to that host.
+                  if (urlsplit(redirected.full_url).hostname !=
+                          urlsplit(request.full_url).hostname):
+                      return Request(redirected.full_url, headers={
+                          "User-Agent": "four-mode-research-readonly-audit"})
+                  return redirected
+
+          opener = build_opener(DropAuthOnCrossHostRedirect())
+
+          def get(url):
+              request = Request(url, headers={
+                  "Authorization": "Bearer " + token,
+                  "Accept": "application/vnd.github+json",
+                  "X-GitHub-Api-Version": "2022-11-28",
+                  "User-Agent": "four-mode-research-readonly-audit",
+              })
+              with opener.open(request, timeout=45) as reply:
+                  result = reply.read(2_000_001)
+              if len(result) > 2_000_000:
+                  raise SystemExit("bounded_upstream_t12_artifact_too_large")
+              return result
+
+          # A same-named artifact from a different workflow/branch must not
+          # borrow the identity of the audited #1694 immutable CI run.
+          upstream_run = json.loads(get(
+              f"https://api.github.com/repos/{repo}/actions/runs/{run_id}"))
+          if (upstream_run.get("id") != run_id
+                  or upstream_run.get("workflow_id") != 410481101
+                  or upstream_run.get("name") !=
+                  "Audit official-pair schedule continuity (read only)"
+                  or upstream_run.get("event") != "pull_request"
+                  or upstream_run.get("status") != "completed"
+                  or upstream_run.get("conclusion") != "success"
+                  or upstream_run.get("head_branch") !=
+                  "audit/t12-nov06-day-isolation-20261106"
+                  or upstream_run.get("head_sha") !=
+                  "50073744ca927b728e0eb766a4d392e97a7436da"
+                  or (upstream_run.get("head_repository") or {}).get(
+                      "full_name") != repo):
+              raise SystemExit("untrusted_upstream_t12_ci_workflow_run")
+          meta = json.loads(get(api))
+          if (meta.get("id") != artifact_id
+                  or meta.get("name") != f"official-pair-schedule-audit-{run_id}"
+                  or meta.get("digest") != "sha256:" + zip_sha
+                  or meta.get("expired") is not False
+                  or (meta.get("workflow_run") or {}).get("id") != run_id):
+              raise SystemExit("unverified_or_expired_independent_audit_artifact")
+          raw_zip = get(api + "/zip")
+          if hashlib.sha256(raw_zip).hexdigest() != zip_sha:
+              raise SystemExit("source_audit_zip_digest_drift")
+          with zipfile.ZipFile(io.BytesIO(raw_zip)) as z:
+              names = z.namelist()
+              if names.count(member_name) != 1 or len(names) != len(set(names)):
+                  raise SystemExit("source_audit_zip_member_missing_or_duplicate")
+              for item in z.infolist():
+                  if (item.file_size > 2_000_000
+                          or ".." in pathlib.PurePosixPath(item.filename).parts
+                          or item.filename.startswith("/")):
+                      raise SystemExit("unsafe_source_audit_zip_member")
+              if z.testzip() is not None:
+                  raise SystemExit("source_audit_zip_crc_failed")
+              report_bytes = z.read(member_name)
+          if hashlib.sha256(report_bytes).hexdigest() != member_sha:
+              raise SystemExit("source_audit_report_member_digest_drift")
+          report = json.loads(report_bytes)
+          if (report.get("schema") != "T12_PINNED_SCHEDULED_PAIR_FROZEN_REPLAY_V1"
+                  or report.get("source_run_id") != 42769768447
+                  or report.get("source_artifact_id") != 13740574410
+                  or report.get("source_original_zip_sha256_from_metadata") !=
+                  "cdfdeae53222a5b7852ba5cf5b6b44080247ec074c8d3dbaf53c4a32fe9706dd"
+                  or report.get("pinned_forecast_ref") !=
+                  "c4d39245cbc96b6c680585a68c3b9adf6ddeb921"
+                  or report.get("github_server_source_archive_published_at_utc") !=
+                  "2026-11-10T06:38:25+00:00"
+                  or report.get("day_jst") != "20261110"
+                  or report.get("formal") is not False):
+              raise SystemExit("unexpected_pinned_upstream_audit_report")
+          pathlib.Path("four_mode_upstream_t12_20261110.json").write_bytes(report_bytes)
+
+          # A distinct, later #1694 audit run witnessed the EXISTENCE of the
+          # unchanged original forecast Git blobs before their official raw
+          # sources arrived. It did NOT witness FIRST Git remote acceptance.
+          witness_run_id = 42785714984
+          witness_artifact_id = 13749521670
+          witness_zip_sha = "9f8cf0276695dc93e8febb378cac5507bb8caed94bf624e3a22d0a6f4a256239"
+          witness_member = "official_t12_nov10_remote_added_blob_witness.json"
+          witness_member_sha = "f25deb06ea42af6be22d89226467c3809a090959a85b09d7fe79663c04eb0e7a"
+          witness_run = json.loads(get(
+              f"https://api.github.com/repos/{repo}/actions/runs/{witness_run_id}"))
+          if (witness_run.get("id") != witness_run_id
+                  or witness_run.get("workflow_id") != 410481101
+                  or witness_run.get("name") !=
+                  "Audit official-pair schedule continuity (read only)"
+                  or witness_run.get("event") != "pull_request"
+                  or witness_run.get("status") != "completed"
+                  or witness_run.get("conclusion") != "success"
+                  or witness_run.get("head_branch") !=
+                  "audit/t12-nov06-day-isolation-20261106"
+                  or witness_run.get("head_sha") !=
+                  "e7ad91a833e9de8a5d2f376e84d2d8beeeac7bff"
+                  or (witness_run.get("head_repository") or {}).get(
+                      "full_name") != repo):
+              raise SystemExit("untrusted_upstream_added_blob_witness_ci_run")
+          witness_api = (
+              f"https://api.github.com/repos/{repo}/actions/artifacts/{witness_artifact_id}")
+          witness_meta = json.loads(get(witness_api))
+          if (witness_meta.get("id") != witness_artifact_id
+                  or witness_meta.get("name") !=
+                  f"official-pair-schedule-audit-{witness_run_id}"
+                  or witness_meta.get("digest") != "sha256:" + witness_zip_sha
+                  or witness_meta.get("expired") is not False
+                  or (witness_meta.get("workflow_run") or {}).get("id") !=
+                  witness_run_id):
+              raise SystemExit("untrusted_remote_existence_witness_artifact")
+          witness_zip = get(witness_api + "/zip")
+          if hashlib.sha256(witness_zip).hexdigest() != witness_zip_sha:
+              raise SystemExit("remote_existence_witness_zip_sha_drift")
+          with zipfile.ZipFile(io.BytesIO(witness_zip)) as z:
+              names = z.namelist()
+              if (len(names) != len(set(names))
+                      or names.count(witness_member) != 1
+                      or names.count(member_name) != 1):
+                  raise SystemExit("remote_witness_members_missing_or_duplicate")
+              for item in z.infolist():
+                  if (item.file_size > 2_000_000
+                          or ".." in pathlib.PurePosixPath(item.filename).parts
+                          or item.filename.startswith("/")):
+                      raise SystemExit("unsafe_remote_witness_zip_member")
+              if z.testzip() is not None:
+                  raise SystemExit("remote_witness_zip_crc_failed")
+              witness_bytes = z.read(witness_member)
+              upstream_same_bytes = z.read(member_name)
+          if (hashlib.sha256(witness_bytes).hexdigest() != witness_member_sha
+                  or upstream_same_bytes != report_bytes):
+              raise SystemExit("remote_witness_not_bound_to_same_source_replay_bytes")
+          witness = json.loads(witness_bytes)
+          if (witness.get("schema") != "T12_NOV10_REMOTE_ADDED_BLOB_WITNESS_V1"
+                  or witness.get("source_races") != 2
+                  or witness.get("immutable_forecast_blobs_witnessed") != 4
+                  or witness.get("remote_commit_existed_before_official_sources") != 4
+                  or witness.get("exact_first_remote_git_acceptance_instants_verified") != 0
+                  or witness.get("forecasts_proven_to_consume_official_originals") != 0
+                  or witness.get("new_formal_certifications") != 0
+                  or witness.get("formal") is not False):
+              raise SystemExit("witness_first_remote_or_post_source_forgery")
+          pathlib.Path("four_mode_upstream_remote_witness_20261110.json").write_bytes(
+              witness_bytes)
+          print("NOV10_UPSTREAM_WITNESS_RUN_PIN_VERIFIED:" + str(witness_run_id))
+          print("NOV10_REMOTE_EXISTENCE_WITNESS_JSON_SHA256_VERIFIED:" +
+                witness_member_sha)
+          print("NOV10_UPSTREAM_AUDIT_RUN_PIN_VERIFIED:" + str(run_id))
+          print("NOV10_UPSTREAM_AUDIT_ZIP_SHA256_VERIFIED:" + zip_sha)
+          print("NOV10_UPSTREAM_AUDIT_JSON_SHA256_VERIFIED:" + member_sha)
+          PY
+          python four_mode_forward_paired_score.py --upstream-t12-report four_mode_upstream_t12_20261110.json > four_mode_t12_blockers_20261110.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("four_mode_t12_blockers_20261110.json").read_text(encoding="utf-8"))
+          rows = {r["race_code"]: r for r in report["race_rows"]}
+          if (report.get("schema") != "FOUR_MODE_OFFICIAL_T12_UPSTREAM_HANDOFF_BLOCKERS_V1"
+                  or set(rows) != {"202611101202", "202611102211"}
+                  or report.get("upstream_race_count") != 2
+                  or report.get("formal_candidate_pairs_added") != 0
+                  or report.get("pilot_added") != 0
+                  or report.get("confirmation_added") != 0
+                  or report.get("formal") is not False
+                  or report.get("model_promotion_allowed") is not False):
+              raise SystemExit("unsafe_or_incomplete_real_nov10_handoff")
+          if (rows["202611101202"]["official_two_source_pair_complete_by_t12_reference_only"] is not True
+                  or rows["202611102211"]["official_two_source_pair_complete_by_t12_reference_only"] is not False
+                  or not all("same_race_official_racelist_original_missing" in r["blocking_gates"]
+                             for r in rows.values())
+                  or any(r.get("candidate_admitted_to_registered_600") is not False
+                         for r in rows.values())):
+              raise SystemExit("real_nov10_official_blockers_hidden_or_reclassified")
+          print("NOV10_REAL_PINNED_SOURCE_TO_FOUR_MODE_BLOCKERS_PASS:2:FORMAL=0")
+          PY
+          python four_mode_forward_paired_score.py --upstream-t12-report four_mode_upstream_t12_20261110.json --upstream-remote-witness four_mode_upstream_remote_witness_20261110.json > four_mode_prior_remote_existence_20261110.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path(
+              "four_mode_prior_remote_existence_20261110.json").read_text(encoding="utf-8"))
+          rows = {r["race_code"]: r for r in report["race_rows"]}
+          if (report.get("schema") !=
+                  "FOUR_MODE_PRIOR_REMOTE_EXISTENCE_CAUSAL_ORDER_HANDOFF_V1"
+                  or set(rows) != {"202611101202", "202611102211"}
+                  or report.get("old_forecast_commit_existence_upper_bounds") != 4
+                  or report.get("first_remote_git_acceptance_instants_proven") != 0
+                  or report.get("new_source_consuming_candidate_forecasts") != 0
+                  or report.get("pilot_added") != 0
+                  or report.get("confirmation_added") != 0
+                  or report.get("formal") is not False
+                  or report.get("model_promotion_allowed") is not False):
+              raise SystemExit("remote_existence_misclassified_as_first_remote_or_formal")
+          for race, detail in rows.items():
+              if (detail.get("existing_forecast_disqualified_from_post_source_study")
+                      is not True or
+                      set(detail.get("prior_forecast_remote_existence_bounds", {}))
+                      != {"clean", "v2_four_mode"}):
+                  raise SystemExit("missing_same_race_prior_remote_existence:" + race)
+              for mode, f in detail["prior_forecast_remote_existence_bounds"].items():
+                  if (f.get("original_blob_existed_before_official_pair_reference_only")
+                          is not True or
+                          f.get("independent_first_remote_acceptance_instant_verified")
+                          is not False or
+                          f.get("candidate_eligible_for_registered_600") is not False):
+                      raise SystemExit("misclassified_immutable_pre_source_forecast:" + mode)
+          print("NOV10_OLD_REMOTE_EXISTS_PRE_SOURCE:4:FIRST_RECEIPT=0:FORMAL=0")
+          PY
+      - name: Test pre-result frozen all-mode candidate invariants
+        run: python -m unittest -v test_four_mode_all_mode_same_job_shadow
+      - name: Test standalone HIT-head prior proposal without any outcomes
+        run: python -m unittest -v test_four_mode_top1_head_prior_shadow
+      - name: Replay Nov8 original HIT-head proposal input only
+        run: python four_mode_top1_head_prior_shadow.py --day 20261108 | tee hit_head_prior_nov8_input_only.json
+      - name: Refuse incomplete or result-leaking HIT-head proposal input
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x = json.loads(Path("hit_head_prior_nov8_input_only.json").read_text())
+          if (x.get("status") != "historical_input_replay_no_outcome_access"
+                  or x.get("original_forecasts") < 116
+                  or x.get("results_read") is not False
+                  or x.get("non_hit_modes_unchanged") is not True
+                  or x.get("formal") is not False
+                  or x.get("model_improvement_proven") is not False
+                  or x.get("model_promotion_allowed") is not False):
+              raise SystemExit("incomplete_or_unsafe_head_prior_input_replay")
+          print("HIT_HEAD_PRIOR_INPUT_ONLY_VERIFIED:" + str(x["original_forecasts"]))
+          PY
+      - name: Unit-test Top1 first-boat versus third-boat change accounting
+        run: python -m unittest -v test_four_mode_top1_head_exposure_audit
+      - name: Replay real Nov 5 original forecasts without reading results
+        run: python four_mode_all_mode_same_job_shadow.py --audit-historical-input-day 20261105
+      # Historical input-only check. This mode never opens confirmed results,
+      # so it cannot turn a settled Nov 6-8 race into prospective evidence.
+      - name: Replay saved Nov 6-8 V2 inputs without any result reads
+        shell: bash
+        run: |
+          set -euo pipefail
+          python four_mode_all_mode_same_job_shadow.py --audit-historical-input-day 20261106 | tee four_mode_shadow_input_replay_20261106.log
+          python four_mode_all_mode_same_job_shadow.py --audit-historical-input-day 20261107 | tee four_mode_shadow_input_replay_20261107.log
+          python four_mode_all_mode_same_job_shadow.py --audit-historical-input-day 20261108 | tee four_mode_shadow_input_replay_20261108.log
+      - name: Reject incomplete real V2 replays and protected-rank drift
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          # Nov 8 had 116 initial forecasts; additional same-day first-adds
+          # must be included rather than causing an obsolete hardcoded count.
+          for day, minimum in (("20261106", 130), ("20261107", 122), ("20261108", 116)):
+              lines = Path(f"four_mode_shadow_input_replay_{day}.log").read_text(
+                  encoding="utf-8"
+              ).splitlines()
+              prefix = "FOUR_MODE_SHADOW_HISTORICAL_INPUT="
+              if len(lines) != 1 or not lines[0].startswith(prefix):
+                  raise SystemExit(f"unverifiable_input_replay:{day}")
+              report = json.loads(lines[0][len(prefix):])
+              count = report.get("original_v2_races")
+              if (report.get("day") != day
+                      or type(count) is not int or count < minimum
+                      or (day != "20261108" and count != minimum)
+                      or report.get("excluded") != {}
+                      or report.get("formal") is not False
+                      or report.get("result_files_read") is not False
+                      or report.get("status") != "historical_input_replay_only"):
+                  raise SystemExit(f"incomplete_or_result_leaking_replay:{day}")
+              modes = report.get("changes")
+              if type(modes) is not dict or set(modes) != {
+                  "narrow", "hit", "balance", "hole"
+              }:
+                  raise SystemExit(f"missing_mode_replay:{day}")
+              for mode, changes in modes.items():
+                  if (changes.get("changed_all_tickets") != count
+                          or changes.get("changed_top1") != 0):
+                      raise SystemExit(f"method_or_top1_drift:{day}:{mode}")
+              top1 = report.get("top1_pair_changes")
+              if (type(top1) is not dict or set(top1) != set(modes)
+                      or any(type(x.get("changed_top1")) is not int
+                             or not 0 <= x["changed_top1"] <= count
+                             or x.get("preserved_top3_5_10") != count
+                             for x in top1.values())):
+                  raise SystemExit(f"top1_membership_or_exposure_drift:{day}")
+              if (modes["hit"].get("changed_top3") != 0
+                      or modes["balance"].get("changed_top3") != 0
+                      or modes["hole"].get("changed_top5") != 0):
+                  raise SystemExit(f"protected_rank_drift:{day}")
+              print(f"RESULT_BLIND_V2_REPLAY_VERIFIED:{day}:{count}/{count}")
+          PY
+      - name: Classify discovery-only Top1 changes by finishing position without results
+        shell: bash
+        run: |
+          set -euo pipefail
+          for day in 20261105 20261106 20261107 20261108; do
+            python four_mode_top1_head_exposure_audit.py --day "$day" | tee "four_mode_top1_position_exposure_${day}.json"
+          done
+      - name: Verify complete discovery roster and distinct head-versus-ticket changes
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for day, minimum in (("20261105", 106), ("20261106", 130),
+                               ("20261107", 122), ("20261108", 116)):
+              obj = json.loads(Path(f"four_mode_top1_position_exposure_{day}.json").read_text())
+              n = obj.get("original_v2_races")
+              if (type(n) is not int or n < minimum
+                      or (day != "20261108" and n != minimum)
+                      or obj.get("day") != day
+                      or obj.get("status") != "discovery_input_only_no_outcome_read"
+                      or obj.get("result_files_read") is not False
+                      or obj.get("formal") is not False
+                      or obj.get("model_improvement_proven") is not False):
+                  raise SystemExit(f"top1_input_or_result_leakage:{day}")
+              modes = obj.get("modes")
+              if type(modes) is not dict or set(modes) != {
+                  "narrow", "hit", "balance", "hole"
+              }:
+                  raise SystemExit(f"top1_mode_inventory:{day}")
+              for mode, row in modes.items():
+                  swaps = row.get("changed_exact_top1")
+                  heads = row.get("changed_first_boat")
+                  seconds = row.get("changed_second_boat")
+                  thirds = row.get("changed_third_boat")
+                  if (any(type(x) is not int or x < 0 or x > n
+                          for x in (swaps, heads, seconds, thirds))
+                          or heads > swaps or seconds > swaps or thirds > swaps
+                          or row.get("swaps_same_first_boat") != swaps - heads
+                          or sum(row.get("original_top1_heads", {}).values()) != n
+                          or sum(row.get("candidate_top1_heads", {}).values()) != n):
+                      raise SystemExit(f"top1_position_accounting_drift:{day}:{mode}")
+                  print(f"TOP1_POSITION_EXPOSURE:{day}:{mode}:{n}:"
+                        f"changed_exact={swaps}:changed_head={heads}:"
+                        f"changed_second={seconds}:changed_third={thirds}")
+          PY
+      - name: Test append-only GitHub candidate receipt and strict remote observation clock
+        run: python -m unittest -v test_four_mode_all_shadow_durable_ledger
+      - name: Verify draft-only candidate workflow is not mistaken for main execution
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          python -m unittest -v test_four_mode_main_shadow_deployment_audit
+          git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main
+          if [[ -n "${PR_HEAD_SHA:-}" ]]; then
+            git fetch --no-tags --depth=1 origin "$PR_HEAD_SHA"
+            python four_mode_main_shadow_deployment_audit.py --draft-sha "$PR_HEAD_SHA" --output four_mode_main_candidate_stage_readiness.json
+          else
+            python four_mode_main_shadow_deployment_audit.py --output four_mode_main_candidate_stage_readiness.json
+          fi
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          v=json.loads(Path("four_mode_main_candidate_stage_readiness.json").read_text())
+          if os.environ.get("PR_HEAD_SHA") and v.get("draft_verified_at_exact_pr_head_sha") is not True:
+              raise SystemExit("PR_HEAD_WAS_NOT_INDEPENDENTLY_PINNED")
+          if (v["main_candidate_stages_deployed_in_source"] is not False
+                  or v["draft_candidate_stages_available_for_manual_review"] is not True
+                  or v["live_candidate_step_execution_verified"] is not False
+                  or v["independent_first_remote_candidate_receipt_verified"] is not False
+                  or v["formal"] is not False
+                  or v["admitted_prospective_pairs"] != 0):
+              raise SystemExit("MAIN_VS_DRAFT_CAPTURE_DRIFT_OR_UNTRUSTED_PROOF")
+          print("MAIN_VS_DRAFT_CANDIDATE_STAGES:main=ABSENT:draft=PRESENT:formal=0")
+          PY
+      - name: Unit-test fail-closed durable candidate ledger inventory
+        run: python -m unittest -v test_four_mode_candidate_ledger_readiness
+      - name: Read actual remote four-mode candidate branch without scoring
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python four_mode_candidate_ledger_readiness.py --output four_mode_candidate_remote_readiness.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r = json.loads(Path("four_mode_candidate_remote_readiness.json").read_text())
+          if (r.get("formal") is not False
+                  or r.get("model_improvement_proven") is not False
+                  or r.get("model_promotion_allowed") is not False
+                  or r.get("independent_first_remote_candidate_receipt_verified") is not False
+                  or r.get("official_three_originals_verified") is not False
+                  or r.get("complete_run_attempt_inventory_verified") is not False
+                  or r.get("future_paired_races_admitted") != 0):
+              raise SystemExit("REMOTE_CANDIDATE_EVIDENCE_OVERCLAIM")
+          print("CANDIDATE_LEDGER_BOUNDED_INVENTORY:"
+                + str(r["durable_candidate_records"])
+                + ":FIRST_RECEIPT_UNVERIFIED:FORMAL=0")
+          PY
+      - name: Check original and candidate replay before any result lookup
+        run: python -m unittest -v test_four_mode_all_shadow_reference_review
+      - name: Test fixed prior Top1 concentration and absence of result reads
+        run: python -m unittest -v test_four_mode_top1_bias_input_audit
+      - name: Unit test pinned current-main Nov9 original input-only audit
+        run: python -m unittest -v test_four_mode_nov09_main_original_input_readiness
+      - name: Read pinned current-main Nov9 originals without merging or reading any results
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main
+          python four_mode_nov09_main_original_input_readiness.py --day 20261109 --git-ref refs/remotes/origin/main --output four_mode_nov09_current_main_input_readiness.json
+          python - <<'PY'
+          import json, re
+          from pathlib import Path
+          row=json.loads(Path("four_mode_nov09_current_main_input_readiness.json").read_text())
+          if (row["day"]!="20261109"
+                  or not re.fullmatch("[0-9a-f]{40}",row["pinned_main_commit"])
+                  or row["file_count"]<104
+                  or row["valid_v2_original_inputs"]!=row["file_count"]
+                  or row["invalid_inputs"]
+                  or row["source_cards_and_title_before_generated"]!=row["file_count"]
+                  or row["results_read"] is not False
+                  or row["outcome_metric_computed"] is not False
+                  or row["candidate_generated_or_modified"] is not False
+                  or row["official_beforeinfo_six_and_odds_120_from_original_verified"] is not False
+                  or row["independent_first_remote_candidate_receipt_verified"] is not False
+                  or row["complete_capture_run_inventory_verified"] is not False
+                  or row["formal"] is not False
+                  or row["formal_count"]!=0
+                  or row["model_improvement_proven"] is not False
+                  or row["model_promotion_allowed"] is not False):
+              raise SystemExit("NOV09_CURRENT_MAIN_RESULT_BLIND_INPUT_EVIDENCE_FAILED")
+          for mode,heads in row["top1_head_counts_original"].items():
+              if sum(heads.values())!=row["valid_v2_original_inputs"]:
+                  raise SystemExit("NOV09_TOP1_HEAD_PARTITION_INVALID:"+mode)
+          if (row["generated_before_deadline_minus_12_min"]+
+                  row["generated_before_deadline_but_after_t12"] !=
+                  row["valid_v2_original_inputs"]):
+              raise SystemExit("NOV09_T12_GENERATION_ONLY_DENOMINATOR_INVALID")
+          print("NOV09_PINNED_MAIN_INPUT_REPLAY_PASS:"+str(row["valid_v2_original_inputs"])+
+                ":official_T12=UNVERIFIED:first_remote_candidate=UNVERIFIED:formal=0")
+          PY
+      - name: Test separate unregistered official-exhibition heuristic prototype (no forecast)
+        run: python -m unittest -v test_four_mode_official_exhibition_exploratory
+      - name: Replay test-shaped official raw bytes with production source parsers (nonformal)
+        run: python -m unittest -v test_four_mode_official_raw_semantic_replay
+      - name: Test future official three-original source lineage preflight (nonformal)
+        run: python -m unittest -v test_four_mode_official_future_lineage_preflight
+      - name: Test official-feature negative-control against frozen four-mode candidate
+        run: python -m unittest -v test_four_mode_official_feature_sensitivity_audit
+      - name: Verify Nov9 source-input consumption gap on pinned main originals
+        run: |
+          set -euo pipefail
+          python four_mode_official_feature_sensitivity_audit.py --day 20261109 --output four_mode_official_feature_negative_control.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("four_mode_official_feature_negative_control.json").read_text())
+          base=json.loads(Path("four_mode_nov09_current_main_input_readiness.json").read_text())
+          if (r["pinned_main_commit"] != base["pinned_main_commit"]
+                  or r["real_saved_origins_verified"] != base["valid_v2_original_inputs"]
+                  or r["real_saved_origins_verified"] < 104
+                  or r["mode_candidate_insensitive_to_synthetic_official_fields"]
+                      != r["real_saved_origins_verified"]
+                  or r["real_official_source_data_read"] is not False
+                  or r["confirmed_results_read"] is not False
+                  or r["candidate_files_generated_or_written"] is not False
+                  or r["official_three_source_model_consumption_verified"] is not False
+                  or r["candidate_first_remote_receipt_verified"] is not False
+                  or r["formal"] is not False
+                  or r["admitted_prospective_pairs"] != 0
+                  or r["model_improvement_proven"] is not False
+                  or r["model_promotion_allowed"] is not False):
+              raise SystemExit("NOV09_CANDIDATE_OFFICIAL_FEATURE_DEPENDENCY_GATE_INVALID")
+          print("NOV09_OFFICIAL_FEATURE_NEGATIVE_CONTROL:"
+                +str(r["mode_candidate_insensitive_to_synthetic_official_fields"])
+                +"/"+str(r["real_saved_origins_verified"])
+                +":OFFICIAL_MODEL_CONSUMPTION_UNVERIFIED:FORMAL=0")
+          PY
+      - name: Audit available archived Nov8 V2 input concentration, without results
+        run: python four_mode_top1_bias_input_audit.py --day 20261108
+      - name: Refuse incomplete or tampered Nov8 prediction input reference
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from four_mode_top1_bias_input_audit import audit
+          report = audit(Path("."), "20261108")
+          if (report["valid_v2_saved"] < 116
+                  or report["valid_v2_saved"] != report["file_count"]
+                  or report["invalid_archives"]
+                  or report.get("saved_ticket_order_and_scores_replayed") is not True
+                  or report["distinct_national_win_rate_vectors"] != report["valid_v2_saved"]
+                  or report["confirmed_results_read"] is not False
+                  or report["formal"] is not False):
+              raise SystemExit("unverified_or_tampered_nov8_v2_archives")
+          print(f'NOV8_RESULT_BLIND_FORECAST_REPLAY_VERIFIED:{report["valid_v2_saved"]}/{report["file_count"]}')
+          PY
+      - name: Verify separate Nov9 Top1 holdout and result-first leakage rejection
+        run: python -m unittest -v test_four_mode_top1_forward_reference
+      - name: Unit-test observed live run job attempt inventory
+        run: python -m unittest -v test_four_mode_capture_attempt_inventory
+      - name: Check Nov9 observed scheduled/manual capture job attempts, not nominal cron
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python four_mode_capture_attempt_inventory.py --utc-day 2026-11-09 --output four_mode_nov09_observed_job_attempts.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("four_mode_nov09_observed_job_attempts.json").read_text())
+          if (x["formal"] is not False
+                  or x["model_promotion_allowed"] is not False
+                  or x["complete_expected_schedule_inventory_verified"] is not False
+                  or x["candidate_artifact_publication_verified"] is not False
+                  or x["candidate_independent_first_remote_receipt_verified"] is not False
+                  or x["admitted_prospective_pairs"] != 0
+                  or x["observed_capture_runs"] < 3
+                  or x["observed_run_attempts_with_complete_job_metadata"] <
+                       x["observed_capture_runs"]):
+              raise SystemExit("OBSERVED_ATTEMPT_METADATA_OR_FORMAL_GATE_INVALID")
+          print("NOV09_OBSERVED_RUN_ATTEMPTS:"
+                +str(x["observed_capture_runs"])+":"
+                +str(x["observed_run_attempts_with_complete_job_metadata"])
+                +":CANDIDATE_FIRST_REMOTE_UNVERIFIED:FORMAL=0")
+          PY
+      - name: Validate fail-closed read-only GitHub capture-run inventory
+        run: python -m unittest -v test_four_mode_top1_capture_run_inventory
+      - name: Report independent Top1 reference status without scoring historical dates
+        run: python four_mode_top1_forward_reference.py
+      - name: Report reference review readiness (no invented frozen artifact)
+        run: python four_mode_all_shadow_reference_review.py
+      - name: Report forward gate status (no candidate or result invented)
+        run: python four_mode_forward_paired_score.py
+      - name: Test read-only public-result source-gap classification (offline fixtures)
+        run: python -m unittest -v test_four_mode_result_raw_csv_audit
+      - name: Verify daily saved-original/result audit exclusions (no candidate scoring)
+        run: python -m unittest -v test_four_mode_nov05_08_daily_reference_audit
+      - name: Audit Nov5-8 original V2 Top1/3/5/10 and three distinct miss positions
+        run: python four_mode_nov05_08_daily_reference_audit.py --output four_mode_nov05_08_reference.json
+      - name: Verify complete Nov5 baseline and daily denominator integrity
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          v=json.loads(Path("four_mode_nov05_08_reference.json").read_text())
+          if (v.get("formal") is not False or v.get("formal_count") != 0
+                  or v.get("model_improvement_proven") is not False
+                  or v.get("model_promotion_allowed") is not False
+                  or v.get("result_source_bytes_reverified") is not False
+                  or v.get("prospective_candidate_pairs") != 0
+                  or set(v.get("by_day",{})) != {"20261105","20261106","20261107","20261108"}):
+              raise SystemExit("reference_gate_or_dates_invalid")
+          expected={"20261105":106,"20261106":130,"20261107":122,"20261108":116}
+          for day, minimum in expected.items():
+              row=v["by_day"][day]
+              n=row["forecast_files"]
+              if (n < minimum or (day!="20261108" and n!=minimum)
+                      or n!=row["evaluated"]+row["pending_result_count"]+row["excluded_count"]):
+                  raise SystemExit("daily_source_roster_or_denominator_mismatch:"+day)
+              for mode, group in row["mode"].items():
+                  if sum(group["miss_partition"].values())!=row["evaluated"]:
+                      raise SystemExit("miss_partition_mismatch:"+day+":"+mode)
+              print("NOV_REFERENCE_DAY:"+day+":forecast="+str(n)+
+                    ":evaluated="+str(row["evaluated"])+
+                    ":pending="+str(row["pending_result_count"])+
+                    ":excluded="+str(row["excluded_count"]))
+          overall=v["reference_overall"]
+          known=overall["confirmed_denominator"]
+          missing=overall["pending_outcome_count"]
+          if (known!=v["totals"]["evaluated"] or missing!=v["totals"]["pending_results"]
+                  or overall["known_plus_pending_denominator"]!=known+missing
+                  or overall.get("missing_result_intervals_are_not_confidence_intervals") is not True):
+              raise SystemExit("pooled_denominator_or_uncertainty_flag_invalid")
+          mode_data=overall["mode"]
+          if set(mode_data)!={"narrow","hit","balance","hole"}:
+              raise SystemExit("pooled_mode_roster_invalid")
+          for mode, row in mode_data.items():
+              if row["full_list_covered"]-row["top_hits"]["top10"]!=row["full_list_correct_beyond_top10"]:
+                  raise SystemExit("full_vs_top10_mismatch:"+mode)
+              if sum(row["miss_partition"].values())!=known:
+                  raise SystemExit("pooled_miss_partition:"+mode)
+              for key,hits in row["top_hits"].items():
+                  bounds=row["top_pending_bounds"][key]
+                  if (bounds["confirmed_only_hits"]!=hits
+                          or bounds["saved_valid_with_or_without_result"]!=known+missing
+                          or bounds["interpretation"]!="missing_outcomes_extreme_bounds_not_confidence_interval"):
+                      raise SystemExit("unresolved_outcome_bounds:"+mode+":"+key)
+                  if known+missing:
+                      low=round(100*hits/(known+missing),2)
+                      high=round(100*(hits+missing)/(known+missing),2)
+                      if (bounds["lower_percent_all_pending_miss"]!=low or
+                              bounds["upper_percent_all_pending_hit"]!=high):
+                          raise SystemExit("uncertainty_math:"+mode+":"+key)
+                  elif (bounds["lower_percent_all_pending_miss"] is not None
+                        or bounds["upper_percent_all_pending_hit"] is not None):
+                      raise SystemExit("no_denominator_not_unknown:"+mode+":"+key)
+          pairs=overall["same_race_original_top10_pairs"]
+          for a,b in (("narrow","hit"),("hit","balance"),("balance","hole")):
+              key=a+"_vs_"+b
+              p=pairs[key]
+              if (set(p)!={"both","left_only","right_only","neither"}
+                      or sum(p.values())!=known
+                      or p["both"]+p["left_only"]!=mode_data[a]["top_hits"]["top10"]
+                      or p["both"]+p["right_only"]!=mode_data[b]["top_hits"]["top10"]):
+                  raise SystemExit("same_race_pair_margins:"+key)
+          print("NOV_REFERENCE_UNRESOLVED_OUTCOME_BOUNDS_AND_PAIRED_MARGINS_VALIDATED")
+          base=v["by_day"]["20261105"]
+          expected_top={
+              "narrow":[4,21,33,33],
+              "hit":[4,21,33,53],
+              "balance":[4,23,32,52],
+              "hole":[2,6,9,16]}
+          if (base["evaluated"]!=106 or base["excluded_count"]!=0
+                  or base["pending_result_count"]!=0):
+              raise SystemExit("nov05_reference_denominator_drift")
+          for mode,hits in expected_top.items():
+              got=[base["mode"][mode]["top_hits"]["top"+str(n)] for n in (1,3,5,10)]
+              if got!=hits:
+                  raise SystemExit("nov05_reference_hit_drift:"+mode+":"+str(got))
+          print("NOV05_106_REFERENCE_SCORES_REPRODUCED")
+          PY
+      - name: Test public source gap status and historical snapshot drift (no results written)
+        run: python -m unittest -v test_four_mode_nov05_08_raw_source_observation
+      - name: Observe latest public source CSV independently (research-only, no writes)
+        run: |
+          python four_mode_nov05_08_raw_source_observation.py --output four_mode_nov05_08_postrace_source_observation.json --source-raw-dir four_mode_nov05_08_public_source_raw
+          python - <<'PY'
+          import json, hashlib
+          from pathlib import Path
+          r=json.loads(Path("four_mode_nov05_08_postrace_source_observation.json").read_text())
+          if (r.get("formal") is not False or r.get("formally_eligible_races")!=0
+                  or r.get("prospective_candidate_pairs")!=0
+                  or r.get("model_promotion_allowed") is not False
+                  or r.get("comparison_only_not_storage_repair") is not True):
+              raise SystemExit("research_source_observation_formal_guard_changed")
+          preview=r["unarchived_published_shadow_only"]
+          if (preview.get("separate_from_persisted_reference") is not True
+                  or preview.get("persisted_reference_denominator")!=r["reference_results_already_saved"]
+                  or preview.get("eligible_for_formal_admission") is not False
+                  or preview.get("not_a_prospective_candidate_comparison") is not True
+                  or preview["races"]!=preview["denominator"]
+                  or preview["races"]!=len(preview["race_codes"])
+                  or preview["races"]!=len(set(preview["race_codes"]))
+                  or preview["races"]>r["unresolved_saved_result_files"]):
+              raise SystemExit("public_shadow_not_isolated_from_persisted_reference")
+          for mode,hits in preview["original_saved_top_hits"].items():
+              if set(hits)!={"top1","top3","top5","top10"}:
+                  raise SystemExit("public_shadow_topn_schema:"+mode)
+              if not (0<=hits["top1"]<=hits["top3"]<=hits["top5"]<=hits["top10"]<=preview["races"]):
+                  raise SystemExit("public_shadow_topn_nonmonotone:"+mode)
+              for k,h in hits.items():
+                  if h!=sum(z["unarchived_published_shadow_only"]["original_saved_top_hits"][mode][k]
+                            for z in r["by_day"].values()):
+                      raise SystemExit("public_shadow_reconciliation:"+mode+":"+k)
+          # Fail closed on unarchived-source / confirmed-only cohort denominator mixing.
+          union=r["historical_original_union_reference_only"]
+          known=union["valid_saved_forecasts_with_persisted_or_public_result"]
+          missing=union["unknown_or_unobserved_result_count"]
+          if (union["persisted_result_count"]!=r["reference_results_already_saved"]
+                  or union["newly_observed_public_unarchived_result_count"]!=preview["races"]
+                  or known!=r["reference_results_already_saved"]+preview["races"]
+                  or missing!=r["unresolved_saved_result_files"]-preview["races"]
+                  or missing<0 or union["eligible_archive_roster_without_exclusions"]!=known+missing
+                  or union.get("not_official_and_not_prospective") is not True
+                  or union.get("do_not_replace_persisted_denominator") is not True
+                  or union.get("incomplete_or_conflicting_source_cannot_be_promoted") is not True
+                  or (union["status"]=="COMPLETE_PUBLIC_SNAPSHOT_AND_CONFLICT_FREE")!=
+                      (r["source_observation_days"]==len(r["days"]) and not r["source_errors"]
+                       and r["source_conflict_count"]==0)):
+              raise SystemExit("postrace_original_union_denominator_or_status_drift")
+          for mode, vals in union["modes"].items():
+              for n in (1,3,5,10):
+                  key="top"+str(n)
+                  hit=vals["top_hits_by_evidence_class"][key]
+                  if (hit["saved_only"]+hit["public_unarchived_only"]!=hit["combined_observed"]
+                          or hit["public_unarchived_only"]!=preview["original_saved_top_hits"][mode][key]
+                          or not (0<=hit["combined_observed"]<=known)):
+                      raise SystemExit("postrace_original_union_hit_drift:"+mode+":"+key)
+                  expected=round(100*hit["combined_observed"]/known,2) if known else None
+                  if vals["top_pct_of_currently_observed_outcomes_reference_only"][key]!=expected:
+                      raise SystemExit("postrace_original_union_percentage_drift:"+mode+":"+key)
+                  bounds=vals["top_bounds_on_saved_archive_roster_not_confidence_intervals"][key]
+                  n_total=known+missing
+                  lo=round(100*hit["combined_observed"]/n_total,2) if n_total else None
+                  hi=round(100*(hit["combined_observed"]+missing)/n_total,2) if n_total else None
+                  if (bounds["lower_if_all_unknown_miss_pct"]!=lo or
+                          bounds["upper_if_all_unknown_hit_pct"]!=hi):
+                      raise SystemExit("postrace_original_union_bounds_drift:"+mode+":"+key)
+          print("PUBLIC_SOURCE_ORIGINAL_UNION_ONLY:observed="+str(known)+
+                ":unobserved="+str(missing)+":saved="+str(union["persisted_result_count"]))
+          print("PUBLIC_SOURCE_SHADOW_ORIGINAL_ONLY:"+str(preview["races"])+
+                ":top10="+str({m:v["top10"] for m,v in preview["original_saved_top_hits"].items()}))
+          if (r.get("public_raw_csv_evidence_is_ci_artifact_only") is not True
+                  or len(r.get("public_raw_csv_retained_day_codes",[]))!=r["source_observation_days"]
+                  or r.get("public_raw_csv_retained_for_exact_replay")!=(r["source_observation_days"]==len(r["days"]))):
+              raise SystemExit("raw_csv_artifact_retention_not_reconcilable")
+          root=Path("four_mode_nov05_08_public_source_raw")
+          for day,row in r["by_day"].items():
+              raw_path=root/(day+".csv")
+              if (not raw_path.is_file()
+                      or raw_path.stat().st_size!=row["current_snapshot_bytes"]
+                      or hashlib.sha256(raw_path.read_bytes()).hexdigest()!=row["current_snapshot_sha256"]):
+                  raise SystemExit("raw_csv_bytes_do_not_replay:"+day)
+          print("PUBLIC_SOURCE_RAW_REPLAY_BYTES="+str(r["source_observation_days"]))
+          print("PUBLIC_SOURCE_OBSERVATION_STATUS="+r["status"])
+          for day, row in r["by_day"].items():
+              print("PUBLIC_SOURCE_DAY="+day+
+                    ":pending="+str(row["pending_saved_forecast_results"])+
+                    ":classes="+str(row["pending_classes"])+
+                    ":sha="+row["current_snapshot_sha256"])
+          for day, err in r["source_errors"].items():
+              print("PUBLIC_SOURCE_UNVERIFIED="+day+":"+str(err))
+          if r["source_conflict_count"]>0:
+              raise SystemExit("persisted_finish_conflicts_latest_source_manual_review")
+          PY
+      - name: Cross-audit the same retained public CSV source snapshot (never refetch)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python four_mode_result_raw_csv_audit.py --source-dir four_mode_nov05_08_public_source_raw --official-reference research/four_mode_nov05_08_official_non_scoreable_reference.json | tee four_mode_current_raw_csv_status.json
+      - name: Refuse result-row disagreement and fabricated formal status
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          v=json.loads(Path("four_mode_current_raw_csv_status.json").read_text())
+          if (v.get("schema")!="FOUR_MODE_ORIGINAL_CURRENT_PUBLIC_RESULT_CSV_RESEARCH_AUDIT_V1"
+                  or v.get("formal") is not False or v.get("formal_count") != 0
+                  or v.get("prospective_candidate_pairs") != 0
+                  or v.get("model_improvement_proven") is not False
+                  or v.get("model_promotion_allowed") is not False
+                  or v.get("candidate_not_scored") is not True
+                  or v.get("current_raw_hash_not_historical_first_result_sha") is not True
+                  or set(v.get("by_day",{}))!={"20261105","20261106","20261107","20261108"}):
+              raise SystemExit("untrusted_public_result_source_audit")
+          official=v.get("official_non_scored_reference")
+          if (type(official) is not dict
+                  or official.get("non_scored_total")!=12
+                  or official.get("non_scored_counts_by_type")!={"cancelled_race_day":11,
+                                                                 "trifecta_not_established":1}
+                  or official.get("official_pages_live_rechecked_by_script") is not False
+                  or official.get("formal") is not False
+                  or official.get("model_promotion_allowed") is not False):
+              raise SystemExit("official_non_scoreable_reference_unverifiable")
+          if (official["remaining_unresolved_result_races"]+
+                  official["non_scored_total"]!=v["frozen_original_result_reference"]["pending_results"]
+                  or official["maximum_potential_trifecta_slots_in_saved_forecasts"]+
+                     official["non_scored_total"]!=v["frozen_original_result_reference"]["forecast_files"]):
+              raise SystemExit("official_non_scoreable_denominator_mismatch")
+          print("MANUALLY_REVIEWED_OFFICIAL_NON_SCOREABLE:"+str(official["non_scored_total"]))
+          totals=v["totals"]
+          ref=v["frozen_original_result_reference"]
+          agree=totals.get("saved_result_rows_matched_current_csv",0)
+          mismatch=totals.get("saved_result_rows_disagree_or_not_present",0)
+          pending=sum(n for k,n in totals.items() if k not in (
+              "saved_result_rows_matched_current_csv",
+              "saved_result_rows_disagree_or_not_present"))
+          if (mismatch or agree!=ref["evaluated"] or pending!=ref["pending_results"]
+                  or ref["excluded"]!=0):
+              raise SystemExit("public_csv_row_or_roster_discrepancy")
+          print("CURRENT_CSV_VS_STORED_ROWS_MATCHED:"+str(agree))
+          print("CURRENT_CSV_PERSISTENCE_GAPS:"+str(pending))
+          print("NO_FORMAL_RESULT_ADMISSION")
+          PY
+      - name: Cross-check two independent read-only source auditors and officially non-scoreable denominator
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          raw=json.loads(Path("four_mode_nov05_08_postrace_source_observation.json").read_text())
+          ref=json.loads(Path("four_mode_current_raw_csv_status.json").read_text())
+          if (raw.get("status")!="ALL_SOURCE_SNAPSHOTS_OBSERVED"
+                  or raw.get("public_raw_csv_retained_for_exact_replay") is not True
+                  or set(raw.get("by_day",{})) != set(ref.get("by_day",{}))
+                  or set(raw["by_day"]) != {"20261105","20261106","20261107","20261108"}
+                  or raw.get("reference_results_already_saved") != ref["frozen_original_result_reference"]["evaluated"]
+                  or raw.get("unresolved_saved_result_files") != ref["frozen_original_result_reference"]["pending_results"]
+                  or raw.get("archived_v2_forecasts") != ref["frozen_original_result_reference"]["forecast_files"]):
+              raise SystemExit("same_raw_source_observation_roster_not_reconciled")
+          formal=ref["official_non_scored_reference"]
+          if (formal.get("formal") is not False or formal.get("official_pages_live_rechecked_by_script") is not False
+                  or formal["non_scored_total"] != 12
+                  or formal["maximum_potential_trifecta_slots_in_saved_forecasts"] !=
+                     raw["archived_v2_forecasts"]-formal["non_scored_total"]
+                  or formal["remaining_unresolved_result_races"] !=
+                     raw["unresolved_saved_result_files"]-formal["non_scored_total"]):
+              raise SystemExit("non_scoreable_reference_denominator_changed")
+          mapping={
+              "not_in_published_csv":"not_in_published_csv",
+              "invalid_or_unfinished_finish":"invalid_or_unfinished_finish_not_scoreable",
+              "valid_published_row_not_yet_archived":"valid_source_three_finish_unpersisted",
+          }
+          for day, v in raw["by_day"].items():
+              q=ref["by_day"][day]
+              if (v["current_snapshot_sha256"] != q["current_raw_sha256"]
+                      or v["current_snapshot_bytes"] != q["current_raw_bytes"]
+                      or v["pending_saved_forecast_results"] !=
+                         sum(q["pending_classification_counts"].values())):
+                  raise SystemExit("independent_csv_digests_or_pending_counts_disagree:"+day)
+              for old,new in mapping.items():
+                  if v["pending_classes"][old] != q["pending_classification_counts"].get(new,0):
+                      raise SystemExit("independent_csv_classification_disagree:"+day+":"+old)
+              if any(v["pending_classes"][kind] for kind in v["pending_classes"] if kind not in mapping):
+                  raise SystemExit("extra_invalid_csv_classification_requires_manual_review:"+day)
+          if (sum(v["pending_classes"]["valid_published_row_not_yet_archived"]
+                  for v in raw["by_day"].values()) !=
+                  raw["unarchived_published_shadow_only"]["races"]):
+              raise SystemExit("unarchived_shadow_denominator_drift")
+          if (raw["reference_results_already_saved"] + raw["unarchived_published_shadow_only"]["races"]
+                  + formal["non_scored_total"] > raw["archived_v2_forecasts"]):
+              raise SystemExit("cross_audited_roster_overflow")
+          # Once the manually referenced canceled/no-trifecta roster is proven
+          # equal to all remaining source gaps, those 12 can NEVER be assumed
+          # to become wins. Correct scoreable denominator is 462, not 474.
+          union=raw["historical_original_union_reference_only"]
+          effective=union["valid_saved_forecasts_with_persisted_or_public_result"]
+          if (union["status"]!="COMPLETE_PUBLIC_SNAPSHOT_AND_CONFLICT_FREE"
+                  or union["unknown_or_unobserved_result_count"]!=formal["non_scored_total"]
+                  or effective!=formal["maximum_potential_trifecta_slots_in_saved_forecasts"]
+                  or effective+formal["non_scored_total"]!=raw["archived_v2_forecasts"]
+                  or union["persisted_result_count"]!=raw["reference_results_already_saved"]
+                  or union["newly_observed_public_unarchived_result_count"]!=
+                     raw["unarchived_published_shadow_only"]["races"]):
+              raise SystemExit("non_scoreable_denominator_not_exhaustively_reconciled")
+          mode_summary={}
+          for mode, entry in union["modes"].items():
+              count={}
+              pct={}
+              for n in (1,3,5,10):
+                  key="top"+str(n)
+                  h=entry["top_hits_by_evidence_class"][key]
+                  if h["saved_only"]+h["public_unarchived_only"]!=h["combined_observed"]:
+                      raise SystemExit("scoreable_reference_hit_subtotal:"+mode+":"+key)
+                  count[key]=h["combined_observed"]
+                  pct[key]=round(100*count[key]/effective,2) if effective else None
+                  if entry["top_pct_of_currently_observed_outcomes_reference_only"][key]!=pct[key]:
+                      raise SystemExit("scoreable_reference_percentage:"+mode+":"+key)
+              mode_summary[mode]={"original_top_hits":count,
+                                  "original_top_pct":pct}
+          report={
+              "schema":"FOUR_MODE_SCOREABLE_20261105_08_ORIGINAL_REFERENCE_V1",
+              "status":"complete_postrace_trifecta_outcomes_on_current_public_CSV_reference_only",
+              "all_saved_v2_forecast_roster":raw["archived_v2_forecasts"],
+              "scoreable_outcomes":effective,
+              "confirmed_results_git_persisted":raw["reference_results_already_saved"],
+              "public_third_party_results_not_git_persisted":raw["unarchived_published_shadow_only"]["races"],
+              "excluded_no_trifecta_canceled_reference_count":formal["non_scored_total"],
+              "official_case_reference_manual_not_live_CI":True,
+              "source_snapshot_from_exact_raw_ci_artifact":True,
+              "modes":mode_summary,
+              "cohort":"historical_original_model_ONLY_not_preregistered_candidate",
+              "official_T_minus_12_evidence_verified":False,
+              "independent_first_Git_receipt_proven":False,
+              "prospective_candidate_pairs":0,
+              "formal":False,
+              "formally_eligible_races":0,
+              "model_promotion_allowed":False,
+          }
+          Path("four_mode_scoreable_original_reference.json").write_text(
+              json.dumps(report,ensure_ascii=False,sort_keys=True,indent=2)+"\n")
+          print("HISTORICAL_ORIGINAL_ONLY_TRIFECTA_SCOREABLE:"+str(effective)+
+                ":excluded_non_scoreable="+str(formal["non_scored_total"])+
+                ":top10="+str({m:v["original_top_hits"]["top10"] for m,v in mode_summary.items()}))
+          print("SAME_RAW_SOURCE_TWO_AUDITORS_RECONCILED")
+          print("MAXIMUM_TRIFECTA_SCOREABLE_RESEARCH_COHORT="+str(formal["maximum_potential_trifecta_slots_in_saved_forecasts"]))
+          print("STORED_RESULTS="+str(raw["reference_results_already_saved"])+
+                ":PUBLIC_UNARCHIVED="+str(raw["unarchived_published_shadow_only"]["races"])+
+                ":OFFICIAL_MANUAL_NON_SCOREABLE="+str(formal["non_scored_total"]))
+          print("FORMAL_COUNT_UNCHANGED:0")
+          PY
+      - name: Test displayed estimate versus observed full-ticket coverage gates
+        run: python -m unittest -v test_four_mode_original_coverage_calibration_audit
+      - name: Audit historical original full-list coverage estimate without model changes
+        run: |
+          python four_mode_original_coverage_calibration_audit.py --source-dir four_mode_nov05_08_public_source_raw --official-reference research/four_mode_nov05_08_official_non_scoreable_reference.json --output four_mode_original_coverage_calibration.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          c=json.loads(Path("four_mode_original_coverage_calibration.json").read_text())
+          original=json.loads(Path("four_mode_scoreable_original_reference.json").read_text())
+          archived=json.loads(Path("four_mode_nov05_08_reference.json").read_text())
+          latest=json.loads(Path("four_mode_nov05_08_postrace_source_observation.json").read_text())
+          expected={"narrow":5, "hit":10, "balance":16, "hole":22}
+          if (c.get("schema")!="FOUR_MODE_V2_NOV05_08_ORIGINAL_ESTIMATED_FULL_COVERAGE_CALIBRATION_V1"
+                  or c.get("formal") is not False
+                  or c.get("predictive_calibration_proven") is not False
+                  or c.get("model_promotion_allowed") is not False
+                  or c.get("prospective_candidate_pairs")!=0
+                  or c.get("compares_full_mode_ticket_lists_not_top10_for_16_or_22_budget") is not True
+                  or c.get("ticket_budgets")!=expected
+                  or c.get("postrace_scoreable")!=original["scoreable_outcomes"]
+                  or c.get("archived_original_forecasts")!=original["all_saved_v2_forecast_roster"]
+                  or c.get("non_scoreable_excluded")!=original["excluded_no_trifecta_canceled_reference_count"]
+                  or c.get("persisted_results")!=original["confirmed_results_git_persisted"]
+                  or c.get("public_only_postrace_results")!=original["public_third_party_results_not_git_persisted"]
+                  or set(c.get("mode",{}))!=set(expected)):
+              raise SystemExit("historical_full_ticket_calibration_evidence_not_consistent")
+          for mode,stats in c["mode"].items():
+              saved=archived["reference_overall"]["mode"][mode]["full_list_covered"]
+              newly=sum(row["unarchived_published_shadow_only"]["original_saved_full_list_covered"][mode]
+                        for row in latest["by_day"].values())
+              if (stats["races"]!=c["postrace_scoreable"]
+                      or stats["persisted_result_count"]!=c["persisted_results"]
+                      or stats["public_only_result_count"]!=c["public_only_postrace_results"]
+                      or stats["observed_hit_count"]!=saved+newly
+                      or stats["observed_hit_count"]<original["modes"][mode]["original_top_hits"]["top10"]
+                      or not 0<=stats["mean_squared_error_brier_descriptive"]<=1
+                      or stats["estimated_full_list_min_pct"] is None
+                      or stats["estimated_full_list_max_pct"] is None
+                      or not (0<=stats["estimated_full_list_min_pct"]<=stats["estimated_full_list_hit_rate_pct"]<=stats["estimated_full_list_max_pct"]<=100)
+                      or stats["estimated_full_list_population_stddev_pp"] is None
+                      or stats["estimated_full_list_population_stddev_pp"]<0
+                      or not (1<=stats["distinct_original_estimated_pct_values"]<=stats["races"])
+                      or stats["descriptive_original_estimate_hit_discrimination_auc"] is None
+                      or not 0<=stats["descriptive_original_estimate_hit_discrimination_auc"]<=1
+                      or c.get("auc_is_historical_same_cohort_not_future_holdout") is not True):
+                  raise SystemExit("calibration_full_list_vs_top10_reconciliation:"+mode)
+              print("ORIGINAL_CALIBRATION_REFERENCE:"+mode+
+                    ":estimated_full_pct="+str(stats["estimated_full_list_hit_rate_pct"])+
+                    ":actual_full_pct="+str(stats["observed_full_list_hit_rate_pct"])+
+                    ":gap_pp="+str(stats["observed_minus_estimated_percentage_points"])+
+                    ":actual_full_hits="+str(stats["observed_hit_count"])+
+                    ":estimated_min="+str(stats["estimated_full_list_min_pct"])+
+                    ":estimated_max="+str(stats["estimated_full_list_max_pct"])+
+                    ":estimated_sd_pp="+str(stats["estimated_full_list_population_stddev_pp"])+
+                    ":distinct_estimates="+str(stats["distinct_original_estimated_pct_values"])+
+                    ":historical_auc="+str(stats["descriptive_original_estimate_hit_discrimination_auc"]))
+          leave=c.get("leave_one_day_out_original_auc")
+          if (c.get("leave_one_day_out_is_descriptive_robustness_not_prospective") is not True
+                  or not isinstance(leave,dict) or set(leave)!=set(expected)):
+              raise SystemExit("missing_or_invalid_day_exclusion_robustness")
+          expected_days=set(c["by_day"])
+          if expected_days!={"20261105","20261106","20261107","20261108"}:
+              raise SystemExit("unexpected_historical_day_roster")
+          for mode, detail in leave.items():
+              rows=detail.get("excluding_each_day")
+              if (detail.get("not_prospective_or_cross_validated_model_training") is not True
+                      or not isinstance(rows,dict) or set(rows)!=expected_days):
+                  raise SystemExit("missing_leave_one_day_out_cases:"+mode)
+              valid=[]
+              for removed, case in rows.items():
+                  include=expected_days-{removed}
+                  n=sum(c["by_day"][day][mode]["races"] for day in include)
+                  positive=sum(c["by_day"][day][mode]["observed_hit_count"] for day in include)
+                  auc=case["descriptive_original_estimate_hit_discrimination_auc"]
+                  if (set(case["included_days"])!=include
+                          or case["excluded_day"]!=removed
+                          or case["included_races"]!=n
+                          or case["observed_full_list_hits"]!=positive
+                          or case["observed_full_list_misses"]!=n-positive
+                          or auc is not None and not 0<=auc<=1):
+                      raise SystemExit("day_exclusion_denominator_or_auc:"+mode+":"+removed)
+                  if auc is not None:
+                      valid.append(auc)
+              if detail["evaluable_day_exclusions"]!=len(valid):
+                  raise SystemExit("day_exclusion_eligible_count:"+mode)
+              if valid:
+                  if (detail["minimum_three_day_auc"]!=min(valid)
+                          or detail["maximum_three_day_auc"]!=max(valid)
+                          or detail["range_across_omitted_days"]!=round(max(valid)-min(valid),5)):
+                      raise SystemExit("day_exclusion_auc_range:"+mode)
+              else:
+                  if any(detail[k] is not None for k in
+                         ("minimum_three_day_auc","maximum_three_day_auc","range_across_omitted_days")):
+                      raise SystemExit("day_exclusion_auc_unknown_must_remain_null:"+mode)
+              print("ORIGINAL_AUC_LEAVE_ONE_DAY_OUT:"+mode+":pooled="+str(
+                    c["mode"][mode]["descriptive_original_estimate_hit_discrimination_auc"])+
+                    ":min="+str(detail["minimum_three_day_auc"])+
+                    ":max="+str(detail["maximum_three_day_auc"])+
+                    ":by_removed_day="+str({d:v["descriptive_original_estimate_hit_discrimination_auc"]
+                                              for d,v in rows.items()}))
+          print("ORIGINAL_CALIBRATION_FORMAL_COUNT:0")
+          PY
       - name: Audit real frozen historical archives by version and day
         run: python four_mode_version_topn_audit.py | tee version_stratified_topn_report.log
       - uses: actions/upload-artifact@v4
         with:
           name: historical-version-topn-${{ github.run_id }}
-          path: version_stratified_topn_report.log
+          path: |
+            version_stratified_topn_report.log
+            four_mode_nov05_08_reference.json
+            four_mode_nov09_current_main_input_readiness.json
+            four_mode_official_feature_negative_control.json
+            four_mode_candidate_remote_readiness.json
+            four_mode_main_candidate_stage_readiness.json
+            four_mode_nov09_observed_job_attempts.json
+            four_mode_upstream_t12_20261110.json
+            four_mode_t12_blockers_20261110.json
+            four_mode_upstream_remote_witness_20261110.json
+            four_mode_prior_remote_existence_20261110.json
+            four_mode_nov05_08_postrace_source_observation.json
+            four_mode_nov05_08_public_source_raw/
+            four_mode_current_raw_csv_status.json
+            four_mode_scoreable_original_reference.json
+            four_mode_original_coverage_calibration.json
+            hit_head_prior_nov8_input_only.json
+            four_mode_shadow_input_replay_20261106.log
+            four_mode_shadow_input_replay_20261107.log
+            four_mode_shadow_input_replay_20261108.log
+            four_mode_top1_position_exposure_20261105.json
+            four_mode_top1_position_exposure_20261106.json
+            four_mode_top1_position_exposure_20261107.json
+            four_mode_top1_position_exposure_20261108.json
           retention-days: 30

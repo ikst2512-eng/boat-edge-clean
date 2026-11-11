@@ -1,0 +1,76 @@
+{
+  "schema": "FOUR_MODE_HIT_WINNER_HEAD_PRIOR_FORWARD_PREREGISTRATION_V1",
+  "registered_jst_date": "2026-11-08",
+  "research_only": true,
+  "study_status": "not_live_no_independent_candidate_receipt_no_accuracy_score",
+  "policy_id": "hit_head_prior_sqrt_with_original_national_beta04_v1",
+  "selector_file": "four_mode_top1_head_prior_shadow.py",
+  "pinned_selector_git_blob_sha1": "371569e0b596af7d1805cc623396c370cec0f986",
+  "hypothesis": "Reduce model winner-head prior dominance without fitting retrospective outcomes; test whether pre-race six-boat national-win-rate strength improves exact HIT Top1 trifecta",
+  "source_inputs": [
+    "original_CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED_forecast",
+    "original_six_national_win_rates",
+    "fixed_research_model_WIN_first_boat_counts"
+  ],
+  "head_score": "sqrt(WIN[i]+12)*exp(0.4*(national_rate[i]-mean_of_six_rates)); maximum with lower boat number tie-break",
+  "ticket_choice": "The original V2 120-combination probability board's highest-ranking ticket conditional on the chosen head",
+  "mode_scope": "HIT only; narrow, balance, hole exactly untouched",
+  "membership_change_policy": "If same winner head as original HIT Top1, keep entire HIT list unchanged; else promote conditional-head best ticket to HIT Top1; if present reorder HIT list, else prepend and remove original position 10; 10 unique tickets always",
+  "eligible_deadline_start_jst": "2026-11-09T00:00:00+09:00",
+  "eligible_deadline_end_jst": "2026-12-31T23:59:59+09:00",
+  "pilot_races": 300,
+  "confirmation_races": 300,
+  "selection_order": "deadline_jst_then_race_code_no_outcome_backfill",
+  "primary_metric": "paired_HIT_Top1_exact_trifecta_original_versus_head_prior_shadow",
+  "statistics": "exact_two_sided_McNemar_alpha_0.05_for_one_predefined_HIT_Top1_hypothesis",
+  "secondary_metrics": [
+    "Top3",
+    "Top5",
+    "Top10",
+    "lost_exact_tickets",
+    "winner_head_coverage",
+    "expected_probability_calibration_if_trusted",
+    "ROI_only_with_independent_predeadline_120_odds"
+  ],
+  "predeclared_guardrails": [
+    "No deterioration of HIT Top3/5/10 without independently reviewed practical tradeoff",
+    "other_three_modes_unchanged",
+    "all_gained_and_lost_tickets_reported",
+    "never_use_discovery_results_to_tune",
+    "full_schedule_and_all_candidate_receipts_inventoried",
+    "model_version_cohort_separated"
+  ],
+  "first_receipt_requirements": [
+    "original_first_remote_receipt_verified_before_Tminus12",
+    "head_candidate_first_remote_receipt_independently_verified_before_Tminus12",
+    "official_beforeinfo_complete_six_and_120_odds_verified_at_Tminus12",
+    "complete_capture_run_inventory_and_all_attempts_verified"
+  ],
+  "discovery_exclusions": [
+    "2026-11-05",
+    "2026-11-06",
+    "2026-11-07",
+    "2026-11-08"
+  ],
+  "forbid": [
+    "retrospective_hit_rate_reuse_as_forward_evidence",
+    "invented_weather_or_ST_or_official_feed",
+    "auto_merge",
+    "production_publication_before_review",
+    "changing_pinned_selector_after_first_future_candidate"
+  ],
+  "existing_studies_untouched": [
+    "research/four_mode_all_modes_forward_protocol_20261106.json",
+    "research/four_mode_top1_pair_forward_protocol_20261108.json",
+    "separate_Draft_PR_1698_position_sensitive_2nd_3rd"
+  ],
+  "formal_count": 0,
+  "model_improvement_proven": false,
+  "promotion_allowed": false,
+  "authorization_required_for_live_collection": true,
+  "pinned_dependency_git_blob_sha1": {
+    "research_model.py": "19137116f8ec79d467f73c57c537a9a95f50110d",
+    "four_mode_all_mode_same_job_shadow.py": "f7d2d76d22b5d741921baad8d1db59c66bc66144",
+    "clean_four_modes.py": "c143b836e6e833ff1ff6ee0d8f13dca6a8408c7d"
+  }
+}

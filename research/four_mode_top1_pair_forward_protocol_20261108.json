@@ -1,0 +1,55 @@
+{
+  "schema": "FOUR_MODE_TOP1_PAIR_FORWARD_PREREGISTRATION_V1",
+  "registered_jst_date": "2026-11-08",
+  "study_status": "research_only_not_live_not_scored",
+  "hypothesis": "Top1 ranking within first two original frozen predictions using original national win rates only",
+  "policy_id": "pre_result_national_win_rates_lexicographic_head_second_third_v1",
+  "selector_file": "four_mode_all_mode_same_job_shadow.py",
+  "pinned_selector_git_blob_sha1": "f7d2d76d22b5d741921baad8d1db59c66bc66144",
+  "input_fields": [
+    "input_national_win_rates",
+    "modes"
+  ],
+  "permutation": "swap original Top1 and Top2 if Top2 has strictly greater ordered (head,second,third) national win-rate tuple; otherwise retain original",
+  "position_preservation": "exact same ordered tickets from position 3 onward; Top2 set and Top3/5/10 memberships identical",
+  "modes": [
+    "narrow",
+    "hit",
+    "balance",
+    "hole"
+  ],
+  "eligible_only": "Only original and Top1 candidate independently first-received before T-12 for eligible Nov9-Dec31 JST races after pre-registration; prior Nov5-8 are exploratory regardless of whether saved results exist; manual review for integration; unverified captures are reference-only",
+  "pilot_races": 300,
+  "confirmation_races": 300,
+  "confirmation_min_distinct_dates": 5,
+  "selection_order": "deadline_jst_then_race_code_ascending_without_outcome_based_replacement",
+  "primary_metric": "paired_top1_exact_trifecta_with_4_mode_familywise_Holm_two_sided_alpha_0.05",
+  "paired_test": "exact_two_sided_McNemar_on_gained_and_lost_Top1_winners",
+  "guardrails": [
+    "Top2 membership unchanged",
+    "Top3/5/10 membership unchanged",
+    "no lost formal evidence or invalid pre-result receipt",
+    "report gained and lost winners"
+  ],
+  "freeze_requirements": [
+    "first independent candidate remote receipt before T-12",
+    "fully enumerated scheduled capture runs",
+    "official beforeinfo six and odds 120 pre-result proven",
+    "fixed selector blob and candidate bytes",
+    "model_version_cohort_separated"
+  ],
+  "disallow": [
+    "retroactive Nov5-8 success claims",
+    "trained threshold on retrospective outcome",
+    "same-second ambiguous T-12 accepted",
+    "missing result replaced",
+    "automatic merge or deployment"
+  ],
+  "promotion_allowed": false,
+  "formal_count": 0,
+  "related_existing_protocol": "research/four_mode_all_modes_forward_protocol_20261106.json",
+  "existing_primary_metric_unchanged": true,
+  "eligible_deadline_start_jst": "2026-11-09T00:00:00+09:00",
+  "eligible_deadline_end_jst": "2026-12-31T23:59:59+09:00",
+  "eligibility_explanation": "Exclude all Nov 5-8 races to eliminate registration-day uncertainty and retrospective reuse; select first 300/next 300 unique future original and candidate captures without result-dependent replacement"
+}
