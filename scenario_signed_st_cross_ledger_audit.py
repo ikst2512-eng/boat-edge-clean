@@ -135,11 +135,29 @@ def audit_source_writer_against_signed_candidate(prepared, source_bundle_raw,
             or manifest.get("cutoff_jst")!=cutoff.isoformat()
             or set(manifest.get("official_sources",{}))!=set(SOURCES.values())):
         raise ValueError("cross_ledger_source_action_and_manifest_invalid")
+    # Rebuild #1746's canonical original-input manifest SHA rather than
+    # trusting matching strings in a source archive and its Action receipt.
+    manifest_fields=("race_code","cutoff_jst","official_sources","six_boat_inputs")
+    if any(k not in manifest for k in manifest_fields):
+        raise ValueError("cross_ledger_original_manifest_fields_missing")
+    reconstructed=hashlib.sha256(json.dumps(
+        {k:manifest[k] for k in manifest_fields},
+        ensure_ascii=False,sort_keys=True,separators=(",",":")).encode()).hexdigest()
+    if manifest.get("input_sha256")!=reconstructed:
+        raise ValueError("cross_ledger_original_manifest_content_hash_changed")
+    boats=manifest.get("six_boat_inputs")
+    if (type(boats) is not list or len(boats)!=6
+            or any(type(x) is not dict for x in boats)
+            or {x.get("lane") for x in boats}!={1,2,3,4,5,6}
+            or {x.get("exhibition_course") for x in boats}!={1,2,3,4,5,6}
+            or len({str(x.get("registration")) for x in boats})!=6):
+        raise ValueError("cross_ledger_official_manifest_six_boat_identity_invalid")
     inputsha=candidate.get("source_original_sha256")
     if (type(inputsha) is not dict or set(inputsha)!=set(SOURCES)
             or any(type(v) is not str or HEX64.fullmatch(v) is None
                    for v in inputsha.values())):
         raise ValueError("cross_ledger_candidate_original_hashes_missing")
+    received_by_kind={}
     for candidate_key,source_key in SOURCES.items():
         record=originals[source_key]
         manifest_entry=manifest["official_sources"][source_key]
@@ -154,11 +172,18 @@ def audit_source_writer_against_signed_candidate(prepared, source_bundle_raw,
             raw=base64.b64decode(record["base64"],validate=True)
         except (ValueError,binascii.Error) as exc:
             raise ValueError("cross_ledger_original_base64_invalid") from exc
+        when=_time(record["received_at_jst"],"original")
         if (not 0<len(raw)<=150000
                 or len(raw)!=record["bytes"]
                 or hashlib.sha256(raw).hexdigest()!=inputsha[candidate_key]
-                or not _time(record["received_at_jst"],"original")<cutoff):
+                or not when<cutoff):
             raise ValueError("cross_ledger_original_bytes_or_chronology_mismatch")
+        received_by_kind[source_key]=when
+    if (candidate.get("latest_archive_source_received_claim_jst")!=
+            max(received_by_kind.values()).isoformat()
+            or not max(received_by_kind.values())<
+                _time(candidate.get("model_started_local_jst"),"F_model_start")):
+        raise ValueError("cross_ledger_F_candidate_source_receipts_not_aligned")
     # The official shadow is a DIFFERENT heuristic, not the signed-F four-mode
     # model or proof that the latter generated its candidate before cutoff.
     shadow=source.get("official_research_shadow")
@@ -174,8 +199,8 @@ def audit_source_writer_against_signed_candidate(prepared, source_bundle_raw,
             or shadow.get("formal_t12_certified") is not False
             or shadow.get("independent_remote_first_seen_verified") is not False):
         raise ValueError("cross_ledger_unrelated_source_shadow_claim")
-    if (not _time(shadow.get("generated_at_jst"),"source_shadow")<cutoff
-            or not _time(candidate.get("latest_archive_source_received_claim_jst"),"candidate_source")<cutoff):
+    shadow_generated=_time(shadow.get("generated_at_jst"),"source_shadow")
+    if (not max(received_by_kind.values())<=shadow_generated<cutoff):
         raise ValueError("cross_ledger_source_shadow_timing_invalid")
     receipt=source_writer_receipt
     if (receipt.get("schema")!="OFFICIAL_RESEARCH_GIT_WRITE_RECEIPT_V1"
