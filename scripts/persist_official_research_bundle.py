@@ -131,6 +131,47 @@ def build_bundle(row, source_dirs):
     return f"{PATH_ROOT}/{race[:8]}/{race}.json", serialized(content), cutoff
 
 
+def verify_independent_source_and_shadow_replay(row, source_dirs, *,
+                                                 auditor=None,
+                                                 manifest_builder=None,
+                                                 shadow_builder=None):
+    """Privileged job independently reconstructs evidence from transferred bytes.
+
+    The capture report is only a claim until the source's original manifests,
+    race/deadline, six racer identities, 120 odds and generated 4-mode ticket
+    rankings are reverified against the actual received bytes.
+    """
+    from scripts.audit_three_official_t12_originals import audit_three_originals
+    from scripts.audit_official_forecast_consumption import (
+        verified_official_input_manifest, generate_official_research_shadow
+    )
+    if set(source_dirs) != set(SOURCE_FILES):
+        raise ValueError("privileged_source_directory_set_mismatch")
+    folders = [source_dirs[k] for k in SOURCE_FILES]
+    official = (auditor or audit_three_originals)(*folders)
+    if (not isinstance(official, dict)
+            or official.get("race_code") != row.get("race_code")
+            or official.get("all_research_components_observed_by_t12") is not True
+            or official.get("three_originals_hash_verified") is not True
+            or official.get("missing_components") != []
+            or official.get("final_race_entry_verified") is not False):
+        raise ValueError("privileged_official_three_source_reaudit_failed")
+    independent_manifest = (manifest_builder or verified_official_input_manifest)(
+        folders, official
+    )
+    if independent_manifest != row.get("official_input_manifest"):
+        raise ValueError("privileged_original_manifest_replay_mismatch")
+    shadow = row.get("official_research_shadow")
+    if not isinstance(shadow, dict) or type(shadow.get("generated_at_jst")) is not str:
+        raise ValueError("privileged_shadow_missing_generation")
+    independently_calculated_shadow = (shadow_builder or generate_official_research_shadow)(
+        independent_manifest, shadow["generated_at_jst"]
+    )
+    if independently_calculated_shadow != shadow or shadow.get("generated") is not True:
+        raise ValueError("privileged_shadow_predictions_replay_mismatch")
+    return True
+
+
 def api_request(method, path, token, data=None):
     """GitHub Contents API only; returns (status, json)."""
     if type(token) is not str or not token:
@@ -229,7 +270,11 @@ def main():
             outcomes.append({"race_code": row.get("race_code"), "status": "shadow_not_generated"})
             continue
         folders = locate_sources(args.batch_dir, row["race_code"])
-        path, body, cutoff = build_bundle(row, dict(zip(SOURCE_FILES, folders)))
+        source_dirs = dict(zip(SOURCE_FILES, folders))
+        path, body, cutoff = build_bundle(row, source_dirs)
+        # Privileged job must repeat the triple-source parsing and prediction
+        # computation before any network PUT, not trust the transfer artifact.
+        verify_independent_source_and_shadow_replay(row, source_dirs)
         outcomes.append(store_once(path, body, cutoff, token))
     print("OFFICIAL_RESEARCH_GIT_STORE " + json.dumps({"outcomes": outcomes,
           "newly_stored": sum(x.get("newly_stored") is True for x in outcomes),
