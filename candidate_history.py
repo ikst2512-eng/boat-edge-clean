@@ -7,6 +7,7 @@ visible as unverified rows rather than silently disappearing.
 """
 import json
 import re
+import math
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -74,6 +75,69 @@ def _research_selection(data):
     }
 
 
+def _four_mode_source_link(root, code, candidate):
+    """Match TWO frozen research records, never official beforeinfo or formal status.
+
+    Equality of original source byte digests and six model inputs proves a
+    common recorded input, not independent source authenticity, Git first-seen,
+    final entry, exhibition, or the probability of a trifecta hit.
+    """
+    base = {"status": "four_mode_missing", "four_mode_generated_at_jst": None,
+            "four_mode_source_received_jst": None, "source_sha256": None,
+            "official_beforeinfo_verified": False, "formal_attested": False}
+    path = Path(root) / "four_mode_forecasts" / (code + ".json")
+    if not path.exists() and not path.is_symlink():
+        return base
+    invalid = dict(base, status="four_mode_invalid")
+    try:
+        four = _read_record(path, 100000)
+        created = _jst(four["generated_at_jst"])
+        deadline = _jst(four["deadline_jst"])
+        received_title = _jst(four["source_title_received_jst"])
+        received_cards = _jst(four["source_cards_received_jst"])
+        candidate_cutoff = _jst(candidate["cutoff_jst"])
+        six = four["input_national_win_rates"]
+        own_six = candidate["national_win_rates"]
+        if (four.get("schema") != "CLEAN_FOUR_MODES_PREDEADLINE_V1"
+                or four.get("race_code") != code or four.get("validated") is not False
+                or four.get("status") != "provisional"
+                or deadline != _jst(candidate["source_deadline_jst"])
+                or not (received_title <= created and received_cards <= created
+                        and created < candidate_cutoff)
+                or not isinstance(six, list) or not isinstance(own_six, list)
+                or len(six) != 6 or len(own_six) != 6
+                or any(type(n) not in (int, float) or not math.isfinite(n)
+                       or not 0 < n < 20 for n in six + own_six)):
+            return invalid
+        forecast_hashes = four.get("source_sha256")
+        candidate_hashes = {
+            "title": candidate.get("source_title_sha256"),
+            "race_cards": candidate.get("source_cards_sha256"),
+        }
+        if (not isinstance(forecast_hashes, dict) or
+                any(not isinstance(candidate_hashes[k], str) or
+                    not re.fullmatch("[a-f0-9]{64}", candidate_hashes[k]) or
+                    not isinstance(forecast_hashes.get(k), str) or
+                    not re.fullmatch("[a-f0-9]{64}", forecast_hashes[k])
+                    for k in ("title", "race_cards"))):
+            return invalid
+        common = {
+            "four_mode_generated_at_jst": created.isoformat(),
+            "four_mode_source_received_jst": max(received_title, received_cards).isoformat(),
+            "official_beforeinfo_verified": False,
+            "formal_attested": False,
+            "source_sha256": None,
+        }
+        if any(forecast_hashes[k] != candidate_hashes[k] for k in ("title", "race_cards")):
+            return dict(common, status="source_digest_mismatch")
+        if six != own_six:
+            return dict(common, status="six_racer_input_mismatch")
+        return dict(common, status="same_research_source_unattested",
+                    source_sha256=candidate_hashes)
+    except (ValueError, KeyError, TypeError, OSError, OverflowError):
+        return invalid
+
+
 def _candidate(path, code):
     data = _read_record(path, 30000)
     tickets = data.get("predictions")
@@ -101,6 +165,7 @@ def _candidate(path, code):
         "tickets": tickets,
         "model_version": str(data.get("model_version", ""))[:100],
         "research_input_received_jst": max(title_received, cards_received).isoformat(),
+        "four_mode_source_link": _four_mode_source_link(path.parent.parent, code, data),
         "purchase_review_status": "hold_evidence_not_attested",
         "purchase_review_missing": list(REVIEW_MISSING),
         **_research_selection(data),
@@ -155,6 +220,10 @@ def daily_candidate_history(day, root=ROOT):
             "selection_status": "unassessed",
             "head_top2_model_pct": None,
             "research_input_received_jst": None,
+            "four_mode_source_link": {"status": "candidate_unverified",
+                "four_mode_generated_at_jst": None,
+                "four_mode_source_received_jst": None, "source_sha256": None,
+                "official_beforeinfo_verified": False, "formal_attested": False},
             "purchase_review_status": "unassessed",
             "purchase_review_missing": list(REVIEW_MISSING),
             "tickets": [],
@@ -192,6 +261,9 @@ def daily_candidate_history(day, root=ROOT):
         "research_unassessed_count": sum(r["selection_status"] == "unassessed" for r in rows),
         "purchase_review_schema": "candidate_evidence_hold_v1",
         "purchase_review_approved_count": 0,
+        "four_mode_research_source_link_count": sum(
+            r["four_mode_source_link"]["status"] == "same_research_source_unattested"
+            for r in rows),
         "research_forecast_count": sum(r["forecast_status"] == "saved_research_unattested" for r in rows),
         "confirmed_result_count": sum(r["result_status"] == "confirmed_archive" for r in rows),
         "payout_verified_count": sum(r["payout_status"] == "verified_independent" for r in rows),
