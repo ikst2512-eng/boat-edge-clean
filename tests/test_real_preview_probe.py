@@ -29,6 +29,26 @@ class RealPreviewProbeTests(unittest.TestCase):
     return data
    with self.subTest(invalid_st=value):
     self.assertEqual(verify_current_adapter('2026/11/04.csv',card_fetch=invalid_card,**kwargs),[])
+
+ def test_live_official_artifact_path_and_failure_gate(self):
+  # Historical contract is only a fixture. Live runs must create and upload
+  # a per-run evidence ledger, including failures, with a non-hidden path.
+  from pathlib import Path
+  import re
+  root=Path(__file__).resolve().parent.parent
+  workflow=(root/'.github/workflows/verify-real-beforeinfo.yml').read_text()
+  generated=re.findall(r"const proofPath='([^']+)'",workflow)
+  uploaded=re.findall(r"^\s+path: ([^\n]+-evidence\.ndjson)$",workflow,re.M)
+  self.assertEqual(generated,['clean-live-official-pages-evidence.ndjson'])
+  self.assertEqual(uploaded,generated)
+  self.assertIn("if(!isHistorical)fs.writeFileSync(proofPath",workflow)
+  self.assertIn("kind==='LIVE_OFFICIAL_PAGES_E2E_EVIDENCE'",workflow)
+  self.assertIn("kind==='LIVE_OFFICIAL_PAGES_E2E_UNVERIFIED'",workflow)
+  self.assertIn('if-no-files-found: error',workflow)
+  self.assertIn("cron: '35 10 * * *'",workflow)
+  self.assertEqual(workflow.count('- cron:'),1)
+  self.assertIn("github.event_name == 'pull_request' || github.event_name == 'push'",workflow)
+
  def test_missing_preview_and_late_receipt_are_not_success(self):
   def missing(*args):return {'race_key':'20261104-01-11'}
   def late(*args):

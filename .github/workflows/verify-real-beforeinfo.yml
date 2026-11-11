@@ -446,5 +446,6 @@ jobs:
         with:
           name: official-live-e2e-decision-${{ github.run_id }}
           path: clean-live-official-pages-evidence.ndjson
-          if-no-files-found: warn
+          # Missing run-specific proof is a broken audit, not a green success.
+          if-no-files-found: error
           retention-days: 90
