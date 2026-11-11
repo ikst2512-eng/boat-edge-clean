@@ -278,7 +278,10 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
         self.assertIn("  schedule:", independent)
         # The watcher does not react to this parent's PR/manual jobs:
         # only verified successful same-repository main schedule completions.
-        self.assertIn("    - cron: '*/5 0-12 * * *'", independent)
+        # The existing five-minute native schedule was retimed off :00.
+        # Do not confuse the rescue dispatch with a schedule completion.
+        self.assertIn("    - cron: '1-56/5 0-12 * * *'", independent)
+        self.assertEqual(independent.count("    - cron:"), 1)
 
     def test_untrusted_workflow_run_writes_no_dispatch_evidence_without_api(self):
         from scripts import clean_prospective_watchdog as mod
