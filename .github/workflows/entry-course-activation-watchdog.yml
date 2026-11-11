@@ -24,6 +24,10 @@ on:
       # absent 19:35 official probe after 19:40, or missed 08 JST T12.
       # The job gate limits this parent to UTC 10/23; no new Cron or writer.
       - "Four-mode capture schedule watchdog"
+      # An independently scheduled result collector also has live evening
+      # ticks. Only its 19:40-19:59 JST native completion may wake the
+      # existing missing-official watchdog; no new Cron/collector/forecast.
+      - "CLEAN independent confirmed result collection"
       # Existing unrelated read-only schedules give independent wakeups if
       # the T12/watchdog own cron does not fire; dispatch remains cooldown-
       # guarded, same-repo/main/schedule-only and research-only.
@@ -54,7 +58,10 @@ jobs:
            contains(github.event.workflow_run.created_at, 'T10:')) &&
           (github.event.workflow_run.name != 'Four-mode capture schedule watchdog' ||
            contains(github.event.workflow_run.created_at, 'T23:') ||
-           contains(github.event.workflow_run.created_at, 'T10:'))))))
+           contains(github.event.workflow_run.created_at, 'T10:')) &&
+          (github.event.workflow_run.name != 'CLEAN independent confirmed result collection' ||
+           contains(github.event.workflow_run.created_at, 'T10:4') ||
+           contains(github.event.workflow_run.created_at, 'T10:5'))))))
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
