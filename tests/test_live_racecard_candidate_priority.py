@@ -3,7 +3,8 @@ import unittest
 from datetime import datetime,timedelta
 from zoneinfo import ZoneInfo
 from scripts.live_racecard_candidate_priority import (rank_candidates,t12_window_open,
-    live_sampling_window_open,preview_codes_at_receipt,fresh_candidates_at_selection)
+    live_sampling_window_open,preview_codes_at_receipt,fresh_candidates_at_selection,
+    verified_csv_pair_receipts)
 
 JST=ZoneInfo("Asia/Tokyo")
 NOW=datetime(2026,11,4,17,30,tzinfo=JST)
@@ -115,6 +116,53 @@ class LiveRacecardCandidatePriorityTests(unittest.TestCase):
             t12_window_open(datetime(2026,11,4,17,45),NOW)
         with self.assertRaisesRegex(ValueError,"t12_clock_timezone_missing"):
             rank_candidates([race("valid",20)],set(),datetime(2026,11,4,17,30))
+
+
+    def test_official_fallback_is_valid_exhibition_but_not_a_csv_t12_pair(self):
+        deadline=NOW+timedelta(minutes=20)
+        receipt=NOW+timedelta(minutes=1)
+        official={"status":"ok","source":"BOAT RACE official beforeinfo JSON",
+                  "sources":{"official":{"received_at_jst":receipt.isoformat(),
+                                         "sha256":"a"*64}}}
+        times,problems=verified_csv_pair_receipts(official,deadline,receipt)
+        self.assertEqual(times,{})
+        self.assertEqual(problems,["tkz:source_receipt_missing",
+                                   "stt:source_receipt_missing"])
+
+    def test_valid_independent_csv_pair_is_still_eligible(self):
+        deadline=NOW+timedelta(minutes=20)
+        received=NOW+timedelta(minutes=2)
+        audit={"sources":{kind:{"observed_at":NOW.isoformat(),"sha256":"f"*64}
+                          for kind in ("tkz","stt")}}
+        times,problems=verified_csv_pair_receipts(audit,deadline,received)
+        self.assertEqual(problems,[])
+        self.assertEqual(set(times),{"tkz","stt"})
+
+    def test_missing_or_invalid_csv_receipts_fail_closed(self):
+        deadline=NOW+timedelta(minutes=20)
+        received=NOW+timedelta(minutes=1)
+        audit={"sources":{"tkz":{"observed_at":"","sha256":"f"*64},
+                          "stt":{"observed_at":NOW.isoformat(),"sha256":"bad"}}}
+        times,problems=verified_csv_pair_receipts(audit,deadline,received)
+        self.assertFalse(times)
+        self.assertEqual(problems,["tkz:observed_at_missing",
+                                   "stt:sha256_missing_or_invalid"])
+        audit["sources"]["tkz"]["observed_at"]=(deadline+timedelta(seconds=1)).isoformat()
+        audit["sources"]["stt"]["sha256"]="f"*64
+        times,problems=verified_csv_pair_receipts(audit,deadline,received)
+        self.assertEqual(set(times),{"stt"})
+        self.assertEqual(problems,["tkz:observed_at_not_predeadline"])
+        with self.assertRaisesRegex(ValueError,"csv_pair_clock_timezone_missing"):
+            verified_csv_pair_receipts(audit,deadline.replace(tzinfo=None),received)
+
+    def test_live_e2e_separates_official_exhibition_and_csv_pair(self):
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1] /
+                "scripts/verify_live_racecard_e2e.py").read_text()
+        self.assertIn("verified_csv_pair_receipts(",source)
+        self.assertIn('"reason":"independent_csv_source_pair_incomplete"',source)
+        self.assertIn('"outcome":"EXHIBITION_PASS"',source)
+        self.assertIn('if all(t12_checks.values()):',source)
 
 if __name__=="__main__":
     unittest.main()
