@@ -178,6 +178,12 @@ def preview_fallback(now, fetch_runs, dispatch):
     local=now.astimezone(JST)
     record={"workflow":PREVIEW_WORKFLOW,"decision":"outside_preview_hours",
             "observed_schedule_runs":0,"observed_dispatch_runs":0,
+            "observed_schedule_runs_today":0,"observed_dispatch_runs_today":0,
+            "latest_native_schedule_jst":None,
+            "latest_native_schedule_age_minutes":None,
+            "native_schedule_observation":"outside_preview_hours",
+            "native_schedule_observation_window_minutes":20,
+            "schedule_coverage":"last_30_api_rows_per_event_not_exhaustive",
             "dispatch_requested":False,"trigger_is_schedule":False,
             "saved_forecast_verified":False}
     if not 9<=local.hour<22:
@@ -189,9 +195,27 @@ def preview_fallback(now, fetch_runs, dispatch):
             raise ValueError("entry_preview_watchdog_api_runs_invalid")
         runs.extend(observed)
     decision=dispatch_decision(now,runs,kind="t2")
+    # The per-workflow GitHub API returns the last 30 events of each type,
+    # including historic days. "observed_schedule_runs" is NOT today's count.
+    # A watchdog dispatch must never masquerade as a native schedule event.
+    schedule_today=_count_jst_day_runs(runs,now,"schedule")
+    dispatch_today=_count_jst_day_runs(runs,now,"workflow_dispatch")
+    native_times=[_timestamp(row["created_at"]).astimezone(JST)
+                  for row in runs if row.get("event")=="schedule"
+                  and row.get("head_branch")=="main"]
+    latest=max(native_times) if native_times else None
+    age=max(0,(local-latest).total_seconds()/60) if latest else None
     record.update(decision=decision,
                   observed_schedule_runs=sum(r.get("event")=="schedule" for r in runs),
-                  observed_dispatch_runs=sum(r.get("event")=="workflow_dispatch" for r in runs))
+                  observed_dispatch_runs=sum(r.get("event")=="workflow_dispatch" for r in runs),
+                  observed_schedule_runs_today=schedule_today,
+                  observed_dispatch_runs_today=dispatch_today,
+                  latest_native_schedule_jst=latest.isoformat() if latest else None,
+                  latest_native_schedule_age_minutes=round(age,1) if age is not None else None,
+                  native_schedule_observation=(
+                      "no_native_schedule_observed_today" if not schedule_today else
+                      "native_schedule_observed_with_over_20min_gap" if age>20 else
+                      "native_schedule_observed_within_20min"))
     if decision=="dispatch_missing_research_job":
         dispatch(PREVIEW_WORKFLOW)
         record["dispatch_requested"]=True
