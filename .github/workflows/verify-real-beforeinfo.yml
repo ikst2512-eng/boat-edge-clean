@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
     paths:
+      # Backend preview adapter changes must run the same public LIVE
+      # diagnostic; a green unit test does not prove a Render deployment.
+      - clean_racecard.py
       - .github/workflows/verify-real-beforeinfo.yml
   pull_request:
     paths:

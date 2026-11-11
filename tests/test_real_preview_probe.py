@@ -42,6 +42,10 @@ class RealPreviewProbeTests(unittest.TestCase):
   self.assertEqual(generated,['clean-live-official-pages-evidence.ndjson'])
   self.assertEqual(uploaded,generated)
   self.assertIn("if(!isHistorical)fs.writeFileSync(proofPath",workflow)
+  # The existing verifier must also diagnose backend preview edits on main,
+  # not merely edits to its own workflow definition.
+  self.assertIn("      - clean_racecard.py", workflow.split("  pull_request:")[0])
+  self.assertIn("      - .github/workflows/verify-real-beforeinfo.yml",workflow.split("  pull_request:")[0])
   self.assertIn("kind==='LIVE_OFFICIAL_PAGES_E2E_EVIDENCE'",workflow)
   self.assertIn("kind==='LIVE_OFFICIAL_PAGES_E2E_UNVERIFIED'",workflow)
   self.assertIn('if-no-files-found: error',workflow)
