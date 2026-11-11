@@ -205,14 +205,29 @@ jobs:
               for(const race of candidates){
                 const venue=Number(race.venue_code),rno=race.race_no,deadline=Date.parse(race.deadline_jst);
                 const code=hd+String(venue).padStart(2,'0')+String(rno).padStart(2,'0');
+                // Only public source availability/provenance metadata. Do not log
+                // full upstream payloads or promote missing evidence to success.
+                const gap={official_boats:null,official_start_rows:null,
+                  render_preview_status:null,render_preview_source:null,
+                  render_csv_sources:null,render_official_fallback_reason:null,
+                  render_official_measurements:null,render_source_received_at:null};
                 try{
                   const officialUrl='https://www.boatrace.jp/owsp/sp/spdata?type=beforeinfo&hd='+hd+'&jcd='+String(venue).padStart(2,'0')+'&rno='+rno;
                   const src=await get(ctx,officialUrl,{headers:{'User-Agent':'BOAT-EDGE-CLEAN/1.0','Accept':'application/json','X-Requested-With':'XMLHttpRequest'}});
                   if(src.url!==officialUrl)throw Error('official_redirect');
                   const main=src.data.maindata;
+                  gap.official_boats=Array.isArray(main?.teiinfolist)?main.teiinfolist.length:0;
+                  gap.official_start_rows=Array.isArray(main?.sttenjiinfolist)?main.sttenjiinfolist.length:0;
                   const exp=verifiedOfficialValues(main,hd,venue,rno,race.deadline_jst.slice(11,16));
                   const apiUrl=base+'/api/clean-racecard?hd='+hd+'&jcd='+venue+'&rno='+rno;
                   const api=await get(ctx,apiUrl),d=api.data;
+                  const previewAudit=d.source_audit?.beforeinfo||{};
+                  gap.render_preview_status=previewAudit.status??null;
+                  gap.render_preview_source=previewAudit.source??null;
+                  gap.render_csv_sources=previewAudit.source_status||previewAudit.csv_audit?.source_status||null;
+                  gap.render_official_fallback_reason=previewAudit.official_fallback?.reason??null;
+                  gap.render_official_measurements=previewAudit.official_fallback?.official_measurement_counts||null;
+                  gap.render_source_received_at=previewAudit.fetched_at??null;
                   if(api.received>=deadline||src.received>=deadline)throw Error('receipt_not_predeadline');
                   verifyOfficialRenderAgreement(d,exp,hd,venue,rno,main.deadline,deadline,api.received);
                   const page=await ctx.newPage();
@@ -255,7 +270,11 @@ jobs:
                     out('LIVE_OFFICIAL_PAGES_E2E_PASS '+code+' | official JSON -> Render API -> actual Pages browser | 6 lanes x 4 metrics = 24 exact values | before cutoff | not T-12');
                     break;
                   }finally{await page.close()}
-                }catch(e){report.push(code+':'+String(e.message).slice(0,130));console.log('LIVE_OFFICIAL_CASE_UNVERIFIED',code,String(e.message))}
+                }catch(e){
+                  report.push(code+':'+String(e.message).slice(0,130));
+                  console.log('LIVE_OFFICIAL_CASE_UNVERIFIED',code,String(e.message),
+                    'SOURCE_GAP',JSON.stringify(gap));
+                }
               }
               if(!matched){out('LIVE_OFFICIAL_PAGES_E2E_UNVERIFIED '+JSON.stringify(report));process.exitCode=1}
               // Retry deployment identity after the live API has woken Render.
