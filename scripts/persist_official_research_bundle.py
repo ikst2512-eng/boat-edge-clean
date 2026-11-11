@@ -44,7 +44,7 @@ def blob_sha(body):
     return hashlib.sha1(b"blob " + str(len(body)).encode() + b"\0" + body).hexdigest()
 
 
-def build_bundle(row, source_dirs):
+def build_bundle(row, source_dirs, *, capture_action_context=None):
     """Build a bounded immutable bundle from an independently reaudited row.
 
     source_dirs is a dict of existing, local, verified official receipt folders.
@@ -128,6 +128,11 @@ def build_bundle(row, source_dirs):
                "official_input_manifest": manifest,
                "official_research_shadow": shadow,
                "official_raw_originals": originals}
+    if capture_action_context is not None:
+        if (not isinstance(capture_action_context, dict)
+                or capture_action_context.get("same_run_source_paths_verified") is not True):
+            raise ValueError("capture_action_context_not_proven")
+        content["capture_action_context"] = capture_action_context
     return f"{PATH_ROOT}/{race[:8]}/{race}.json", serialized(content), cutoff
 
 
@@ -251,6 +256,35 @@ def store_once(path, body, cutoff, token, *, getter=api_request, putter=api_requ
 
 
 
+def bind_same_action_source_paths(source_dirs, *, run_id, run_attempt, event, head_sha):
+    """Bind untrusted transferred originals to the CURRENT Action run's folder IDs.
+
+    The source collector always writes racelist_runN/before_runN/odds_runN;
+    this check rejects cross-run artifact replay. It is NOT proof of an
+    independently clocked Git first-seen or a certified source timestamp.
+    """
+    if (type(run_id) is not str or not re.fullmatch(r"[1-9][0-9]{4,19}", run_id)
+            or type(run_attempt) is not str or not re.fullmatch(r"[1-9][0-9]{0,4}", run_attempt)
+            or event not in ("schedule", "workflow_dispatch")
+            or type(head_sha) is not str or not re.fullmatch(r"[a-f0-9]{40}", head_sha)
+            or set(source_dirs) != set(SOURCE_FILES)):
+        raise ValueError("capture_action_context_invalid")
+    names = {"racelist": "racelist_run" + run_id,
+             "beforeinfo": "before_run" + run_id, "odds": "odds_run" + run_id}
+    for kind, directory in source_dirs.items():
+        # Observation layout: observations/<kind>_runID/<date>/<race>
+        parts = Path(directory).parts
+        if len(parts) < 3 or parts[-3] != names[kind]:
+            raise ValueError("source_folder_not_from_current_action")
+    return {
+        "source_collection_action_run_id": run_id,
+        "source_collection_action_run_attempt": run_attempt,
+        "event": event, "main_head_sha": head_sha,
+        "same_run_source_paths_verified": True,
+        "independent_remote_first_seen_verified": False,
+    }
+
+
 def receipt_snapshot(outcomes, *, status, event, run_id, run_attempt,
                      observed_at_jst, error_type=None, error_code=None):
     """An Action-local receipt, not independent GitHub remote first-seen proof.
@@ -313,7 +347,15 @@ def main():
                 continue
             folders = locate_sources(args.batch_dir, row["race_code"])
             source_dirs = dict(zip(SOURCE_FILES, folders))
-            path, body, cutoff = build_bundle(row, source_dirs)
+            capture_action_context = bind_same_action_source_paths(
+                source_dirs,
+                run_id=os.environ.get("GITHUB_RUN_ID"),
+                run_attempt=os.environ.get("GITHUB_RUN_ATTEMPT"),
+                event=os.environ.get("GITHUB_EVENT_NAME"),
+                head_sha=os.environ.get("GITHUB_SHA"),
+            )
+            path, body, cutoff = build_bundle(
+                row, source_dirs, capture_action_context=capture_action_context)
             # Reparse all three original sources and rederive the exact research
             # forecast before ANY Git PUT; never trust the handoff summary.
             verify_independent_source_and_shadow_replay(row, source_dirs)
