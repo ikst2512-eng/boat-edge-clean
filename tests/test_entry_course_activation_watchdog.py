@@ -125,6 +125,38 @@ class ActivationTests(unittest.TestCase):
             fetch_runs=lambda file,event:[],
             dispatch=lambda file:None)["unattended_scheduled_capture_verified"])
 
+    def test_existing_readonly_audit_completions_can_opportunistically_wake_t12(self):
+        # 11/11 real GitHub schedules: AI audit completed ~08:31 JST,
+        # cross-model audit completed ~08:36 JST despite 03 JST cron times.
+        # These are optional wakeups, NEVER guaranteed timely schedules or
+        # proof that any forecast source existed or Git first-seen succeeded.
+        from pathlib import Path
+        root=Path(__file__).resolve().parent.parent
+        watchdog=(root/".github/workflows/entry-course-activation-watchdog.yml").read_text()
+        ai=(root/".github/workflows/ai-operations-audit.yml").read_text()
+        cross=(root/".github/workflows/cross-model-content-audit-tests.yml").read_text()
+        self.assertIn("name: AI operations read-only audit",ai)
+        self.assertIn("name: Cross-model content audit",cross)
+        self.assertIn("cron: '23 18 * * *'",ai)
+        self.assertIn("cron: '17 18 * * *'",cross)
+        self.assertIn('- "AI operations read-only audit"',watchdog)
+        self.assertIn('- "Cross-model content audit"',watchdog)
+        self.assertIn("github.event.workflow_run.event == 'schedule'",watchdog)
+        self.assertIn("github.event.workflow_run.head_branch == 'main'",watchdog)
+        self.assertIn("github.event.workflow_run.head_repository.full_name == github.repository",watchdog)
+        self.assertIn("cancel-in-progress: false",watchdog)
+        self.assertEqual(watchdog.count("- cron:"),1)
+        # A wakeup can request a research-only dispatch; it cannot upgrade
+        # evidence to a scheduled research run, first-seen, or formal T12.
+        early=NOW.replace(hour=8,minute=32)
+        requested=[]
+        report=run_once(now=early,fetch_runs=lambda *_:[],
+                        dispatch=lambda file:requested.append(file))
+        self.assertEqual(requested,[TARGETS["t12"]])
+        self.assertFalse(report["unattended_scheduled_capture_verified"])
+        self.assertFalse(report["independent_first_seen_verified"])
+        self.assertFalse(report["formal"])
+
     def test_existing_crons_cover_08_jst_without_new_workflow(self):
         from pathlib import Path
         root=Path(__file__).resolve().parent.parent
