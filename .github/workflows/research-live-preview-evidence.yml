@@ -85,11 +85,13 @@ jobs:
         run: echo "passed=true" >> "$GITHUB_OUTPUT"
       - name: Preserve official preview and odds originals before CSV collection
         id: official_pair_capture
+        # PR validates pinned offline tests; public source HTTP is a scheduled-run gate.
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         continue-on-error: true  # Keep the existing CSV collection independent.
         run: python -m scripts.capture_joint_preview_batch
       - name: Independently recheck official originals against frozen prediction clocks
         id: official_forecast_clock
-        if: always()
+        if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         continue-on-error: true
         run: python -m scripts.audit_official_forecast_consumption
       # This is a local source audit only, NOT permission to write from PR code.
