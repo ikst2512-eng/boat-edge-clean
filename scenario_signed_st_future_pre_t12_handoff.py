@@ -30,7 +30,7 @@ PATH_ROOT = "signed_f_four_mode_research/"
 REMAINING_BEFORE_MATH_SECONDS = 90
 REMAINING_AFTER_MATH_SECONDS = 60
 VALID_MODES = {"narrow":5, "hit":10, "balance":16, "hole":22}
-TICKET = re.compile(r"[1-6]-[1-6]-[1-6]\\Z")
+TICKET = re.compile(r"[1-6]-[1-6]-[1-6]\Z")
 
 
 def _jst(value, label):
@@ -42,7 +42,7 @@ def _jst(value, label):
 
 def _canonical(value):
     return (json.dumps(value,ensure_ascii=False,sort_keys=True,
-                       separators=(",",":"),allow_nan=False)+"\\n").encode("utf-8")
+                       separators=(",",":"),allow_nan=False)+"\n").encode("utf-8")
 
 
 def _timestamp(value, label):
@@ -101,7 +101,7 @@ def package_time_guarded_research_result(audit, protocol, math, temporal, observ
             or math.get("actual_original_source_race_card_beforeinfo_odds120_reparsed") is not True
             or math.get("study_id")!=STUDY_ID
             or math.get("race_code")!=audit["race_code"]
-            or math.get("F_boats") not in (1,2,3,4,5,6)
+            or type(math.get("F_boats")) is not int or not 1<=math["F_boats"]<=6
             or math.get("historical_archive_replay_not_predeadline_forecast") is not True
             or math.get("prospective_candidate_generated") is not False
             or math.get("results_or_payouts_read") is not False
