@@ -99,7 +99,40 @@ jobs:
           const day=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
           const hd=day.replace(/-/g,'');
           const report=[];
-          const out=s=>{console.log(s);fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,s+'\n')};
+          // Capture only this run's structured diagnostics. They are evidence of
+          // observations, not archived raw HTTP bodies or Git first-seen proof.
+          // Never let the historical contract fixture create a LIVE artifact.
+          const proofPath='clean-live-official-pages-evidence.ndjson';
+          const isHistorical=process.argv.includes('--historical-contract-test');
+          if(!isHistorical)fs.writeFileSync(proofPath,JSON.stringify({
+            kind:'AUDIT_RUN_CONTEXT',schema:'CLEAN_LIVE_OFFICIAL_PAGES_AUDIT_V1',
+            event:process.env.GITHUB_EVENT_NAME||null,
+            run_id:process.env.GITHUB_RUN_ID||null,
+            checkout_sha:process.env.GITHUB_SHA||null,
+            started_utc:new Date().toISOString(),
+            formal_t12_certified:false,raw_official_original_archived:false})+'\n',{flag:'wx'});
+          const out=s=>{
+            console.log(s);fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,s+'\n');
+            const kind=s.split(' ',1)[0];
+            if(!isHistorical&&(
+              kind==='LIVE_OFFICIAL_PAGES_E2E_EVIDENCE'||
+              kind==='LIVE_OFFICIAL_PAGES_E2E_PASS'||
+              kind==='LIVE_OFFICIAL_PAGES_E2E_UNVERIFIED'||
+              kind==='RENDER_POST_E2E_DEPLOY'||
+              kind==='RENDER_POST_E2E_DEPLOY_UNVERIFIED')){
+              const raw=s.slice(kind.length).trim();
+              let details=raw;
+              if(raw.startsWith('{')||raw.startsWith('[')){
+                try{details=JSON.parse(raw)}catch(e){details=raw}
+              }
+              fs.appendFileSync(proofPath,JSON.stringify({
+                kind,details,observed_at_utc:new Date().toISOString(),
+                event:process.env.GITHUB_EVENT_NAME||null,
+                run_id:process.env.GITHUB_RUN_ID||null,
+                checkout_sha:process.env.GITHUB_SHA||null,
+                formal_t12_certified:false})+'\n');
+            }
+          };
           const get=async(ctx,url,opts={})=>{const r=await ctx.request.get(url,{timeout:20000,...opts});if(r.status()!==200)throw Error('HTTP_'+r.status()+' '+new URL(url).pathname);return {data:await r.json(),received:Date.now(),url:r.url()}};
           const valid6=a=>Array.isArray(a)&&a.length===6&&[1,2,3,4,5,6].every(x=>a.filter(y=>Number(y?.lane??y?.teino)===x).length===1);
           const finiteReading=v=>(typeof v==='string'||typeof v==='number')&&String(v).trim()!==''&&Number.isFinite(Number(v));
@@ -176,6 +209,33 @@ jobs:
             }
             return 24;
           };
+          // Diagnostic-only field detail for source disagreement; never
+          // modifies the actual 24-value acceptance or missing-data guards.
+          const officialRenderFieldDiffs=(d,exp)=>{
+            const read=(rows,l)=>Array.isArray(rows)?rows.find(x=>Number(x?.lane)===l):null;
+            const differences=[];
+            for(let l=1;l<=6;l++){
+              const v=exp[l],r=read(d?.racers,l),
+                ex=read(d?.beforeinfo?.racers,l),
+                st=read(d?.beforeinfo?.start_exhibition,l);
+              const checks=[
+                ['registration_no',v?.registration,r?.registration_no,
+                  String(v?.registration)===String(r?.registration_no)],
+                ['exhibition_time',v?.time,ex?.exhibition_time,
+                  Number(v?.time)===Number(ex?.exhibition_time)],
+                ['tilt',v?.tilt,ex?.tilt,
+                  Number(v?.tilt)===Number(ex?.tilt)],
+                ['st',v?.st,st?.st,
+                  String(v?.st)===String(st?.st)],
+                ['course',v?.course,st?.course,
+                  Number(v?.course)===Number(st?.course)]
+              ];
+              const fields=checks.filter(x=>!x[3]).map(([field,official,render])=>({
+                field,official:official??null,render:render??null}));
+              if(fields.length)differences.push({lane:l,fields});
+            }
+            return differences;
+          };
           if(process.argv.includes('--historical-contract-test')){
             const official=JSON.parse(fs.readFileSync('tests/fixtures/official_preview_202611040111.json','utf8'));
             const recorded=JSON.parse(fs.readFileSync('docs/observations/official_preview_production_202611040111.json','utf8'));
@@ -186,6 +246,13 @@ jobs:
             const exp=verifiedOfficialValues(official.maindata,date,1,11,'20:03');
             if(verifyOfficialRenderAgreement(api,exp,date,1,11,'20:03',cutoff,archiveApiReceived)!==24)
               throw Error('archived_positive_24_contract_failed');
+            if(officialRenderFieldDiffs(api,exp).length!==0)throw Error('archived_false_field_diff');
+            const wrongCourse=clone(api);wrongCourse.beforeinfo.start_exhibition[0].course=6;
+            const courseDifferences=officialRenderFieldDiffs(wrongCourse,exp);
+            if(courseDifferences.length!==1||courseDifferences[0].lane!==1||
+              courseDifferences[0].fields.length!==1||
+              courseDifferences[0].fields[0].field!=='course')
+              throw Error('archived_wrong_course_diagnostic_failed');
             // Synthetic CSV-shape contract only: this is NOT a captured
             // historical CSV or an additional LIVE pass. The fixed 24 real
             // readings from the archived official fixture remain unchanged.
@@ -260,7 +327,8 @@ jobs:
                 const gap={official_boats:null,official_start_rows:null,
                   render_preview_status:null,render_preview_source:null,
                   render_csv_sources:null,render_official_fallback_reason:null,
-                  render_official_measurements:null,render_source_received_at:null};
+                  render_official_measurements:null,render_source_received_at:null,
+                  render_csv_receipts:null,official_render_field_differences:null};
                 try{
                   const officialUrl='https://www.boatrace.jp/owsp/sp/spdata?type=beforeinfo&hd='+hd+'&jcd='+String(venue).padStart(2,'0')+'&rno='+rno;
                   const src=await get(ctx,officialUrl,{headers:{'User-Agent':'BOAT-EDGE-CLEAN/1.0','Accept':'application/json','X-Requested-With':'XMLHttpRequest'}});
@@ -278,6 +346,15 @@ jobs:
                   gap.render_official_fallback_reason=previewAudit.official_fallback?.reason??null;
                   gap.render_official_measurements=previewAudit.official_fallback?.official_measurement_counts||null;
                   gap.render_source_received_at=previewAudit.fetched_at??null;
+                  // Source-observed and local HTTP-completion times are distinct;
+                  // record both when the public CSV source exposes them.
+                  gap.render_csv_receipts=previewAudit.sources?Object.fromEntries(
+                    Object.entries(previewAudit.sources)
+                      .filter(([key])=>['tkz','stt','sui'].includes(key))
+                      .map(([key,value])=>[key,{
+                        observed_at:value?.observed_at??null,
+                        received_at_jst:value?.received_at_jst??null}])):null;
+                  gap.official_render_field_differences=officialRenderFieldDiffs(d,exp);
                   if(api.received>=deadline||src.received>=deadline)throw Error('receipt_not_predeadline');
                   verifyOfficialRenderAgreement(d,exp,hd,venue,rno,main.deadline,deadline,api.received);
                   const page=await ctx.newPage();
@@ -353,3 +430,13 @@ jobs:
           node --check .clean-live-official-pages.cjs
           node .clean-live-official-pages.cjs --historical-contract-test
           node .clean-live-official-pages.cjs
+      # Use the existing 19:35 gate and the same runner; don't add Cron or
+      # confuse a diagnostic artifact with the official upstream originals.
+      - name: Preserve real-source E2E decision and actual Render revision
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-live-e2e-decision-${{ github.run_id }}
+          path: clean-live-official-pages-evidence.ndjson
+          if-no-files-found: warn
+          retention-days: 90
