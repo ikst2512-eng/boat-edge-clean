@@ -1,19 +1,53 @@
 name: Odds parser regression
 on:
+  # Avoid running this offline regression after every evidence, status or
+  # README-only commit. Capture/watchdog workflows retain their own triggers.
   push:
     branches: [main]
+    paths:
+      - 'index.html'
+      - 'server.py'
+      - 'test_odds_parser.py'
+      - 'test_predictions.py'
+      - '.github/workflows/odds-parser.yml'
+      - 'scripts/capture_joint_preview_batch.py'
+      - 'tests/test_capture_joint_preview_batch.py'
+      - 'entry_course_collector.py'
+      - 'tests/test_entry_course_collector.py'
+      - 'tests/test_entry_waku10_collector.py'
+      - 'scripts/capture_official_beforeinfo_json.py'
+      - 'scripts/capture_official_odds_receipt.py'
+      - 'scripts/audit_joint_official_receipts.py'
+      - 'entry_waku10_pilot.py'
+      - 'entry_waku10_source.py'
+      - 'entry_course_late_preview.py'
+      - 'clean_racecard.py'
+      - 'tests/test_entry_course_late_preview.py'
+      - 'tests/test_entry_waku10_pilot.py'
+      - 'tests/test_entry_waku10_source.py'
   workflow_dispatch:
   pull_request:
     paths:
-      - server.py
-      - test_odds_parser.py
-      - test_predictions.py
-      - .github/workflows/odds-parser.yml
-      - scripts/capture_joint_preview_batch.py
-      - tests/test_capture_joint_preview_batch.py
-      - entry_course_collector.py
-      - tests/test_entry_course_collector.py
-      - tests/test_entry_waku10_collector.py
+      - 'index.html'
+      - 'server.py'
+      - 'test_odds_parser.py'
+      - 'test_predictions.py'
+      - '.github/workflows/odds-parser.yml'
+      - 'scripts/capture_joint_preview_batch.py'
+      - 'tests/test_capture_joint_preview_batch.py'
+      - 'entry_course_collector.py'
+      - 'tests/test_entry_course_collector.py'
+      - 'tests/test_entry_waku10_collector.py'
+      - 'scripts/capture_official_beforeinfo_json.py'
+      - 'scripts/capture_official_odds_receipt.py'
+      - 'scripts/audit_joint_official_receipts.py'
+      - 'entry_waku10_pilot.py'
+      - 'entry_waku10_source.py'
+      - 'entry_course_late_preview.py'
+      - 'clean_racecard.py'
+      - 'tests/test_entry_course_late_preview.py'
+      - 'tests/test_entry_waku10_pilot.py'
+      - 'tests/test_entry_waku10_source.py'
 jobs:
   parser:
     runs-on: ubuntu-latest
