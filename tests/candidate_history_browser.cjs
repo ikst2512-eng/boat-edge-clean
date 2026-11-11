@@ -20,10 +20,10 @@ const { chromium } = require('playwright');
   await page.waitForFunction(()=>document.querySelector('#candidateStatus')?.textContent?.startsWith('保存候補 '));
   const shortlist=await page.evaluate(()=>({
     count:document.querySelectorAll('#candidateCards > details.candidate-history-card').length,
-    selected:document.querySelector('#candidateHistoryFilters [data-candidate-filter="pass"]')?.getAttribute('aria-pressed'),
+    selected:document.querySelector('#candidateHistoryFilters [data-candidate-filter="priority"]')?.getAttribute('aria-pressed'),
     text:document.querySelector('#candidateStatus')?.textContent||''
   }));
-  if(shortlist.selected!=='true'||!shortlist.text.includes('研究条件クリア '))
+  if(shortlist.selected!=='true'||shortlist.count>10||!shortlist.text.includes('研究優先 '))
    throw Error('research_shortlist_not_default_'+JSON.stringify(shortlist));
   await page.locator('#candidateHistoryFilters [data-candidate-filter="all"]').click();
   const first=await page.evaluate(()=>{
