@@ -102,7 +102,8 @@ def audit_source_writer_against_signed_candidate(prepared, source_bundle_raw,
             or candidate.get("candidate_first_remote_receipt_independently_proven") is not False
             or candidate.get("future_cohort_admitted") is not False
             or candidate.get("producer_local_clock_is_independent_witness") is not False
-            or candidate.get("F_display_boat_count") not in (1,2,3,4,5,6)):
+            or type(candidate.get("F_display_boat_count")) is not int
+            or not 1<=candidate["F_display_boat_count"]<=6):
         raise ValueError("cross_ledger_F_candidate_false_certification")
     cutoff=_time(candidate.get("T_minus_12_cutoff_jst"),"cutoff")
     if _time(candidate.get("official_deadline_jst"),"deadline")-timedelta(minutes=12)!=cutoff:
@@ -129,6 +130,7 @@ def audit_source_writer_against_signed_candidate(prepared, source_bundle_raw,
             or type(originals) is not dict or set(originals)!=set(SOURCES.values())
             or context.get("same_run_source_paths_verified") is not True
             or context.get("independent_remote_first_seen_verified") is not False
+            or manifest.get("schema")!="OFFICIAL_REAUDITED_INPUT_MANIFEST_V1"
             or manifest.get("race_code")!=race
             or manifest.get("cutoff_jst")!=cutoff.isoformat()
             or set(manifest.get("official_sources",{}))!=set(SOURCES.values())):
@@ -163,6 +165,12 @@ def audit_source_writer_against_signed_candidate(prepared, source_bundle_raw,
     if (type(shadow) is not dict
             or shadow.get("schema")!="OFFICIAL_SIX_LANE_RESEARCH_SHADOW_V1"
             or shadow.get("race_code")!=race
+            or shadow.get("status")!="research_shadow_generated_pre_t12"
+            or shadow.get("generated") is not True
+            or shadow.get("research_only") is not True
+            or shadow.get("model_consumed_official_exhibition_fields") is not True
+            or shadow.get("official_input_sha256")!=manifest.get("input_sha256")
+            or shadow.get("t12_cutoff_jst")!=cutoff.isoformat()
             or shadow.get("formal_t12_certified") is not False
             or shadow.get("independent_remote_first_seen_verified") is not False):
         raise ValueError("cross_ledger_unrelated_source_shadow_claim")
