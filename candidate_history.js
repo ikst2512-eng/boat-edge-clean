@@ -188,7 +188,7 @@ function renderSavedRaces(d){
  for(const race of visible)fragment.append(showRace(race));
  if(!visible.length)fragment.append(text('p',activeFilter==='priority'||activeFilter==='pass'?'この日に研究条件を満たした保存済みレースはありません。全保存履歴も確認できます。':'この区分に保存済みレースはありません。','notes candidate-empty'));
  root.replaceChildren(fragment);
- status.textContent='保存候補 '+d.candidate_count+'件｜研究優先 '+priority.length+'件｜研究条件クリア '+pass.length+'件｜基準未達 '+below.length+'件｜判定不能 '+unknown.length+'件｜表示 '+visible.length+'件｜研究予想あり '+d.research_forecast_count+'件｜確定結果あり '+d.confirmed_result_count+'件｜払戻照合済み '+(Number.isInteger(d.payout_verified_count)?d.payout_verified_count:'未集計')+'件'+(selectionAvailable?'（保存原本からの未検証研究判定）':'（選定情報は未配信・全履歴を表示）');
+ status.textContent='保存候補 '+d.candidate_count+'件｜研究優先 '+priority.length+'件｜研究条件クリア '+pass.length+'件｜基準未達 '+below.length+'件｜判定不能 '+unknown.length+'件｜表示 '+visible.length+'件｜研究原本SHA照合 '+(Number.isInteger(d.four_mode_research_source_link_count)?d.four_mode_research_source_link_count:'未集計')+'件｜研究予想あり '+d.research_forecast_count+'件｜確定結果あり '+d.confirmed_result_count+'件｜払戻照合済み '+(Number.isInteger(d.payout_verified_count)?d.payout_verified_count:'未集計')+'件'+(selectionAvailable?'（保存原本からの未検証研究判定）':'（選定情報は未配信・全履歴を表示）');
 }
 async function loadDay(){
  const token=++requestId;
