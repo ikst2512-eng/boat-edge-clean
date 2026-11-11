@@ -346,6 +346,87 @@ class BundleTests(unittest.TestCase):
                              run_id='9', run_attempt='1',
                              observed_at_jst='2026-11-11T21:09:59+09:00')
 
+    def test_privileged_main_handoff_receipt_and_event_guard_without_network(self):
+        """Exercise main() with the actual artifact directory layout and no Git HTTP."""
+        import os
+        import shutil
+        import sys
+        from unittest.mock import patch
+        from scripts import persist_official_research_bundle as writer
+
+        run_id = '43007171927'
+        batch = self.root / 'official_joint_evidence'
+        observations = batch / 'observations'
+        for kind, filename in SOURCE_FILES.items():
+            prefix = {'racelist': 'racelist_', 'beforeinfo': 'before_', 'odds': 'odds_'}[kind]
+            target = observations / (prefix + 'run' + run_id) / '20261111' / self.race
+            target.mkdir(parents=True)
+            shutil.copyfile(self.dirs[kind] / filename, target / filename)
+            (target / 'manifest.json').write_text('{}', encoding='utf-8')
+        report = {
+            'status': 'read_only_research_audited',
+            'formal_t12_certified': 0,
+            'official_consumed_forecasts': 0,
+            'rows': [self.row],
+        }
+        (batch / 'forecast_temporal_link_report.json').write_text(
+            json.dumps(report), encoding='utf-8')
+        receipt_path = self.root / 'official-source-git-receipt' / 'receipt.json'
+        cli = ['persist_official_research_bundle.py', '--batch-dir', str(batch),
+               '--receipt-output', str(receipt_path)]
+        env = {
+            'GITHUB_REPOSITORY': 'ikst2512-eng/boat-edge-clean',
+            'GITHUB_REF': 'refs/heads/main',
+            'GITHUB_EVENT_NAME': 'workflow_dispatch',
+            'GITHUB_RUN_ID': run_id,
+            'GITHUB_RUN_ATTEMPT': '1',
+            'GITHUB_SHA': 'b' * 40,
+            'GH_TOKEN': 'unreachable-test-token',
+        }
+        expected = {
+            'status': 'new_research_bundle_first_add_put_and_get_matched',
+            'stored': True, 'newly_stored': True,
+            'git_commit_sha': 'c' * 40,
+            'git_commit_added_path_verified': True,
+        }
+        with patch.dict(os.environ, env), patch.object(sys, 'argv', cli), (
+                patch.object(writer, 'verify_independent_source_and_shadow_replay',
+                             return_value=True) as replay), (
+                patch.object(writer, 'store_once', return_value=expected) as store):
+            writer.main()
+        result = json.loads(receipt_path.read_text(encoding='utf-8'))
+        self.assertEqual(result['status'], 'checked')
+        self.assertEqual(result['newly_stored'], 1)
+        self.assertEqual(result['action_run_id'], run_id)
+        self.assertFalse(result['formal_t12_certified'])
+        self.assertFalse(result['independent_remote_first_seen_verified'])
+        self.assertEqual(result['outcomes'][0]['race_code'], self.race)
+        self.assertEqual(result['outcomes'][0]['git_commit_sha'], 'c' * 40)
+        replay.assert_called_once()
+        store.assert_called_once()
+        persisted = json.loads(store.call_args.args[1])
+        self.assertEqual(persisted['capture_action_context'][
+            'source_collection_action_run_id'], run_id)
+        self.assertEqual(set(persisted['official_raw_originals']), set(SOURCE_FILES))
+        self.assertFalse(persisted['formal'])
+
+        # Non-main, including PR code, must fail before ANY write or replay.
+        rejected = self.root / 'official-source-git-receipt' / 'rejected.json'
+        bad_cli = cli[:]
+        bad_cli[-1] = str(rejected)
+        with patch.dict(os.environ, {**env, 'GITHUB_REF': 'refs/heads/feature'}), (
+                patch.object(sys, 'argv', bad_cli)), (
+                patch.object(writer, 'verify_independent_source_and_shadow_replay',
+                             side_effect=AssertionError('replay forbidden'))), (
+                patch.object(writer, 'store_once',
+                             side_effect=AssertionError('write forbidden'))):
+            with self.assertRaisesRegex(ValueError, 'guarded_non_main'):
+                writer.main()
+        denied = json.loads(rejected.read_text(encoding='utf-8'))
+        self.assertEqual(denied['status'], 'failed')
+        self.assertEqual(denied['newly_stored'], 0)
+        self.assertEqual(denied['error_code'], 'guarded_non_main_or_non_scheduled_event')
+
     def test_writer_receipt_artifact_is_retained_on_failure(self):
         workflow = (Path(__file__).resolve().parents[1] /
                     '.github/workflows/research-live-preview-evidence.yml').read_text()
