@@ -10,6 +10,7 @@ from pathlib import Path
 from scripts.persist_official_research_bundle import (
     JST, SOURCE_FILES, blob_sha, build_bundle, store_once,
     verify_independent_source_and_shadow_replay, receipt_snapshot,
+    bind_same_action_source_paths,
 )
 
 
@@ -233,6 +234,48 @@ class BundleTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError,'git_create_unverified_or_too_late_http_201'):
             store_once(path,body,cutoff,'test',getter=missing,
                        putter=accepted,clock=lambda:next(stamps))
+
+    def test_source_folders_bound_to_current_action_run(self):
+        run = '43007171927'
+        roots = {
+            'racelist': self.root / ('racelist_run'+run)/'20261111'/self.race,
+            'beforeinfo': self.root / ('before_run'+run)/'20261111'/self.race,
+            'odds': self.root / ('odds_run'+run)/'20261111'/self.race,
+        }
+        context = bind_same_action_source_paths(
+            roots, run_id=run, run_attempt='1', event='workflow_dispatch',
+            head_sha='b'*40)
+        self.assertEqual(context['source_collection_action_run_id'],run)
+        self.assertTrue(context['same_run_source_paths_verified'])
+        self.assertFalse(context['independent_remote_first_seen_verified'])
+        path, body, _ = build_bundle(
+            self.row,self.dirs,capture_action_context=context)
+        content=json.loads(body)
+        self.assertEqual(content['capture_action_context'],context)
+        self.assertFalse(content['formal'])
+        roots['odds']=self.root / 'odds_run43005555555'/'20261111'/self.race
+        with self.assertRaisesRegex(ValueError,'source_folder_not_from_current_action'):
+            bind_same_action_source_paths(
+                roots,run_id=run,run_attempt='1',event='workflow_dispatch',head_sha='b'*40)
+
+    def test_reject_forged_capture_context_and_missing_action_metadata(self):
+        with self.assertRaisesRegex(ValueError,'capture_action_context_not_proven'):
+            build_bundle(self.row,self.dirs,capture_action_context={
+                'source_collection_action_run_id':'43007171927'})
+        roots = {kind:self.root / (kind+'_run43007171927')/'20261111'/self.race
+                 for kind in SOURCE_FILES}
+        with self.assertRaisesRegex(ValueError,'capture_action_context_invalid'):
+            bind_same_action_source_paths(
+                roots,run_id='43007171927',run_attempt='1',event='pull_request',
+                head_sha='b'*40)
+        with self.assertRaisesRegex(ValueError,'capture_action_context_invalid'):
+            bind_same_action_source_paths(
+                roots,run_id='43007171927',run_attempt='1',event='schedule',
+                head_sha='not-40hex')
+        with self.assertRaisesRegex(ValueError,'capture_action_context_invalid'):
+            bind_same_action_source_paths(
+                roots,run_id='not-an-id',run_attempt='1',event='schedule',
+                head_sha='b'*40)
 
     def test_action_receipt_identifies_write_and_remains_nonformal(self):
         outcomes = [
