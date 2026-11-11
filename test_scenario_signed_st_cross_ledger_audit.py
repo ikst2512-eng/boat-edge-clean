@@ -260,6 +260,32 @@ class CrossLedgerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"official_source_first_add_not_supported"):
             check(p,b,r)
 
+    def test_official_manifest_is_recomputed_not_trusted_on_own_claim(self):
+        p,b,r=synth()
+        b["official_input_manifest"]["six_boat_inputs"][0]["registration"]="FAKE"
+        with self.assertRaisesRegex(ValueError,"manifest_content_hash_changed"):
+            check(p,b,r)
+        p,b,r=synth()
+        b["official_input_manifest"]["six_boat_inputs"][1]["lane"]=1
+        values={k:b["official_input_manifest"][k] for k in (
+            "race_code","cutoff_jst","official_sources","six_boat_inputs")}
+        b["official_input_manifest"]["input_sha256"]=hashlib.sha256(
+            json.dumps(values,sort_keys=True,ensure_ascii=False,
+                       separators=(",",":")).encode()).hexdigest()
+        b["official_research_shadow"]["official_input_sha256"]=b["official_input_manifest"]["input_sha256"]
+        with self.assertRaisesRegex(ValueError,"six_boat_identity_invalid"):
+            check(p,b,r)
+
+    def test_candidate_claimed_latest_source_must_equal_actual_manifest(self):
+        p,b,r=synth()
+        payload=json.loads(p["bytes"])
+        payload["latest_archive_source_received_claim_jst"]="2026-11-12T19:43:59+09:00"
+        p["bytes"]=canonical(payload)
+        p["sha256"]=hashlib.sha256(p["bytes"]).hexdigest()
+        p["git_blob_sha1"]=_git_blob_sha1(p["bytes"])
+        with self.assertRaisesRegex(ValueError,"F_candidate_source_receipts_not_aligned"):
+            check(p,b,r)
+
     def test_duplicate_keys_in_source_bundle_rejected(self):
         p,b,r=synth()
         with self.assertRaisesRegex(ValueError,"source_bundle_json_unreadable"):
