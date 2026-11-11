@@ -249,7 +249,8 @@ jobs:
   persist-official-research:
     needs: capture
     if: >-
-      always() && (needs.capture.result == 'success' || needs.capture.result == 'failure') &&
+      always() && !cancelled() &&
+      (needs.capture.result == 'success' || needs.capture.result == 'failure') &&
       needs.capture.outputs.official_tests_passed == 'true' &&
       needs.capture.outputs.official_capture_outcome == 'success' &&
       needs.capture.outputs.official_audit_outcome == 'success' &&
