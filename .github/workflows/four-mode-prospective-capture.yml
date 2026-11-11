@@ -11,6 +11,11 @@ on:
       - clean_four_modes.py
       - test_clean_four_mode_capture_e2e.py
       - test_clean_four_modes.py
+      - research_model.py
+      - four_mode_archive_api.py
+      - research/forecast_strategy_guard_20261111.json
+      - test_forecast_strategy_contract.py
+      - AGENTS.md
       - test_four_mode_receipts.py
       - four_mode_raw_receipt.py
       - test_four_mode_raw_receipt.py
@@ -62,7 +67,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Verify four-mode capture and receipts
-        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts test_four_mode_raw_receipt test_audit_four_mode_raw_receipts test_link_four_mode_raw_forecast test_audit_new_v2_staged test_hole_shadow_same_job_capture test_hole_shadow_prospective_gate test_third_rate_same_job_capture test_third_rate_evidence_ledger test_four_mode_github_server_observation test_four_mode_github_server_observation_ledger test_four_mode_remote_evidence_end_to_end test_verify_four_mode_capture_evidence test_four_mode_workflow_shell_syntax tests.test_four_mode_source_link_scope
+        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts test_four_mode_raw_receipt test_audit_four_mode_raw_receipts test_link_four_mode_raw_forecast test_audit_new_v2_staged test_hole_shadow_same_job_capture test_hole_shadow_prospective_gate test_third_rate_same_job_capture test_third_rate_evidence_ledger test_four_mode_github_server_observation test_four_mode_github_server_observation_ledger test_four_mode_remote_evidence_end_to_end test_verify_four_mode_capture_evidence test_four_mode_workflow_shell_syntax tests.test_four_mode_source_link_scope test_forecast_strategy_contract
   capture:
     # workflow_dispatch can target a feature branch. Never let it enter the
     # privileged forecast-publication path or attempt git push HEAD:main.
@@ -90,7 +95,7 @@ jobs:
           python clean_four_mode_capture.py 2>&1 | tee four-mode-evidence/capture.log
       - name: Verify four-mode capture and receipts before publishing
         id: before_publish_tests
-        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts
+        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts test_forecast_strategy_contract
       - name: Stage only immutable new forecasts and check receipt window
         id: receipt_staging
         if: github.event_name != 'pull_request'
