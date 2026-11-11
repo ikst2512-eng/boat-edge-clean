@@ -74,6 +74,44 @@ class CandidateHistoryTests(unittest.TestCase):
         self.assertFalse(data["production_forecast"])
         self.assertFalse(data["first_git_add_verified"])
 
+    def test_research_candidates_never_claim_a_certified_buy_and_show_source_gaps(self):
+        code = DAY + "0101"
+        record = prediction(code)
+        record["national_win_rates"] = [6.34, 3.02, 3.93, 3.08, 4.53, 5.43]
+        record["model_version"] = "clean-prospective-national-beta0.4-v1"
+        record["input_source_kind"] = "public_pre_race_csv"
+        self.write("prospective_predictions", code, record)
+        _, d = daily_candidate_history(DAY, self.root)
+        self.assertEqual(d["purchase_review_schema"], "candidate_evidence_hold_v1")
+        self.assertEqual(d["purchase_review_approved_count"], 0)
+        row = d["races"][0]
+        self.assertEqual(row["selection_status"], "research_70_pass")
+        self.assertEqual(row["purchase_review_status"], "hold_evidence_not_attested")
+        self.assertEqual(len(row["purchase_review_missing"]), 6)
+        self.assertIn("start_exhibition_entry_st", row["purchase_review_missing"])
+        self.assertIn("course_2_wall_escape", row["purchase_review_missing"])
+        self.assertIn("wind_waves_water", row["purchase_review_missing"])
+        self.assertEqual(row["research_input_received_jst"], "2026-11-08T10:12:30+09:00")
+        # Confirmed result does not retroactively certify an earlier buy decision.
+        self.write("confirmed_results", code, confirmed(code))
+        _, after = daily_candidate_history(DAY, self.root)
+        self.assertEqual(after["races"][0]["purchase_review_status"], "hold_evidence_not_attested")
+        self.assertEqual(after["purchase_review_approved_count"], 0)
+
+    def test_invalid_candidate_cannot_claim_buy_readiness(self):
+        code = DAY + "0101"
+        invalid = prediction(code)
+        invalid["generated_at"] = "2026-11-08T15:09:00+09:00"
+        invalid["purchase_review_status"] = "approved"
+        invalid["official_exhibition"] = {"certified": True}
+        self.write("prospective_predictions", code, invalid)
+        _, d = daily_candidate_history(DAY, self.root)
+        row = d["races"][0]
+        self.assertEqual(row["purchase_review_status"], "unassessed")
+        self.assertEqual(row["forecast_status"], "unverified")
+        self.assertIsNone(row["research_input_received_jst"])
+        self.assertEqual(d["purchase_review_approved_count"], 0)
+
     def test_only_independently_verified_payout_is_shown(self):
         code = DAY + "0101"
         self.write("prospective_predictions", code, prediction(code))
