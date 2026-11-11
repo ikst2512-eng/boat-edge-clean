@@ -176,6 +176,33 @@ jobs:
             }
             return 24;
           };
+          // Diagnostic-only field detail for source disagreement; never
+          // modifies the actual 24-value acceptance or missing-data guards.
+          const officialRenderFieldDiffs=(d,exp)=>{
+            const read=(rows,l)=>Array.isArray(rows)?rows.find(x=>Number(x?.lane)===l):null;
+            const differences=[];
+            for(let l=1;l<=6;l++){
+              const v=exp[l],r=read(d?.racers,l),
+                ex=read(d?.beforeinfo?.racers,l),
+                st=read(d?.beforeinfo?.start_exhibition,l);
+              const checks=[
+                ['registration_no',v?.registration,r?.registration_no,
+                  String(v?.registration)===String(r?.registration_no)],
+                ['exhibition_time',v?.time,ex?.exhibition_time,
+                  Number(v?.time)===Number(ex?.exhibition_time)],
+                ['tilt',v?.tilt,ex?.tilt,
+                  Number(v?.tilt)===Number(ex?.tilt)],
+                ['st',v?.st,st?.st,
+                  String(v?.st)===String(st?.st)],
+                ['course',v?.course,st?.course,
+                  Number(v?.course)===Number(st?.course)]
+              ];
+              const fields=checks.filter(x=>!x[3]).map(([field,official,render])=>({
+                field,official:official??null,render:render??null}));
+              if(fields.length)differences.push({lane:l,fields});
+            }
+            return differences;
+          };
           if(process.argv.includes('--historical-contract-test')){
             const official=JSON.parse(fs.readFileSync('tests/fixtures/official_preview_202611040111.json','utf8'));
             const recorded=JSON.parse(fs.readFileSync('docs/observations/official_preview_production_202611040111.json','utf8'));
@@ -186,6 +213,13 @@ jobs:
             const exp=verifiedOfficialValues(official.maindata,date,1,11,'20:03');
             if(verifyOfficialRenderAgreement(api,exp,date,1,11,'20:03',cutoff,archiveApiReceived)!==24)
               throw Error('archived_positive_24_contract_failed');
+            if(officialRenderFieldDiffs(api,exp).length!==0)throw Error('archived_false_field_diff');
+            const wrongCourse=clone(api);wrongCourse.beforeinfo.start_exhibition[0].course=6;
+            const courseDifferences=officialRenderFieldDiffs(wrongCourse,exp);
+            if(courseDifferences.length!==1||courseDifferences[0].lane!==1||
+              courseDifferences[0].fields.length!==1||
+              courseDifferences[0].fields[0].field!=='course')
+              throw Error('archived_wrong_course_diagnostic_failed');
             // Synthetic CSV-shape contract only: this is NOT a captured
             // historical CSV or an additional LIVE pass. The fixed 24 real
             // readings from the archived official fixture remain unchanged.
@@ -260,7 +294,8 @@ jobs:
                 const gap={official_boats:null,official_start_rows:null,
                   render_preview_status:null,render_preview_source:null,
                   render_csv_sources:null,render_official_fallback_reason:null,
-                  render_official_measurements:null,render_source_received_at:null};
+                  render_official_measurements:null,render_source_received_at:null,
+                  render_csv_receipts:null,official_render_field_differences:null};
                 try{
                   const officialUrl='https://www.boatrace.jp/owsp/sp/spdata?type=beforeinfo&hd='+hd+'&jcd='+String(venue).padStart(2,'0')+'&rno='+rno;
                   const src=await get(ctx,officialUrl,{headers:{'User-Agent':'BOAT-EDGE-CLEAN/1.0','Accept':'application/json','X-Requested-With':'XMLHttpRequest'}});
@@ -278,6 +313,15 @@ jobs:
                   gap.render_official_fallback_reason=previewAudit.official_fallback?.reason??null;
                   gap.render_official_measurements=previewAudit.official_fallback?.official_measurement_counts||null;
                   gap.render_source_received_at=previewAudit.fetched_at??null;
+                  // Source-observed and local HTTP-completion times are distinct;
+                  // record both when the public CSV source exposes them.
+                  gap.render_csv_receipts=previewAudit.sources?Object.fromEntries(
+                    Object.entries(previewAudit.sources)
+                      .filter(([key])=>['tkz','stt','sui'].includes(key))
+                      .map(([key,value])=>[key,{
+                        observed_at:value?.observed_at??null,
+                        received_at_jst:value?.received_at_jst??null}])):null;
+                  gap.official_render_field_differences=officialRenderFieldDiffs(d,exp);
                   if(api.received>=deadline||src.received>=deadline)throw Error('receipt_not_predeadline');
                   verifyOfficialRenderAgreement(d,exp,hd,venue,rno,main.deadline,deadline,api.received);
                   const page=await ctx.newPage();
