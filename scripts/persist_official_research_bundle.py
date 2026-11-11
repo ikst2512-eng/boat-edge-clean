@@ -198,6 +198,47 @@ def api_request(method, path, token, data=None):
         raise
 
 
+def api_commit_detail(commit_sha, token):
+    """Read server-side commit file status; never modify remote history."""
+    if (not re.fullmatch(r"[a-f0-9]{40}", str(commit_sha))
+            or type(token) is not str or not token):
+        raise ValueError("git_commit_audit_identity_invalid")
+    url = f"https://api.github.com/repos/{REPO}/commits/{commit_sha}"
+    headers = {"Accept": "application/vnd.github+json",
+               "Authorization": "Bearer " + token,
+               "X-GitHub-Api-Version": "2022-11-28",
+               "User-Agent": "boat-edge-research-append-only"}
+    with urlopen(Request(url, headers=headers, method="GET"), timeout=15) as response:
+        if response.status != 200:
+            raise RuntimeError("git_commit_audit_http_non200")
+        return json.loads(response.read(300_000))
+
+
+def verify_commit_initial_add(commit_sha, path, expected, token, *,
+                              commit_fetcher=api_commit_detail):
+    """Require the returned commit to report this exact path as ADDED.
+
+    This GitHub commit-file status adds independent API evidence versus the PUT
+    response alone, but does NOT establish third-party first-seen or T-12 formal
+    certification.
+    """
+    item = commit_fetcher(commit_sha, token)
+    if (not isinstance(item, dict)
+            or item.get("sha") != commit_sha
+            or not isinstance(item.get("files"), list)
+            or len(item["files"]) != 1):
+        raise RuntimeError("git_initial_add_commit_identity_unverified")
+    file = item["files"][0]
+    if (not isinstance(file, dict)
+            or file.get("filename") != path
+            or file.get("status") != "added"
+            or file.get("sha") != blob_sha(expected)):
+        raise RuntimeError("git_initial_add_file_status_mismatch")
+    return {"git_commit_file_status": "added",
+            "git_commit_added_path_verified": True,
+            "git_commit_file_blob_sha1": file["sha"]}
+
+
 def readback(path, token, *, getter=api_request):
     code, data = getter("GET", path, token)
     if code == 404:
@@ -213,7 +254,7 @@ def readback(path, token, *, getter=api_request):
     return body
 
 
-def store_once(path, body, cutoff, token, *, getter=api_request, putter=api_request, clock=lambda: datetime.now(JST)):
+def store_once(path, body, cutoff, token, *, getter=api_request, putter=api_request, commit_fetcher=api_commit_detail, clock=lambda: datetime.now(JST)):
     """Never update existing Git path. No retry/overwriting on 409/422."""
     if not path.startswith(PATH_ROOT + "/"):
         raise ValueError("wrong_research_evidence_namespace")
@@ -244,7 +285,15 @@ def store_once(path, body, cutoff, token, *, getter=api_request, putter=api_requ
     readback_received = clock()
     if remote_bytes != body:
         raise RuntimeError("github_initial_readback_content_mismatch")
+    # Distinct read-only GitHub commit endpoint must show 'added', never
+    # 'modified'. This audit is still NOT third-party remote first-seen.
+    commit_status = verify_commit_initial_add(
+        result["commit"]["sha"], path, body, token,
+        commit_fetcher=commit_fetcher)
+    commit_status_checked = clock()
     return {"status": "new_research_bundle_first_add_put_and_get_matched",
+            **commit_status,
+            "commit_status_observed_at_jst": commit_status_checked.isoformat(),
             "path": path, "stored": True, "newly_stored": True,
             "git_commit_sha": result["commit"]["sha"],
             "git_blob_sha1": blob_sha(body),
