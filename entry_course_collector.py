@@ -166,7 +166,9 @@ def attempt(root, *, now=None, prefetch=historical_prefetch,
             break
         preview_attempts+=1
         try:
-            observed=card_reader(code[:8],code[8:10],code[10:12])
+            # Race identity stays 12-digit in the ledger; the shared CLEAN
+            # racecard function accepts 1..12 without a leading zero.
+            observed=card_reader(code[:8],code[8:10],str(int(code[10:12])))
             meta=observed.get("meta",{})
             if (observed.get("race_key")!=f"{code[:8]}-{code[8:10]}-{code[10:]}"
                     or meta.get("phase")!="PRE_RESULT"
