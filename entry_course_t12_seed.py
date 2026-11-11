@@ -52,10 +52,35 @@ def _title(now, *, fetch=None, fallback=None):
         # The daily *published archive* can be missing while races are open.
         # Use the same independent pre-race holding schedule accepted by
         # clean_racecard; never read a result or accept an untimed source.
+        allow_secondary=live_fetch and fallback is None
         if fallback is None:
             from clean_direct_sources import holding_rows
             fallback=holding_rows
-        rows,observed,digest=fallback(day)
+        try:
+            rows,observed,digest=fallback(day)
+        except (OSError,TimeoutError,URLError,HTTPError,ValueError) as primary_error:
+            # An unavailable published CSV AND an unavailable holding list
+            # should not end a viable early-morning T-12 window by itself.
+            # Reuse the already-supported independently timestamped, pre-race
+            # nonofficial six-racer OpenAPI; never consult results or previews.
+            # Injected test sources do NOT silently fall through to live I/O.
+            if not allow_secondary:
+                raise
+            from clean_openapi_sources import load
+            try:
+                rows,cards,observed,digest,source=load(day)
+            except (OSError,TimeoutError,URLError,HTTPError,ValueError,
+                    KeyError,TypeError) as secondary_error:
+                raise ValueError("t12_all_pre_race_schedules_unavailable") from secondary_error
+            if (not isinstance(rows,list) or not rows or
+                    not isinstance(cards,list) or not cards or
+                    not isinstance(observed,datetime) or observed.utcoffset() is None or
+                    observed>now+timedelta(seconds=30) or
+                    not SHA.fullmatch(str(digest or "")) or
+                    not isinstance(source,dict) or
+                    source.get("source")!="nonofficial_openapi_v1"):
+                raise ValueError("t12_alt_pre_race_schedule_receipt_invalid") from primary_error
+            return rows,day,digest,"nonofficial_openapi_v1"
         if (not isinstance(rows,list) or not rows or
                 not isinstance(observed,datetime) or observed.utcoffset() is None or
                 observed>now + timedelta(seconds=30) or
