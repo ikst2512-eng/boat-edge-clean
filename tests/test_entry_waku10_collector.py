@@ -90,6 +90,38 @@ class CollectorWaku10Tests(unittest.TestCase):
             self.assertEqual(result["status"],"no_verified_historical_pairs")
             self.assertEqual(result["waku10_pilot_reason"],
                              "waku10_pilot_insufficient_course_specific_frame_runs")
+    def test_insufficient_real_course_runs_report_six_counts_without_saving(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root,card,evidence=setup(tmp)
+            # A real entry swap breaks the historical frame/course identity;
+            # the full 10-frame history must not be passed off as 10 starts
+            # in the newly assigned courses.
+            card["beforeinfo"]["start_exhibition"][0]["course"]=2
+            card["beforeinfo"]["start_exhibition"][1]["course"]=1
+            rows=[]
+            def reader(day,venue,race):
+                rows.append((day,venue,race))
+                return card
+            out=attempt(root,now=lambda:NOW,
+                card_reader=reader,
+                skip_historical_fallback=True,
+                prefetch=lambda day:self.fail("no unrelated history requests"),
+                waku_fetch=lambda url:encode(evidence["row"]),
+                ledger_ops=(lambda path:None,
+                    lambda path,payload:self.fail("never save insufficient rows")))
+            self.assertFalse(out["stored"])
+            self.assertEqual(out["status"],"ineligible_waku10_pilot")
+            self.assertEqual(out["reason"],
+                             "waku10_pilot_insufficient_course_specific_frame_runs")
+            self.assertEqual(out["course_sample_counts"],
+                             {"1":0,"2":0,"3":9,"4":10,"5":9,"6":9})
+            self.assertEqual(out["insufficient_course_boats"],[2,1])
+            self.assertEqual(out["minimum_course_starts_required"],8)
+            self.assertEqual(out["sample_source"],
+                             "third_party_waku10_frame_history")
+            self.assertEqual(out["historical_requests"],0)
+            self.assertEqual(rows,[("20261103","07","8")])
+
     def test_failed_branch_write_propagates(self):
         with tempfile.TemporaryDirectory() as tmp:
             root,card,evidence=setup(tmp)
