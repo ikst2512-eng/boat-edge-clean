@@ -65,7 +65,7 @@ def synthetic_responses(source_bytes,race,*,flags=None):
         actual=uri.path+("?"+uri.query if uri.query else "")
         # Exact query encoding follows urllib.urlencode; match semantics
         # without tolerating a cross-branch or alternate race.
-        assert uri.path==expect[idx].split("?")[0],(idx,actual,expect[idx])
+        assert uri.path=="/repos/ikst2512-eng/boat-edge-clean"+expect[idx].split("?")[0],(idx,actual,expect[idx])
         if idx in (1,4):
             assert parse_qs(uri.query)=={"ref":[head if idx==1 else parent]}
         if idx==2:
