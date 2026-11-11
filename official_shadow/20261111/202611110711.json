@@ -1,0 +1,384 @@
+{
+  "schema": "OFFICIAL_SHADOW_RESEARCH_GIT_FIRST_ADD_V1",
+  "race_code": "202611110711",
+  "research_only": true,
+  "formal": false,
+  "purchase_approved": false,
+  "model_accuracy_verified": false,
+  "independent_remote_first_seen_verified": false,
+  "official_input_manifest": {
+    "cutoff_jst": "2026-11-11T19:46:00+09:00",
+    "final_race_entry_verified": false,
+    "formal_t12_certified": false,
+    "independent_remote_first_seen_verified": false,
+    "input_sha256": "b47160c5b12c86f7f712f73570df524e92edbead1b48c8077fb58a0529e2d48a",
+    "model_actually_consumed_fields": false,
+    "official_source_fields_reconstructed": true,
+    "official_sources": {
+      "beforeinfo": {
+        "bytes": 4572,
+        "received_at_jst": "2026-11-11T19:37:02.121572+09:00",
+        "sha256": "433e05176d645cff875143f7d62b30eac26c10a3912bc6839f2f439964ff7e0f"
+      },
+      "odds": {
+        "bytes": 46218,
+        "received_at_jst": "2026-11-11T19:37:11.281354+09:00",
+        "sha256": "f43ad7afeea1c5f20b454d459c82e7300070b17042ec4d37cfadfd8aaf5bbcc4"
+      },
+      "racelist": {
+        "bytes": 69112,
+        "received_at_jst": "2026-11-11T19:37:21.561073+09:00",
+        "sha256": "0504d0e38b7a4820ce175ae689a5d0a0df4a877807c982020d628cef5bbb19e2"
+      }
+    },
+    "purchase_approved": false,
+    "race_code": "202611110711",
+    "research_only": true,
+    "schema": "OFFICIAL_REAUDITED_INPUT_MANIFEST_V1",
+    "six_boat_inputs": [
+      {
+        "exhibition_course": 1,
+        "exhibition_st": ".25",
+        "exhibition_time": 6.78,
+        "lane": 1,
+        "registration": "3908",
+        "tilt": 0
+      },
+      {
+        "exhibition_course": 2,
+        "exhibition_st": ".15",
+        "exhibition_time": 6.83,
+        "lane": 2,
+        "registration": "3966",
+        "tilt": 0
+      },
+      {
+        "exhibition_course": 3,
+        "exhibition_st": ".09",
+        "exhibition_time": 6.85,
+        "lane": 3,
+        "registration": "3910",
+        "tilt": 0
+      },
+      {
+        "exhibition_course": 4,
+        "exhibition_st": ".06",
+        "exhibition_time": 6.78,
+        "lane": 4,
+        "registration": "5098",
+        "tilt": 0
+      },
+      {
+        "exhibition_course": 5,
+        "exhibition_st": ".06",
+        "exhibition_time": 6.81,
+        "lane": 5,
+        "registration": "4118",
+        "tilt": 0
+      },
+      {
+        "exhibition_course": 6,
+        "exhibition_st": "F.03",
+        "exhibition_time": 6.77,
+        "lane": 6,
+        "registration": "4033",
+        "tilt": 0
+      }
+    ]
+  },
+  "official_research_shadow": {
+    "formal_t12_certified": false,
+    "full_official_source_completeness_audited": true,
+    "generated": true,
+    "generated_at_jst": "2026-11-11T19:37:40.333688+09:00",
+    "independent_remote_first_seen_verified": false,
+    "latest_official_source_received_jst": "2026-11-11T19:37:21.561073+09:00",
+    "model_accuracy_verified": false,
+    "model_consumed_official_exhibition_fields": true,
+    "model_consumed_official_odds_prices": false,
+    "model_version": "official_exhibition_heuristic_shadow_v1_uncalibrated",
+    "official_input_sha256": "b47160c5b12c86f7f712f73570df524e92edbead1b48c8077fb58a0529e2d48a",
+    "predictions": {
+      "balance": {
+        "actual_hit_rate_pct": null,
+        "count_policy": "provisional_new_generation_v2",
+        "estimated_coverage_pct": 53.52,
+        "target_hit_rate_pct": 50,
+        "target_met_by_estimate": true,
+        "tickets": [
+          {
+            "combo": "1-2-4",
+            "p": 6.36842
+          },
+          {
+            "combo": "1-2-3",
+            "p": 6.0735
+          },
+          {
+            "combo": "1-3-2",
+            "p": 5.1425
+          },
+          {
+            "combo": "1-3-5",
+            "p": 4.73874
+          },
+          {
+            "combo": "1-4-2",
+            "p": 3.70124
+          },
+          {
+            "combo": "1-2-5",
+            "p": 3.70625
+          },
+          {
+            "combo": "1-3-4",
+            "p": 3.19056
+          },
+          {
+            "combo": "1-4-3",
+            "p": 3.11304
+          },
+          {
+            "combo": "2-1-3",
+            "p": 2.01579
+          },
+          {
+            "combo": "1-2-6",
+            "p": 2.86584
+          },
+          {
+            "combo": "1-5-2",
+            "p": 2.41665
+          },
+          {
+            "combo": "3-1-4",
+            "p": 1.71708
+          },
+          {
+            "combo": "1-3-6",
+            "p": 2.37057
+          },
+          {
+            "combo": "1-4-5",
+            "p": 2.25694
+          },
+          {
+            "combo": "1-5-4",
+            "p": 1.95106
+          },
+          {
+            "combo": "1-5-3",
+            "p": 1.89198
+          }
+        ]
+      },
+      "hit": {
+        "actual_hit_rate_pct": null,
+        "count_policy": "provisional_new_generation_v2",
+        "estimated_coverage_pct": 41.32,
+        "target_hit_rate_pct": 60,
+        "target_met_by_estimate": false,
+        "tickets": [
+          {
+            "combo": "1-2-4",
+            "p": 6.36842
+          },
+          {
+            "combo": "1-2-3",
+            "p": 6.0735
+          },
+          {
+            "combo": "1-3-2",
+            "p": 5.1425
+          },
+          {
+            "combo": "1-3-5",
+            "p": 4.73874
+          },
+          {
+            "combo": "1-2-5",
+            "p": 3.70625
+          },
+          {
+            "combo": "1-4-2",
+            "p": 3.70124
+          },
+          {
+            "combo": "1-3-4",
+            "p": 3.19056
+          },
+          {
+            "combo": "1-4-3",
+            "p": 3.11304
+          },
+          {
+            "combo": "1-2-6",
+            "p": 2.86584
+          },
+          {
+            "combo": "1-5-2",
+            "p": 2.41665
+          }
+        ]
+      },
+      "hole": {
+        "actual_hit_rate_pct": null,
+        "count_policy": "provisional_new_generation_v2",
+        "estimated_coverage_pct": 29.7,
+        "target_hit_rate_pct": 12.5,
+        "target_met_by_estimate": true,
+        "tickets": [
+          {
+            "combo": "1-3-6",
+            "p": 2.37057
+          },
+          {
+            "combo": "1-4-5",
+            "p": 2.25694
+          },
+          {
+            "combo": "2-1-3",
+            "p": 2.01579
+          },
+          {
+            "combo": "1-5-4",
+            "p": 1.95106
+          },
+          {
+            "combo": "1-5-3",
+            "p": 1.89198
+          },
+          {
+            "combo": "3-1-4",
+            "p": 1.71708
+          },
+          {
+            "combo": "2-1-4",
+            "p": 1.692
+          },
+          {
+            "combo": "1-4-6",
+            "p": 1.61131
+          },
+          {
+            "combo": "1-5-6",
+            "p": 1.19475
+          },
+          {
+            "combo": "3-1-2",
+            "p": 1.17193
+          },
+          {
+            "combo": "2-3-1",
+            "p": 1.10814
+          },
+          {
+            "combo": "2-1-5",
+            "p": 1.07257
+          },
+          {
+            "combo": "3-1-5",
+            "p": 1.06177
+          },
+          {
+            "combo": "3-1-6",
+            "p": 1.05147
+          },
+          {
+            "combo": "1-6-4",
+            "p": 1.02694
+          },
+          {
+            "combo": "2-3-4",
+            "p": 1.00809
+          },
+          {
+            "combo": "4-2-3",
+            "p": 1.0056
+          },
+          {
+            "combo": "3-2-1",
+            "p": 0.96493
+          },
+          {
+            "combo": "2-4-1",
+            "p": 0.90484
+          },
+          {
+            "combo": "1-6-5",
+            "p": 0.89628
+          },
+          {
+            "combo": "4-1-3",
+            "p": 0.86396
+          },
+          {
+            "combo": "4-1-5",
+            "p": 0.85944
+          }
+        ]
+      },
+      "narrow": {
+        "actual_hit_rate_pct": null,
+        "count_policy": "provisional_new_generation_v2",
+        "estimated_coverage_pct": 26.03,
+        "target_hit_rate_pct": 40,
+        "target_met_by_estimate": false,
+        "tickets": [
+          {
+            "combo": "1-2-4",
+            "p": 6.36842
+          },
+          {
+            "combo": "1-2-3",
+            "p": 6.0735
+          },
+          {
+            "combo": "1-3-2",
+            "p": 5.1425
+          },
+          {
+            "combo": "1-3-5",
+            "p": 4.73874
+          },
+          {
+            "combo": "1-2-5",
+            "p": 3.70625
+          }
+        ]
+      }
+    },
+    "purchase_approved": false,
+    "race_code": "202611110711",
+    "research_only": true,
+    "schema": "OFFICIAL_SIX_LANE_RESEARCH_SHADOW_V1",
+    "source_sha256_by_kind": {
+      "beforeinfo": "433e05176d645cff875143f7d62b30eac26c10a3912bc6839f2f439964ff7e0f",
+      "odds": "f43ad7afeea1c5f20b454d459c82e7300070b17042ec4d37cfadfd8aaf5bbcc4",
+      "racelist": "0504d0e38b7a4820ce175ae689a5d0a0df4a877807c982020d628cef5bbb19e2"
+    },
+    "status": "research_shadow_generated_pre_t12",
+    "t12_cutoff_jst": "2026-11-11T19:46:00+09:00",
+    "top_probability_order": [
+      "1-2-4",
+      "1-2-3",
+      "1-3-2",
+      "1-3-5",
+      "1-2-5",
+      "1-4-2",
+      "1-3-4",
+      "1-4-3",
+      "1-2-6",
+      "1-5-2"
+    ]
+  },
+  "source_evidence": {
+    "action_run_id": 43005074686,
+    "action_event": "pull_request",
+    "action_head_sha": "1e8e7050e71a9ea1ba2cda0af9ac3dae2299401a",
+    "artifact_id": 13847911947,
+    "artifact_zip_sha256": "518f04ca8fa674ff11d73d81e393c86d16dd2ef65afcf5f34e2a53a65aa6012b",
+    "report_sha256": "4f6f28d01aa9df31020aa4c36c8fd4b785d1c200e352fb4d86474a1ed21648b7",
+    "provenance_note": "Actual raw originals and all four provisional modes were independently rechecked in ZIP; this Git first-add is a separate research-only receipt. No formal/accuracy/first-server-receipt certificate."
+  }
+}
