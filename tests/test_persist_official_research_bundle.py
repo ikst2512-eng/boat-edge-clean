@@ -360,6 +360,8 @@ class BundleTests(unittest.TestCase):
         self.assertIn("permissions:\n  # Untrusted PR tests and official collection MUST remain read-only.\n  contents: read",workflow)
         self.assertIn("\n  persist-official-research:\n",workflow)
         self.assertIn("    permissions:\n      contents: write",workflow)
+        self.assertIn("needs.capture.result == 'success'",workflow)
+        self.assertIn("needs.capture.outputs.official_bundle_ready == 'true'",workflow)
         self.assertIn("github.repository == 'ikst2512-eng/boat-edge-clean'",workflow)
         self.assertIn("github.ref == 'refs/heads/main'",workflow)
         self.assertIn("(github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')",workflow)
