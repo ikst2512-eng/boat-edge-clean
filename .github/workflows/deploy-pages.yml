@@ -303,13 +303,24 @@ jobs:
               url.searchParams.set('race',race.race);
               const response=await page.goto(url.toString(),{waitUntil:'domcontentloaded',timeout:30000});
               if(response?.status()!==200)throw Error('PUBLIC_PAGES_HTTP '+response?.status());
-              await page.evaluate(async()=>{
-                datePinned=true;venueSpecified=true;
-                setView('card');
-                await loadRaceData(true);
-              });
-              const status=await page.locator('#raceDataStatus').innerText();
-              const count=await page.locator('#raceDataRows tr').count();
+              // A cold Render instance can outlast the frontend's bounded
+              // transport retry. Retry the SAME published race once only.
+              // Never accept a stale cache, another race, or a failed response.
+              let status='',count=0;
+              for(let attempt=1;attempt<=2;attempt++){
+                await page.evaluate(async()=>{
+                  datePinned=true;venueSpecified=true;
+                  setView('card');
+                  await loadRaceData(true);
+                });
+                status=await page.locator('#raceDataStatus').innerText();
+                count=await page.locator('#raceDataRows tr').count();
+                if(count===6)break;
+                console.log('PUBLIC_HISTORICAL_RACECARD_RETRY',JSON.stringify({
+                  race:race.key,attempt,count,status
+                }));
+                if(attempt<2)await new Promise(resolve=>setTimeout(resolve,2000));
+              }
               if(count!==6){
                 // Do not convert a failed Render read or invalid card into a
                 // successful browser check. Record actual backend response and
