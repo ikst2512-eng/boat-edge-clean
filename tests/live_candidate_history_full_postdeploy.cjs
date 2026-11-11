@@ -115,7 +115,7 @@ async function checkBrowser(engine,name,records){
           assert.ok(shown.detail.includes(row.payout_yen_per_100.toLocaleString('ja-JP')+'円'),'Verified payout not shown '+row.race_code);
         else assert.ok(shown.detail.includes('3連単払戻：未確認')||row.result_status!=='confirmed_archive',
           'Unverified payout should remain blank '+row.race_code);
-        assert.ok(shown.detail.includes('正式認定'),'Research disclaimer missing '+row.race_code);
+        assert.ok(shown.detail.includes('正式T−12認定')&&shown.detail.includes('証明していません'),'Research disclaimer missing '+row.race_code);
       }
       console.log('LIVE_P1_FULL_HISTORY_DOM_PASS '+JSON.stringify({
         engine:name,day,sourceRows:record.candidate_count,browserRows:visible.length,
