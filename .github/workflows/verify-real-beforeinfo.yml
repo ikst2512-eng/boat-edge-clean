@@ -411,6 +411,13 @@ jobs:
                     });
                     const selectedPreviewSource=d.source_audit.beforeinfo.source;
                     const csvReceipts=csvReceiptEvidence(d.source_audit.beforeinfo);
+                    // Record *why* the live CSV route was bypassed when the
+                    // production adapter selected its official JSON fallback.
+                    // These are source availability diagnostics, not an extra PASS.
+                    const csvFallbackGap=selectedPreviewSource==='BOAT RACE official beforeinfo JSON'
+                      ? {status:d.source_audit.beforeinfo.csv_audit?.status??null,
+                         source_status:d.source_audit.beforeinfo.csv_audit?.source_status??null}
+                      : null;
                     out('LIVE_OFFICIAL_PAGES_E2E_EVIDENCE '+JSON.stringify({
                       race_code:code,deadline_jst:race.deadline_jst,
                       official_http_received_utc:new Date(src.received).toISOString(),
@@ -419,6 +426,7 @@ jobs:
                       render_source_kind:selectedPreviewSource,
                       render_source_sha256:d.source_audit.beforeinfo.sha256||null,
                       render_csv_tkz_stt_receipts:csvReceipts,
+                      render_csv_fallback_gap:csvFallbackGap,
                       pages_compared_utc:new Date().toISOString(),matched_metrics:24,
                       lanes:proof,formal_t12_certified:false}));
                     matched++;
