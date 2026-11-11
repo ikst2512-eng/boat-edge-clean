@@ -10,6 +10,8 @@ from clean_schedule import clean_schedule
 from scripts.capture_official_beforeinfo_json import capture as capture_before
 from scripts.capture_official_odds_receipt import capture as capture_odds
 from scripts.audit_joint_official_receipts import audit_pair
+from scripts.capture_official_racelist_receipt import capture as capture_racelist
+from scripts.audit_three_official_t12_originals import audit_three_originals
 from scripts.joint_t12_decision import decision
 
 
@@ -37,7 +39,8 @@ def candidates(schedule, now):
 
 
 def collect(root, identifier, *, clock=None, schedule_fetch=None,
-            before=None, odds=None, auditor=None, event=None):
+            before=None, odds=None, auditor=None, event=None,
+            capture_racelist_original=False, racelist=None, three_auditor=None):
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,31}', identifier):
         raise ValueError('invalid observation identifier')
     clock = clock or (lambda: datetime.now(JST))
@@ -55,7 +58,9 @@ def collect(root, identifier, *, clock=None, schedule_fetch=None,
               'checked_at_jst': now.isoformat(), 'date': now.strftime('%Y%m%d'),
               'formal': False, 'forecast_usable': False, 'full_t12_source_certified': False,
               'eligible_candidates': 0, 'beforeinfo_originals_saved': 0,
-              'official_odds_originals_saved': 0, 'complete_pairs_before_t12': 0, 'observations': []}
+              'official_odds_originals_saved': 0, 'complete_pairs_before_t12': 0,
+              'racelist_originals_saved': 0, 'three_originals_complete_before_t12': 0,
+              'observations': []}
     try:
         status, schedule = (schedule_fetch or clean_schedule)(report['date'])
         if status != 200:
@@ -92,6 +97,44 @@ def collect(root, identifier, *, clock=None, schedule_fetch=None,
                 item['joint_audit'] = result
                 item['status'] = 'pair_complete' if result.get('both_complete_before_t12') is True else 'pair_not_ready'
                 report['complete_pairs_before_t12'] += item['status'] == 'pair_complete'
+                # Research-only third original: observe AFTER preserving the
+                # beforeinfo/odds pair, so a racecard outage cannot erase or
+                # downgrade a valid two-source receipt. No new collector/Cron.
+                if capture_racelist_original and item['status'] == 'pair_complete':
+                    try:
+                        cutoff = datetime.fromisoformat(result['cutoff_jst'])
+                        observed = clock()
+                        if (cutoff.utcoffset() != timedelta(hours=9)
+                                or observed.utcoffset() != timedelta(hours=9)
+                                or observed + timedelta(seconds=25) >= cutoff):
+                            item['racecard_followup'] = 'skipped_t12_margin'
+                            continue
+                        card_id = 'racelist_'+identifier
+                        card = (racelist or capture_racelist)(code, root, card_id)
+                        item['racelist'] = card
+                        if card.get('status') != 'official_racelist_html_observed_research_only':
+                            item['racecard_followup'] = 'source_unavailable'
+                            continue
+                        report['racelist_originals_saved'] += 1
+                        three = (three_auditor or audit_three_originals)(
+                            root/'observations'/card_id/code[:8]/code,
+                            root/'observations'/before_id/code[:8]/code,
+                            root/'observations'/odds_id/code[:8]/code)
+                        item['three_original_audit'] = three
+                        complete = (three.get('all_research_components_observed_by_t12') is True
+                                    and three.get('three_originals_hash_verified') is True
+                                    and three.get('final_race_entry_verified') is False
+                                    and three.get('full_t12_source_certified') is False
+                                    and three.get('t12_eligible') is False
+                                    and three.get('forecast_usable') is False)
+                        item['racecard_followup'] = (
+                            'three_originals_research_complete' if complete else
+                            'three_originals_unverified')
+                        report['three_originals_complete_before_t12'] += bool(complete)
+                    except (OSError, ValueError, KeyError, TypeError, AttributeError,
+                            UnicodeError) as exc:
+                        item['racecard_followup'] = 'capture_or_audit_unverified'
+                        item['racecard_error_type'] = type(exc).__name__
             except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
                 item.update(status='capture_or_audit_failed',error_type=type(exc).__name__)
         # A saved beforeinfo body is not proof the odds request succeeded.
@@ -114,12 +157,13 @@ def collect(root, identifier, *, clock=None, schedule_fetch=None,
 
 if __name__ == '__main__':
     identifier = 'run'+os.environ['GITHUB_RUN_ID'] if os.environ.get('GITHUB_RUN_ID') else datetime.now(JST).strftime('local_%Y%m%d_%H%M%S_%f')
-    report = collect('official_joint_evidence',identifier)
+    report = collect('official_joint_evidence',identifier,
+                     capture_racelist_original=True)
     print('OFFICIAL_JOINT_BATCH '+json.dumps(report,ensure_ascii=False),flush=True)
     if os.environ.get('GITHUB_STEP_SUMMARY'):
         with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as out:
             out.write('\n### Official raw preview/odds pairs (research only)\n'+
-                      f"Status: {report['status']}; eligible: {report['eligible_candidates']}; beforeinfo originals: {report['beforeinfo_originals_saved']}; odds originals: {report['official_odds_originals_saved']}; complete before T-12: {report['complete_pairs_before_t12']}.\n"+
+                      f"Status: {report['status']}; eligible: {report['eligible_candidates']}; beforeinfo originals: {report['beforeinfo_originals_saved']}; odds originals: {report['official_odds_originals_saved']}; complete before T-12: {report['complete_pairs_before_t12']}; racecard originals: {report['racelist_originals_saved']}; research-only three originals: {report['three_originals_complete_before_t12']}.\n"+
                       'This does not certify racecard, final entry, forecasts or accuracy.\n')
     if report['status']=='source_capture_failed':
         raise SystemExit(1)

@@ -93,3 +93,66 @@ class JointBatchTests(unittest.TestCase):
   self.assertIn('continue-on-error: true',text[official:csv])
   self.assertIn("steps.official_pair_capture.outcome == 'failure'",text[final:upload])
   self.assertLess(official,csv);self.assertLess(csv,final);self.assertLess(final,upload)
+
+ def test_same_run_three_original_research_followup_keeps_two_source_pair(self):
+  with tempfile.TemporaryDirectory() as root:
+   seen=[]
+   def card(code, out, ident):
+    seen.append((code, ident))
+    return {'status':'official_racelist_html_observed_research_only','forecast_usable':False}
+   def three(card_dir, before_dir, odds_dir):
+    self.assertEqual(card_dir.name, CODE)
+    self.assertIn('racelist_',str(card_dir))
+    self.assertIn('before_',str(before_dir))
+    self.assertIn('odds_',str(odds_dir))
+    return {'all_research_components_observed_by_t12':True,
+            'three_originals_hash_verified':True,
+            'final_race_entry_verified':False,'full_t12_source_certified':False,
+            'forecast_usable':False,'t12_eligible':False}
+   report=self.run_collect(root,capture_racelist_original=True,
+      racelist=card,three_auditor=three,
+      auditor=lambda *a:{**audit(*a),'cutoff_jst':'2026-11-04T20:19:00+09:00'})
+   self.assertEqual(report['complete_pairs_before_t12'],1)
+   self.assertEqual(report['racelist_originals_saved'],1)
+   self.assertEqual(report['three_originals_complete_before_t12'],1)
+   self.assertEqual(report['status'],'complete_pairs_observed')
+   self.assertEqual(seen,[(CODE,'racelist_test1')])
+   self.assertEqual(report['observations'][0]['racecard_followup'],'three_originals_research_complete')
+   self.assertFalse(report['formal']);self.assertFalse(report['forecast_usable'])
+
+ def test_racelist_failure_must_not_downgrade_valid_pair(self):
+  with tempfile.TemporaryDirectory() as root:
+   report=self.run_collect(root,capture_racelist_original=True,
+      racelist=lambda *a:{'status':'official_racelist_probe_failed','error':'TimeoutError'},
+      auditor=lambda *a:{**audit(*a),'cutoff_jst':'2026-11-04T20:19:00+09:00'})
+   self.assertEqual(report['status'],'complete_pairs_observed')
+   self.assertEqual(report['complete_pairs_before_t12'],1)
+   self.assertEqual(report['racelist_originals_saved'],0)
+   self.assertEqual(report['three_originals_complete_before_t12'],0)
+   self.assertEqual(report['observations'][0]['racecard_followup'],'source_unavailable')
+
+ def test_missing_t12_margin_skips_racelist_network(self):
+  near=datetime.fromisoformat('2026-11-04T20:18:50+09:00')
+  stamps=iter([NOW,NOW,near])
+  card=Mock()
+  with tempfile.TemporaryDirectory() as root:
+   report=self.run_collect(root,capture_racelist_original=True,
+      clock=lambda:next(stamps),racelist=card,
+      auditor=lambda *a:{**audit(*a),'cutoff_jst':'2026-11-04T20:19:00+09:00'})
+   card.assert_not_called()
+   self.assertEqual(report['observations'][0]['racecard_followup'],'skipped_t12_margin')
+   self.assertEqual(report['complete_pairs_before_t12'],1)
+   self.assertEqual(report['three_originals_complete_before_t12'],0)
+
+ def test_unverified_racelist_audit_cannot_promote_three_source_count(self):
+  with tempfile.TemporaryDirectory() as root:
+   report=self.run_collect(root,capture_racelist_original=True,
+      racelist=lambda *a:{'status':'official_racelist_html_observed_research_only'},
+      three_auditor=lambda *a:{'all_research_components_observed_by_t12':True,
+        'three_originals_hash_verified':True,'final_race_entry_verified':True,
+        'full_t12_source_certified':False,'t12_eligible':False,'forecast_usable':False},
+      auditor=lambda *a:{**audit(*a),'cutoff_jst':'2026-11-04T20:19:00+09:00'})
+   self.assertEqual(report['complete_pairs_before_t12'],1)
+   self.assertEqual(report['racelist_originals_saved'],1)
+   self.assertEqual(report['three_originals_complete_before_t12'],0)
+   self.assertEqual(report['observations'][0]['racecard_followup'],'three_originals_unverified')
