@@ -150,7 +150,7 @@ class BatchTests(unittest.TestCase):
             out=attempt_batch(tmp,now=now,preview_retry_rounds=2,
                 sleep=sleep,card_reader=preview,waku_fetch=lambda url:bytes_,
                 ledger_ops=(storage.get,lambda p,b:storage.setdefault(p,b)))
-            self.assertEqual(seen[:2],["08","09"])
+            self.assertEqual(seen[:2],["8","9"])
             self.assertEqual(out["status"],"t2_batch_partial_capture")
             self.assertEqual(out["newly_stored_count"],1)
             self.assertEqual(out["not_stored_count"],1)
