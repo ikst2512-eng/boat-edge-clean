@@ -56,7 +56,13 @@ jobs:
       - name: Test same-race late candidate TopN evaluation
         run: python -m unittest discover -s tests -p 'test_evaluate_late_research_topn.py' -v
       - name: Test bounded official source-pair capture
-        run: python -m unittest discover -s tests -p 'test_capture_joint_preview_batch.py' -v
+        run: |
+          python -m unittest discover -s tests -p 'test_capture_joint_preview_batch.py' -v
+          python -m unittest discover -s tests -p 'test_audit_three_official_t12_originals.py' -v
+          python -m unittest discover -s tests -p 'test_observe_three_official_t12_originals.py' -v
+      # The existing scheduled step now attempts an OPTIONAL official racelist
+      # after a successful beforeinfo+odds pair with verified T-12 time left.
+      # No new cron or forecast path. A failed racelist is recorded separately.
       - name: Preserve official preview and odds originals before CSV collection
         id: official_pair_capture
         continue-on-error: true  # Keep the existing CSV collection independent.
