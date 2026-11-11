@@ -1,7 +1,7 @@
 name: Entry course missed-cron activation watchdog
 on:
   # Separate schedule events for the original jobs remain the primary path.
-  # Push, independent four-mode/CLEAN schedule completions, and 08 JST V236 can wake rescue.
+  # Push, four-mode/CLEAN schedule completions, and 08/19 JST V236 can wake rescue.
   # Ten-minute fallback ticks fit every 12-minute T-12 selection window
   # on the 2026-11-10 schedule; a Cron event is NOT guaranteed to start.
   push:
@@ -39,7 +39,8 @@ jobs:
           github.event.workflow_run.head_branch == 'main' &&
           github.event.workflow_run.head_repository.full_name == github.repository &&
           (github.event.workflow_run.name != 'CLEAN V236 verification queue' ||
-           contains(github.event.workflow_run.created_at, 'T23:'))))))
+           contains(github.event.workflow_run.created_at, 'T23:') ||
+           contains(github.event.workflow_run.created_at, 'T10:'))))))
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
