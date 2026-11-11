@@ -30,6 +30,7 @@ on:
       - 'scenario_signed_st_four_mode_shadow.py'
       - 'test_scenario_signed_st_four_mode_shadow.py'
       - 'scenario_signed_st_official_input_adapter.py'
+      - 'scenario_signed_st_racelist_rates.py'
       - 'research/flagged_st_signed_feature_feasibility_20261111.json'
       - 'test_scenario_official_st_intake_diagnostic.py'
       - 'test_scenario_future_github_research_adapter.py'
