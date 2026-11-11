@@ -31,6 +31,9 @@ on:
       - 'test_scenario_signed_st_four_mode_shadow.py'
       - 'scenario_signed_st_official_input_adapter.py'
       - 'scenario_signed_st_racelist_rates.py'
+      - 'scenario_signed_st_registered_shadow.py'
+      - 'test_scenario_signed_st_registered_shadow.py'
+      - 'research/signed_F_four_mode_future_protocol_20261111.json'
       - 'research/flagged_st_signed_feature_feasibility_20261111.json'
       - 'test_scenario_official_st_intake_diagnostic.py'
       - 'test_scenario_future_github_research_adapter.py'
@@ -77,7 +80,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Check scenario bridge safety and all four mode contracts
-        run: python -m unittest -v test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway test_scenario_official_racelist_rates test_scenario_future_protocol_freeze test_scenario_future_local_candidate_handoff test_scenario_future_github_research_adapter test_scenario_future_archived_receipts_to_candidate test_scenario_official_st_intake_diagnostic test_scenario_flagged_st_feature_study test_scenario_signed_st_four_mode_shadow
+        run: python -m unittest -v test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway test_scenario_official_racelist_rates test_scenario_future_protocol_freeze test_scenario_future_local_candidate_handoff test_scenario_future_github_research_adapter test_scenario_future_archived_receipts_to_candidate test_scenario_official_st_intake_diagnostic test_scenario_flagged_st_feature_study test_scenario_signed_st_four_mode_shadow test_scenario_signed_st_registered_shadow
       - name: Materialize pinned existing #1698 conditional lab for integration (read-only)
         run: |
           set -euo pipefail
@@ -250,6 +253,33 @@ jobs:
           assert verified_input["signed_F_feature"]["vector_sha256"]==signed["vector_sha256"]
           assert verified_input["model_executed"] is False
           assert verified_input["candidate_created"] is False
+          # One pure post-event mathematical regression of the F-aware
+          # REGISTERED shadow. It never publishes a historical prediction.
+          sys.path.insert(0,str(tmp/"position1698"))
+          from position_sensitive_conditioned_lab import experimental_conditional_board
+          from scenario_signed_st_registered_shadow import archived_signed_F_four_mode_math_only
+          shadow=archived_signed_F_four_mode_math_only(
+              *groups,experimental_conditional_board)
+          assert shadow["registered_method_sources_checked_locally"] is True
+          assert shadow["actual_original_source_race_card_beforeinfo_odds120_reparsed"] is True
+          assert shadow["historical_archive_replay_not_predeadline_forecast"] is True
+          assert shadow["prospective_candidate_generated"] is False
+          assert shadow["results_or_payouts_read"] is False
+          assert shadow["formal"] is False and shadow["promotion_allowed"] is False
+          assert {name:len(x["tickets"]) for name,x in shadow["math_4_modes_signed_F"].items()}=={
+              "narrow":5,"hit":10,"balance":16,"hole":22}
+          assert {name:len(x["tickets"]) for name,x in shadow["math_4_modes_ST_zero_control"].items()}=={
+              "narrow":5,"hit":10,"balance":16,"hole":22}
+          print("REAL_F_SIGNED_REGISTERED_4MODE_ARCHIVE_MATH_ONLY "+json.dumps({
+              "race_code":race,
+              "F_count":shadow["F_boats"],
+              "input_sha256":shadow["signed_feature_vector_sha256"],
+              "official_originals":shadow["source_original_sha256"],
+              "signed_mode_board_sha256":{
+                  k:v["full_120_mixture_sha256"] for k,v in shadow["math_4_modes_signed_F"].items()},
+              "control_mode_board_sha256":{
+                  k:v["full_120_mixture_sha256"] for k,v in shadow["math_4_modes_ST_zero_control"].items()},
+              "candidate_created":False,"formal":False,"results_read":False},sort_keys=True))
           print("FROZEN_F_REAL_SIX_RACER_MODEL_INPUT_ONLY_PASS "+json.dumps({
               "race_code":race,"national_rates":verified_input["six_official_racelist_national_win_rates"],
               "six_exhibition_times_s":verified_input["six_official_exhibition_times_s"],
@@ -387,6 +417,33 @@ jobs:
           assert verified_input["signed_F_feature"]["vector_sha256"]==signed["vector_sha256"]
           assert verified_input["model_executed"] is False
           assert verified_input["candidate_created"] is False
+          # One pure post-event mathematical regression of the F-aware
+          # REGISTERED shadow. It never publishes a historical prediction.
+          sys.path.insert(0,str(tmp/"position1698"))
+          from position_sensitive_conditioned_lab import experimental_conditional_board
+          from scenario_signed_st_registered_shadow import archived_signed_F_four_mode_math_only
+          shadow=archived_signed_F_four_mode_math_only(
+              *groups,experimental_conditional_board)
+          assert shadow["registered_method_sources_checked_locally"] is True
+          assert shadow["actual_original_source_race_card_beforeinfo_odds120_reparsed"] is True
+          assert shadow["historical_archive_replay_not_predeadline_forecast"] is True
+          assert shadow["prospective_candidate_generated"] is False
+          assert shadow["results_or_payouts_read"] is False
+          assert shadow["formal"] is False and shadow["promotion_allowed"] is False
+          assert {name:len(x["tickets"]) for name,x in shadow["math_4_modes_signed_F"].items()}=={
+              "narrow":5,"hit":10,"balance":16,"hole":22}
+          assert {name:len(x["tickets"]) for name,x in shadow["math_4_modes_ST_zero_control"].items()}=={
+              "narrow":5,"hit":10,"balance":16,"hole":22}
+          print("REAL_F_SIGNED_REGISTERED_4MODE_ARCHIVE_MATH_ONLY "+json.dumps({
+              "race_code":race,
+              "F_count":shadow["F_boats"],
+              "input_sha256":shadow["signed_feature_vector_sha256"],
+              "official_originals":shadow["source_original_sha256"],
+              "signed_mode_board_sha256":{
+                  k:v["full_120_mixture_sha256"] for k,v in shadow["math_4_modes_signed_F"].items()},
+              "control_mode_board_sha256":{
+                  k:v["full_120_mixture_sha256"] for k,v in shadow["math_4_modes_ST_zero_control"].items()},
+              "candidate_created":False,"formal":False,"results_read":False},sort_keys=True))
           print("FROZEN_F_REAL_SIX_RACER_MODEL_INPUT_ONLY_PASS "+json.dumps({
               "race_code":race,"national_rates":verified_input["six_official_racelist_national_win_rates"],
               "six_exhibition_times_s":verified_input["six_official_exhibition_times_s"],
@@ -422,4 +479,4 @@ jobs:
       - name: Confirm all-mode scenario composition uses actual reviewed #1698 conditional math
         env:
           RESEARCH_1698_PIN_REQUIRED: '1'
-        run: PYTHONPATH="$RUNNER_TEMP/position1698:$PWD" python -m unittest -v test_scenario_exhibition_all_mode_runner test_scenario_mode_specific_exhibition_end_to_end test_scenario_future_three_original_gateway test_scenario_future_archived_receipts_to_candidate test_scenario_signed_st_four_mode_shadow
+        run: PYTHONPATH="$RUNNER_TEMP/position1698:$PWD" python -m unittest -v test_scenario_exhibition_all_mode_runner test_scenario_mode_specific_exhibition_end_to_end test_scenario_future_three_original_gateway test_scenario_future_archived_receipts_to_candidate test_scenario_signed_st_four_mode_shadow test_scenario_signed_st_registered_shadow
