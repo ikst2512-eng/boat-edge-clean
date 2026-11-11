@@ -7,6 +7,8 @@ on:
       - 'scripts/collect_live_preview_evidence.py'
       - 'scripts/capture_joint_preview_batch.py'
       - 'scripts/audit_official_forecast_consumption.py'
+      - 'scripts/persist_official_research_bundle.py'
+      - 'tests/test_persist_official_research_bundle.py'
       - 'tests/test_audit_official_forecast_consumption.py'
       - 'tests/test_research_preview_native_schedule.py'
       - 'tests/test_capture_joint_preview_batch.py'
@@ -34,7 +36,8 @@ on:
         required: false
         type: string
 permissions:
-  contents: read
+  # Only the main schedule/dispatch writer step uses github.token; PR tests are read-only.
+  contents: write
 concurrency:
   group: independent-late-preview-${{ github.ref }}
   cancel-in-progress: false
@@ -44,6 +47,8 @@ jobs:
     timeout-minutes: 4
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -63,6 +68,8 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_capture_joint_preview_batch.py' -v
       - name: Test strict official-original-to-forecast chronology (read-only)
         run: python -m unittest discover -s tests -p 'test_audit_official_forecast_consumption.py' -v
+      - name: Test official research raw+shadow append-only store (no network)
+        run: python -m unittest discover -s tests -p 'test_persist_official_research_bundle.py' -v
       - name: Verify a single offpeak five-minute research Cron (config only)
         run: python -m unittest discover -s tests -p 'test_research_preview_native_schedule.py' -v
       - name: Preserve official preview and odds originals before CSV collection
@@ -74,6 +81,11 @@ jobs:
         if: always()
         continue-on-error: true
         run: python -m scripts.audit_official_forecast_consumption
+      - name: Append official raw originals plus generated research shadow to independent Git ledger
+        if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        run: python -m scripts.persist_official_research_bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Capture eligible predeadline preview rows
         run: python scripts/collect_live_preview_evidence.py
       - name: Report strict twelve-minute source-and-receipt pair coverage
