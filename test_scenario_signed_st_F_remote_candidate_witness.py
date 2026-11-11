@@ -217,6 +217,62 @@ class FRemoteWitnessTests(unittest.TestCase):
             witness_existing_F_candidate(p,send=send)
         self.assertEqual(req,[])
 
+    def test_hidden_outcome_and_unregistered_field_fail_before_network(self):
+        for key,value in (("finish_order",[1,2,3]),("payout",900),
+                          ("result",{"winner":"1-2-3"})):
+            with self.subTest(key=key):
+                p=copy.deepcopy(self.prepared)
+                decoded=json.loads(p["bytes"])
+                decoded[key]=value
+                p["bytes"]=canonical(decoded)
+                p["sha256"]=hashlib.sha256(p["bytes"]).hexdigest()
+                p["git_blob_sha1"]=_git_blob_sha1(p["bytes"])
+                send,requests=mocked_F_commit_api(p)
+                with self.assertRaisesRegex(ValueError,"field_or_result_smuggling"):
+                    witness_existing_F_candidate(p,send=send)
+                self.assertEqual(requests,[])
+
+    def test_invalid_ticket_rank_and_duplicate_fail_before_network(self):
+        for issue in ("duplicate","same_boat","wrong_top1","negative_probability",
+                      "extra_ticket_key","short_mode"):
+            with self.subTest(issue=issue):
+                p=copy.deepcopy(self.prepared)
+                decoded=json.loads(p["bytes"])
+                tickets=decoded["arm_signed_F"]["hit"]["tickets"]
+                if issue=="duplicate":
+                    tickets[1]["combo"]=tickets[0]["combo"]
+                elif issue=="same_boat":
+                    tickets[0]["combo"]="1-1-2"
+                elif issue=="wrong_top1":
+                    decoded["arm_signed_F"]["hit"]["top1"]="4-5-6"
+                elif issue=="negative_probability":
+                    tickets[0]["p"]=-0.01
+                elif issue=="extra_ticket_key":
+                    tickets[0]["confirmed_result"]="1-2-3"
+                elif issue=="short_mode":
+                    tickets.pop()
+                p["bytes"]=canonical(decoded)
+                p["sha256"]=hashlib.sha256(p["bytes"]).hexdigest()
+                p["git_blob_sha1"]=_git_blob_sha1(p["bytes"])
+                send,requests=mocked_F_commit_api(p)
+                with self.assertRaisesRegex(ValueError,(
+                    "invalid_unranked_or_duplicate_ticket|top1_not_first_ranked_ticket"
+                    "|ticket_budget_mismatch")):
+                    witness_existing_F_candidate(p,send=send)
+                self.assertEqual(requests,[])
+
+    def test_modified_official_cutoff_cannot_use_same_pinned_candidate(self):
+        p=copy.deepcopy(self.prepared)
+        decoded=json.loads(p["bytes"])
+        decoded["official_deadline_jst"]="2026-11-12T20:10:00+09:00"
+        p["bytes"]=canonical(decoded)
+        p["sha256"]=hashlib.sha256(p["bytes"]).hexdigest()
+        p["git_blob_sha1"]=_git_blob_sha1(p["bytes"])
+        send,requests=mocked_F_commit_api(p)
+        with self.assertRaisesRegex(ValueError,"claimed_pre_T12_source_or_model_clock_invalid"):
+            witness_existing_F_candidate(p,send=send)
+        self.assertEqual(requests,[])
+
     def test_forged_protocol_or_hidden_results_rejected_before_get(self):
         for k,bad in (
             ("protocol_git_blob_sha1","0"*40),
