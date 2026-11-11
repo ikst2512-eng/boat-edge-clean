@@ -215,15 +215,29 @@ def _readback_with_brief_retry(path, expected, remote_read, *, clock, cutoff):
     Conflicting bytes are ALWAYS rejected, and a cutoff overrun never proves
     a timely first add. This helper never creates or modifies a Git file.
     """
+    expected_digest=hashlib.sha256(expected).hexdigest()
     for attempt in range(4):
-        if clock()>=cutoff:
+        observed_at=clock()
+        if observed_at>=cutoff:
             raise ValueError("t12_baseline_remote_commit_after_cutoff")
+        read_error=False
         try:
             observed=remote_read(path)
         except ValueError as exc:
             if str(exc)!="course_ledger_read_failed":
                 raise
+            read_error=True
             observed=None
+        state=("transient_get_error" if read_error else "missing" if observed is None
+               else "matched" if observed==expected else "bytes_mismatch")
+        print("T12_READBACK_TRACE="+json.dumps({
+            "path":path,"attempt":attempt+1,"state":state,
+            "expected_sha256":expected_digest,
+            "observed_sha256":hashlib.sha256(observed).hexdigest()
+                              if observed is not None else None,
+            "observed_at":observed_at.isoformat(),
+            "seconds_before_cutoff":round((cutoff-observed_at).total_seconds(),3),
+            "formal":False,"independent_first_seen_verified":False},sort_keys=True))
         if observed==expected:
             return
         if observed is not None:

@@ -563,4 +563,73 @@ class T12SeedTests(unittest.TestCase):
         self.assertEqual(report["stored_count"],0)
         self.assertEqual(report["failed_count"],1)
         self.assertEqual(report["results"][0]["status"],"failed")
+
+    def test_readback_trace_distinguishes_missing_then_conflicting_bytes(self):
+        from entry_course_t12_seed import _readback_with_brief_retry
+        from unittest.mock import patch
+        from io import StringIO
+        import hashlib
+        source=b"private-forecast-body-not-for-logs"
+        arrivals=iter((None,b"different-private-body"))
+        stream=StringIO()
+        with patch("sys.stdout",stream),patch("entry_course_t12_seed.sleep",return_value=None):
+            with self.assertRaisesRegex(ValueError,"t12_baseline_readback_failed"):
+                _readback_with_brief_retry(
+                    "t12_baselines/20261103/"+CODE+".json",source,
+                    lambda path:next(arrivals),clock=lambda:NOW,
+                    cutoff=NOW+timedelta(minutes=6))
+        lines=[json.loads(line.split("=",1)[1]) for line in stream.getvalue().splitlines()
+               if line.startswith("T12_READBACK_TRACE=")]
+        self.assertEqual([item["state"] for item in lines],["missing","bytes_mismatch"])
+        self.assertEqual(lines[-1]["observed_sha256"],
+                         hashlib.sha256(b"different-private-body").hexdigest())
+        self.assertFalse(lines[-1]["formal"])
+        self.assertNotIn("private-",stream.getvalue())
+
+    def test_t12_ledger_put_get_receipts_log_digests_without_body(self):
+        from entry_course_durable_ledger import github_ops
+        from unittest.mock import patch
+        from types import SimpleNamespace
+        from io import StringIO
+        import hashlib,base64
+        body=b"private-content-must-not-be-logged"
+        blob=hashlib.sha1(b"blob "+str(len(body)).encode()+b"\0"+body).hexdigest()
+        put={"commit":{"sha":"a"*40},"content":{"sha":blob}}
+        get={"type":"file","sha":blob,"content":base64.b64encode(body).decode()}
+        replies=iter((
+            SimpleNamespace(returncode=0,stdout=json.dumps(put).encode(),stderr=b""),
+            SimpleNamespace(returncode=0,stdout=json.dumps(get).encode(),stderr=b"")))
+        out=StringIO()
+        with patch("entry_course_durable_ledger.subprocess.run",side_effect=lambda *a,**k:next(replies)),patch("sys.stdout",out):
+            read,create=github_ops("ikst2512-eng/boat-edge-clean")
+            path="t12_baselines/20261103/"+CODE+".json"
+            create(path,body)
+            self.assertEqual(read(path),body)
+        rows=[json.loads(line.split("=",1)[1]) for line in out.getvalue().splitlines()
+              if line.startswith("T12_LEDGER_TRACE=")]
+        self.assertEqual([row["phase"] for row in rows],["PUT","GET"])
+        self.assertTrue(all(row["api_blob_matches_bytes"] for row in rows))
+        self.assertEqual(rows[0]["bytes_sha256"],hashlib.sha256(body).hexdigest())
+        self.assertEqual(rows[1]["bytes_sha256"],hashlib.sha256(body).hexdigest())
+        self.assertNotIn("private-",out.getvalue())
+
+    def test_t12_ledger_missing_404_vs_non404_failure_logged_separately(self):
+        from entry_course_durable_ledger import github_ops
+        from unittest.mock import patch
+        from types import SimpleNamespace
+        from io import StringIO
+        replies=iter((
+            SimpleNamespace(returncode=1,stdout=b"",stderr=b"gh: HTTP 404"),
+            SimpleNamespace(returncode=1,stdout=b"",stderr=b"gh: HTTP 503")))
+        trace=StringIO()
+        with patch("entry_course_durable_ledger.subprocess.run",side_effect=lambda *a,**k:next(replies)),patch("sys.stdout",trace):
+            read,_=github_ops("ikst2512-eng/boat-edge-clean")
+            path="t12_baselines/20261103/"+CODE+".json"
+            self.assertIsNone(read(path))
+            with self.assertRaisesRegex(ValueError,"course_ledger_read_failed"):
+                read(path)
+        entries=[json.loads(line.split("=",1)[1]) for line in trace.getvalue().splitlines()
+                 if line.startswith("T12_LEDGER_TRACE=")]
+        self.assertEqual([row["state"] for row in entries],["missing_404","api_error"])
+        self.assertEqual([row["http_status"] for row in entries],[404,503])
 if __name__=="__main__":unittest.main()

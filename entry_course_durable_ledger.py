@@ -118,9 +118,30 @@ def verify_write_access(remote_read,remote_create):
 
 
 
-def _gh(args):
+def _t12_trace(path, phase, **fields):
+    """Log only digest and API outcome, never source data or credentials."""
+    if not path.startswith("t12_baselines/"):
+        return
+    record={"path":path,"phase":phase,
+            "observed_utc":datetime.now(timezone.utc).isoformat(),**fields}
+    print("T12_LEDGER_TRACE="+json.dumps(record,sort_keys=True))
+
+
+def _http_status(stderr):
+    match=re.search(rb"HTTP (\d{3})",stderr or b"")
+    return int(match.group(1)) if match else None
+
+
+def _git_blob_sha1(raw):
+    return hashlib.sha1(b"blob "+str(len(raw)).encode("ascii")+b"\0"+raw).hexdigest()
+
+
+def _gh(args, *, diagnostic_path=None):
     response=subprocess.run(["gh","api",*args],capture_output=True,timeout=30)
     if response.returncode:
+        if diagnostic_path is not None:
+            _t12_trace(diagnostic_path,"PUT",state="api_error",
+                       http_status=_http_status(response.stderr))
         raise ValueError("course_ledger_github_api_failed")
     return response.stdout
 
@@ -133,16 +154,42 @@ def github_ops(repository):
             f"repos/{repository}/contents/{path}?ref={BRANCH}"],
             capture_output=True,timeout=30)
         if r.returncode:
+            code=_http_status(r.stderr)
+            _t12_trace(path,"GET",state="missing_404" if code==404 else "api_error",
+                       http_status=code)
             if b"HTTP 404" in r.stderr:
                 return None
             raise ValueError("course_ledger_read_failed")
         item=json.loads(r.stdout)
         if item.get("type")!="file":
+            _t12_trace(path,"GET",state="nonfile")
             raise ValueError("course_ledger_nonfile")
-        return base64.b64decode(item["content"])
+        observed=base64.b64decode(item["content"])
+        api_blob=item.get("sha")
+        api_blob=api_blob if type(api_blob) is str and re.fullmatch(r"[a-f0-9]{40}",api_blob) else None
+        _t12_trace(path,"GET",state="bytes_received",
+                   bytes_sha256=hashlib.sha256(observed).hexdigest(),
+                   api_blob_sha1=api_blob,
+                   api_blob_matches_bytes=(_git_blob_sha1(observed)==api_blob) if api_blob else None)
+        return observed
     def create(path,raw):
         encoded=base64.b64encode(raw).decode("ascii")
-        _gh(["-X","PUT",f"repos/{repository}/contents/{path}",
+        response=_gh(["-X","PUT",f"repos/{repository}/contents/{path}",
              "-f","message=research: preserve append-only entry-course evidence",
-             "-f",f"branch={BRANCH}","-f",f"content={encoded}"])
+             "-f",f"branch={BRANCH}","-f",f"content={encoded}"],
+             diagnostic_path=path)
+        if path.startswith("t12_baselines/"):
+            try:
+                receipt=json.loads(response)
+                api_blob=receipt.get("content",{}).get("sha")
+                api_commit=receipt.get("commit",{}).get("sha")
+                api_blob=api_blob if type(api_blob) is str and re.fullmatch(r"[a-f0-9]{40}",api_blob) else None
+                api_commit=api_commit if type(api_commit) is str and re.fullmatch(r"[a-f0-9]{40}",api_commit) else None
+            except (ValueError,TypeError,AttributeError):
+                api_blob=api_commit=None
+            _t12_trace(path,"PUT",state="api_returned_success",
+                       bytes_sha256=hashlib.sha256(raw).hexdigest(),
+                       expected_blob_sha1=_git_blob_sha1(raw),
+                       api_blob_sha1=api_blob,api_commit_sha=api_commit,
+                       api_blob_matches_bytes=(_git_blob_sha1(raw)==api_blob) if api_blob else None)
     return read,create
