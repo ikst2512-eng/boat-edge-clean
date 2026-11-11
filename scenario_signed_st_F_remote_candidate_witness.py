@@ -44,7 +44,7 @@ CANDIDATE_FIELDS={
     "formal","calibrated","promotion_allowed","production_changed",
     "accuracy_improvement_proven","warning",
 }
-TICKET=re.compile(r"[1-6]-[1-6]-[1-6]\\Z")
+TICKET=re.compile(r"[1-6]-[1-6]-[1-6]\Z")
 
 
 def _validate_preflight(prepared):
