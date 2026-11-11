@@ -135,14 +135,34 @@ jobs:
             }
             return values;
           };
+          // The public adapter has two valid proof formats: a race-matched
+          // official JSON receipt, or two independent predeadline tkz/stt CSV
+          // receipts. CSV does not have a single top-level sha256; rejecting
+          // it before checking the actual 24 readings hid real discrepancies.
+          const verifiedPreviewProvenance=(audit,cutoff,apiReceivedMs)=>{
+            if(!audit||audit.status!=='ok'||
+              !validPredeadlineReceipt(audit.fetched_at,cutoff)||
+              !Number.isFinite(apiReceivedMs)||apiReceivedMs>=cutoff||
+              Date.parse(audit.fetched_at)>apiReceivedMs)return false;
+            const validHash=v=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v);
+            if(audit.source==='BOAT RACE official beforeinfo JSON')
+              return validHash(audit.sha256);
+            if(audit.source==='BoatraceCSV predeadline snapshots')
+              return ['tkz','stt'].every(kind=>{
+                const r=audit.sources?.[kind];
+                return r&&validHash(r.sha256)&&
+                  validPredeadlineReceipt(r.observed_at,cutoff)&&
+                  validPredeadlineReceipt(r.received_at_jst,cutoff)&&
+                  Date.parse(r.observed_at)<=Date.parse(r.received_at_jst)&&
+                  Date.parse(r.received_at_jst)<=apiReceivedMs&&
+                  Date.parse(r.observed_at)<=Date.parse(audit.fetched_at);
+              });
+            return false;
+          };
           const verifyOfficialRenderAgreement=(d,exp,date,venue,rno,deadlineText,cutoff,apiReceivedMs)=>{
             if(d.meta?.phase!=='PRE_RESULT'||d.meta?.deadline!==deadlineText||
               d.race_key!==date+'-'+String(venue).padStart(2,'0')+'-'+String(rno).padStart(2,'0')||
-              d.source_audit?.beforeinfo?.status!=='ok'||
-              !validPredeadlineReceipt(d.source_audit.beforeinfo.fetched_at,cutoff)||
-              !Number.isFinite(apiReceivedMs)||apiReceivedMs>=cutoff||
-              Date.parse(d.source_audit.beforeinfo.fetched_at)>apiReceivedMs||
-              !/^[a-f0-9]{64}$/.test(d.source_audit.beforeinfo.sha256||'')||
+              !verifiedPreviewProvenance(d.source_audit?.beforeinfo,cutoff,apiReceivedMs)||
               !valid6(d.racers)||!valid6(d.beforeinfo?.racers)||
               !valid6(d.beforeinfo?.start_exhibition))
               throw Error('public_api_missing_verified_six');
@@ -166,6 +186,36 @@ jobs:
             const exp=verifiedOfficialValues(official.maindata,date,1,11,'20:03');
             if(verifyOfficialRenderAgreement(api,exp,date,1,11,'20:03',cutoff,archiveApiReceived)!==24)
               throw Error('archived_positive_24_contract_failed');
+            // Synthetic CSV-shape contract only: this is NOT a captured
+            // historical CSV or an additional LIVE pass. The fixed 24 real
+            // readings from the archived official fixture remain unchanged.
+            const csvApi=clone(api);
+            csvApi.source_audit.beforeinfo={
+              status:'ok',source:'BoatraceCSV predeadline snapshots',
+              fetched_at:'2026-11-04T19:57:22+09:00',
+              sources:Object.fromEntries(['tkz','stt'].map((kind,i)=>[
+                kind,{sha256:(i?'b':'a').repeat(64),
+                  observed_at:'2026-11-04T19:57:20+09:00',
+                  received_at_jst:'2026-11-04T19:57:21+09:00'}]))
+            };
+            if(verifyOfficialRenderAgreement(csvApi,exp,date,1,11,'20:03',cutoff,archiveApiReceived)!==24)
+              throw Error('synthetic_csv_two_receipt_positive_failed');
+            const csvNegative=[
+              ['missing_tkz',x=>{delete x.source_audit.beforeinfo.sources.tkz}],
+              ['forged_stt_hash',x=>{x.source_audit.beforeinfo.sources.stt.sha256='bad'}],
+              ['late_stt_receipt',x=>{x.source_audit.beforeinfo.sources.stt.received_at_jst='2026-11-04T20:03:00+09:00'}],
+              ['future_tkz_receipt',x=>{x.source_audit.beforeinfo.sources.tkz.received_at_jst='2026-11-04T20:01:00+09:00'}],
+              ['tkz_observed_after_received',x=>{x.source_audit.beforeinfo.sources.tkz.observed_at='2026-11-04T19:57:22+09:00'}],
+              ['csv_wrong_reading',x=>{x.beforeinfo.racers[0].exhibition_time=6.15}]
+            ];
+            for(const [name,mutate] of csvNegative){
+              const x=clone(csvApi);mutate(x);
+              let rejected=false;
+              try{verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff,archiveApiReceived)}
+              catch(e){rejected=/public_api_missing_verified_six|public_api_source_mismatch_lane_1/.test(String(e.message))}
+              if(!rejected)throw Error('synthetic_csv_negative_accepted '+name);
+            }
+            console.log('ARCHIVED_SYNTHETIC_CSV_RECEIPT_CONTRACT_PASS 24 values | two source hashes/times | 6 negative guards | NOT LIVE');
             const negative=[
               ['official_wrong_race',()=>verifiedOfficialValues(official.maindata,date,1,12,'20:03'),/official_identity/],
               ['official_wrong_deadline',()=>verifiedOfficialValues(official.maindata,date,1,11,'20:04'),/official_identity/],
