@@ -66,6 +66,16 @@ class BundleTests(unittest.TestCase):
                     'official_input_manifest':manifest,
                     'official_research_shadow':shadow}
 
+    def refresh_input_digest(self):
+        manifest = self.row['official_input_manifest']
+        keys = ('race_code', 'cutoff_jst', 'official_sources', 'six_boat_inputs')
+        digest = hashlib.sha256(json.dumps(
+            {key: manifest[key] for key in keys},
+            ensure_ascii=False, sort_keys=True, separators=(',', ':')
+        ).encode()).hexdigest()
+        manifest['input_sha256'] = digest
+        self.row['official_research_shadow']['official_input_sha256'] = digest
+
     def test_immutable_bundle_includes_all_actual_bytes(self):
         path, body, cutoff = build_bundle(self.row, self.dirs)
         self.assertEqual(path, 'official_source_forecast_bundles/20261111/202611110711.json')
@@ -91,6 +101,7 @@ class BundleTests(unittest.TestCase):
     def test_receipt_after_generation_fail_closed(self):
         self.row['official_input_manifest']['official_sources']['racelist']['received_at_jst'] = (
             '2026-11-11T19:37:41+09:00')
+        self.refresh_input_digest()
         with self.assertRaisesRegex(ValueError,'original_bytes_hash_or_receipt'):
             build_bundle(self.row, self.dirs)
 
@@ -100,6 +111,7 @@ class BundleTests(unittest.TestCase):
             build_bundle(self.row, self.dirs)
         self.row['official_research_shadow']['formal_t12_certified'] = False
         self.row['official_input_manifest']['six_boat_inputs'][1]['lane'] = 1
+        self.refresh_input_digest()
         with self.assertRaisesRegex(ValueError,'six_lanes'):
             build_bundle(self.row, self.dirs)
 
