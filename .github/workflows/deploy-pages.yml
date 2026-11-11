@@ -596,6 +596,38 @@ jobs:
                 throw Error('candidate_saved_payout_public_mismatch_'+JSON.stringify(payoutEvidence));
               if(errors.length)throw Error('candidate_page_js_errors_'+errors.join(';').slice(0,300));
               console.log('CLEAN_CANDIDATE_PAYOUT_PUBLIC_PASS',JSON.stringify(payoutEvidence));
+              // Verify ALL independently matched Nov 11 payouts visible in the actual
+              // published archive, not merely the dispatch or an older sample row.
+              // The expected set is built from immutable Git sources during staging.
+              const todayManifest=JSON.parse(fs.readFileSync('public/candidate_history/20261111.json','utf8'));
+              const paidRows=todayManifest.races.filter(r=>r.payout_status==='verified_independent');
+              if(paidRows.length!==todayManifest.payout_verified_count||paidRows.length<34)
+                throw Error('nov11_payout_source_set_incomplete_'+JSON.stringify({verified:paidRows.length,declared:todayManifest.payout_verified_count}));
+              const todayUrl=new URL('candidates.html?date=2026-11-11',process.env.PAGE_URL).href;
+              const todayResponse=await page.goto(todayUrl,{waitUntil:'domcontentloaded',timeout:30000});
+              if(!todayResponse||todayResponse.status()!==200)throw Error('nov11_candidate_http_'+todayResponse?.status());
+              await page.waitForFunction(()=>document.querySelector('#candidateStatus')?.textContent?.startsWith('保存候補 '),null,{timeout:30000});
+              const publicToday=await page.evaluate(()=>({
+                status:document.querySelector('#candidateStatus')?.textContent?.trim()||'',
+                rows:[...document.querySelectorAll('#candidateCards > details.candidate-history-card')].map(n=>({
+                  code:n.dataset.raceCode,summary:n.querySelector('summary')?.textContent||'',
+                  detail:n.querySelector('.candidate-detail')?.textContent||''
+                }))
+              }));
+              if(publicToday.rows.length!==todayManifest.candidate_count||
+                 !publicToday.status.includes('払戻照合済み '+paidRows.length+'件'))
+                throw Error('nov11_payout_public_counts_mismatch_'+JSON.stringify({source:todayManifest.candidate_count,public:publicToday.rows.length,status:publicToday.status}));
+              const byCode=new Map(publicToday.rows.map(r=>[r.code,r]));
+              for(const source of paidRows){
+                const displayed=byCode.get(source.race_code);
+                const yen=source.payout_yen_per_100.toLocaleString('ja-JP');
+                const expectedAmount='3連単払戻：'+yen+'円（100円あたり・独立保存原本照合済み）';
+                if(!displayed||!displayed.summary.includes('確定 '+source.finish)||
+                   !displayed.detail.includes(expectedAmount))
+                  throw Error('nov11_payout_public_row_mismatch_'+source.race_code);
+              }
+              if(errors.length)throw Error('nov11_candidate_page_js_errors_'+errors.join(';').slice(0,300));
+              console.log('CLEAN_NOV11_PAYOUT_PUBLIC_PASS',JSON.stringify({day:'20261111',archiveRows:publicToday.rows.length,payoutsMatched:paidRows.length,scope:'published Pages DOM vs build-time independently verified Git manifest'}));
               console.log('CLEAN_CANDIDATE_PUBLIC_DISPLAY',JSON.stringify(evidence));
               summary('Published stored candidate archive: **'+(evidence.count>6?'DISPLAY_OBSERVED':'ZERO_OR_UNVERIFIED')+
                 '** '+JSON.stringify(evidence).slice(0,1100));
