@@ -144,6 +144,74 @@ jobs:
               "formal":False,
           },sort_keys=True))
           PY
+      # Historical *input-only* contract test. No prediction generation, no
+      # retrospective candidate, no Git publication or prospective scoring.
+      - name: Recheck one GENUINE complete official triple through frozen parsers (input only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --retry 2 \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/13849470485/zip" \
+            --output "$RUNNER_TEMP/real-triple-complete-input-only.zip"
+          echo "e4ff7c2f080ef526a74c036fc829153e8965903a83ab488ed3b134a5c10edef6  $RUNNER_TEMP/real-triple-complete-input-only.zip" | sha256sum --check --status
+          python - <<'PY'
+          import hashlib, importlib.util, json, os, stat
+          from pathlib import Path
+          from zipfile import ZipFile
+          from scripts.audit_three_official_t12_originals import audit_three_originals
+          from scenario_future_archived_receipts_to_candidate import build_archive_bundle
+          from scenario_future_local_candidate_handoff import _git_blob_sha1
+          tmp=Path(os.environ["RUNNER_TEMP"])
+          archive=tmp/"real-triple-complete-input-only.zip"
+          unpack=tmp/"real-triple-complete-input-only"
+          unpack.mkdir(exist_ok=False)
+          with ZipFile(archive) as zipped:
+              assert zipped.testzip() is None
+              infos=zipped.infolist()
+              names=[i.filename for i in infos]
+              assert len(names)==len(set(names)) and len(names)<100
+              assert all(not i.filename.startswith("/") and ".." not in Path(i.filename).parts
+                         and not stat.S_ISLNK(i.external_attr >> 16) for i in infos)
+              zipped.extractall(unpack)
+          # This is the already-ended Nov11 Shimonoseki 11R. Never publish
+          # a result-after-the-fact candidate or count it in the 300+300 study.
+          race="202611111911"
+          base=unpack/"official_joint_evidence"/"observations"
+          groups=[]
+          for prefix in ("racelist_","before_","odds_"):
+              found=sorted(base.glob(prefix+"*/"+race[:8]+"/"+race))
+              assert len(found)==1,(prefix,found)
+              groups.append(found[0])
+          audit=audit_three_originals(*groups)
+          assert audit["race_code"]==race
+          assert audit["three_originals_hash_verified"] is True
+          assert audit["all_research_components_observed_by_t12"] is True
+          assert audit["missing_components"]==[]
+          assert len(audit["component_checks"])==12
+          assert all(x is True for x in audit["component_checks"].values())
+          frozen_parser=tmp/"semantic1693"/"four_mode_official_raw_semantic_replay.py"
+          assert _git_blob_sha1(frozen_parser.read_bytes())=="2f5af32201e3060c57b5a999f0389ce67c3046cb"
+          spec=importlib.util.spec_from_file_location("real_source_only_semantic1693",str(frozen_parser))
+          module=importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          check,bundle,candidate=build_archive_bundle(
+              *groups,"2026-11-11T19:52:58.374593+09:00",
+              before_parser=module._beforeinfo_features)
+          assert check==audit and bundle["race_code"]==race
+          assert candidate["formal"] is False
+          assert set(bundle["originals"])=={"racelist","beforeinfo","odds120"}
+          assert len(bundle["normalized_source_claim"]["odds_3t"])==120
+          assert len(bundle["normalized_source_claim"]["racelist_registration_ids"])==6
+          print("REAL_COMPLETE_OFFICIAL_SOURCE_INPUT_ONLY_PASS "+json.dumps({
+              "race_code":race,"components":12,"odds":120,
+              "source_bundle_checked":True,"model_run":False,
+              "retrospective_candidate_generated":False,
+              "Git_written":False,"prospective_samples_admitted":0,
+              "formal":False,"accuracy_improvement_proven":False},sort_keys=True))
+          PY
       - name: Confirm all-mode scenario composition uses actual reviewed #1698 conditional math
         env:
           RESEARCH_1698_PIN_REQUIRED: '1'
