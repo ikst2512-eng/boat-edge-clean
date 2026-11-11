@@ -239,3 +239,11 @@ jobs:
         run: python -m scripts.persist_official_research_bundle
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: Retain immutable Git write/readback receipt as independent Action artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-research-git-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: official-source-git-receipt/receipt.json
+          retention-days: 90
+          if-no-files-found: warn
