@@ -1100,7 +1100,8 @@ jobs:
           for sample in 1 2 3; do
             timestamp="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
             headers="$(mktemp)"
-            health_code="$(curl --silent --show-error --location --head --max-time 12               -D "$headers" -o /dev/null -w '%{http_code}'               'https://boat-edge-clean.onrender.com/healthz' 2>/dev/null || true)"
+            health_code="$(curl --silent --show-error --location --head --max-time 12 -D "$headers" -o /dev/null -w '%{http_code}' 'https://boat-edge-clean.onrender.com/healthz' 2>/dev/null)"
+            health_exit="$?"
             revision="$(awk -F': *' 'tolower($1)=="x-boat-edge-deploy-commit" {gsub(/\r/,"",$2); print tolower($2)}' "$headers" | tail -n 1)"
             rm -f "$headers"
             if [[ "$health_code" == "200" && "$revision" =~ ^[0-9a-f]{40}$ ]]; then
@@ -1112,8 +1113,11 @@ jobs:
             else
               state="health_unverified"
             fi
-            card_metrics="$(curl --silent --show-error --location --max-time 12               -o /dev/null -w 'http=%{http_code} total_s=%{time_total}'               'https://boat-edge-clean.onrender.com/api/clean-racecard?hd=20261028&jcd=01&rno=1' 2>/dev/null || true)"
-            printf 'RENDER_PUBLISH_EDGE_DIAGNOSTIC sample=%s at_utc=%s expected_sha=%s health_http=%s observed_sha=%s sha_state=%s racecard=%s\n'               "$sample" "$timestamp" "$GITHUB_SHA" "${health_code:-000}" "${revision:-none}" "$state" "${card_metrics:-http=000}"               | tee -a "$evidence"
+            card_metrics="$(curl --silent --show-error --location --max-time 12 -o /dev/null -w 'http=%{http_code} total_s=%{time_total}' 'https://boat-edge-clean.onrender.com/api/clean-racecard?hd=20261028&jcd=01&rno=1' 2>/dev/null)"
+            card_exit="$?"
+            printf 'RENDER_PUBLISH_EDGE_DIAGNOSTIC sample=%s at_utc=%s expected_sha=%s health_http=%s health_curl_exit=%s observed_sha=%s sha_state=%s racecard=%s racecard_curl_exit=%s\n' \
+              "$sample" "$timestamp" "$GITHUB_SHA" "${health_code:-000}" "$health_exit" "${revision:-none}" "$state" "${card_metrics:-http=000}" "$card_exit" \
+              | tee -a "$evidence"
             if [[ "$sample" != 3 ]]; then sleep 2; fi
           done
           echo "Render public health/racecard: **diagnostic only** (sampled statuses, not zero-502 or readiness certification)" >> "$GITHUB_STEP_SUMMARY"
