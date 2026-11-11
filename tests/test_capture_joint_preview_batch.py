@@ -105,7 +105,16 @@ class JointBatchTests(unittest.TestCase):
     self.assertIn('racelist_',str(card_dir))
     self.assertIn('before_',str(before_dir))
     self.assertIn('odds_',str(odds_dir))
-    return {'all_research_components_observed_by_t12':True,
+    return {'race_code':CODE, 'cutoff_jst':'2026-11-04T20:19:00+09:00',
+            't12_receipt_margin_seconds':120.0,
+            'component_checks':{key:True for key in (
+              'racecard_original_hash_verified','racecard_six_registrations',
+              'racer_registration_ids_match','racecard_received_by_t12',
+              'beforeinfo_received_by_t12','beforeinfo_six_unique_boats',
+              'exhibition_six_courses','exhibition_times_six','tilt_six',
+              'start_exhibition_six','odds_120','odds_received_by_t12')},
+            'missing_components':[],
+            'all_research_components_observed_by_t12':True,
             'three_originals_hash_verified':True,
             'final_race_entry_verified':False,'full_t12_source_certified':False,
             'forecast_usable':False,'t12_eligible':False}
@@ -119,6 +128,45 @@ class JointBatchTests(unittest.TestCase):
    self.assertEqual(seen,[(CODE,'racelist_test1')])
    self.assertEqual(report['observations'][0]['racecard_followup'],'three_originals_research_complete')
    self.assertFalse(report['formal']);self.assertFalse(report['forecast_usable'])
+
+ def test_forged_three_source_summary_cannot_increment_completed_count(self):
+  base={'race_code':CODE,'cutoff_jst':'2026-11-04T20:19:00+09:00',
+        't12_receipt_margin_seconds':120.0,
+        'component_checks':{key:True for key in (
+          'racecard_original_hash_verified','racecard_six_registrations',
+          'racer_registration_ids_match','racecard_received_by_t12',
+          'beforeinfo_received_by_t12','beforeinfo_six_unique_boats',
+          'exhibition_six_courses','exhibition_times_six','tilt_six',
+          'start_exhibition_six','odds_120','odds_received_by_t12')},
+        'missing_components':[],
+        'all_research_components_observed_by_t12':True,
+        'three_originals_hash_verified':True,
+        'final_race_entry_verified':False,
+        'full_t12_source_certified':False,
+        't12_eligible':False,'forecast_usable':False}
+  problems={
+    'other_race':{'race_code':'202611040111'},
+    'other_cutoff':{'cutoff_jst':'2026-11-04T20:20:00+09:00'},
+    'at_cutoff':{'t12_receipt_margin_seconds':0.0},
+    'false_component':{'component_checks':{**base['component_checks'],'odds_120':False}},
+    'missing_component':{'component_checks':{'odds_120':True}},
+    'hidden_missing':{'missing_components':['exhibition_times_six']},
+    'bool_margin':{'t12_receipt_margin_seconds':True},
+  }
+  for name,change in problems.items():
+   with self.subTest(forgery=name),tempfile.TemporaryDirectory() as root:
+    bad={**base,**change}
+    report=self.run_collect(root,capture_racelist_original=True,
+       racelist=lambda *a:{'status':'official_racelist_html_observed_research_only'},
+       three_auditor=lambda *a:bad,
+       auditor=lambda *a:{**audit(*a),'cutoff_jst':base['cutoff_jst']})
+    self.assertEqual(report['complete_pairs_before_t12'],1)
+    self.assertEqual(report['racelist_originals_saved'],1)
+    self.assertEqual(report['three_originals_complete_before_t12'],0)
+    self.assertEqual(report['observations'][0]['racecard_followup'],
+                     'three_originals_unverified')
+    self.assertFalse(report['formal'])
+    self.assertFalse(report['forecast_usable'])
 
  def test_racelist_failure_must_not_downgrade_valid_pair(self):
   with tempfile.TemporaryDirectory() as root:

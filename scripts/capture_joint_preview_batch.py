@@ -121,7 +121,35 @@ def collect(root, identifier, *, clock=None, schedule_fetch=None,
                             root/'observations'/before_id/code[:8]/code,
                             root/'observations'/odds_id/code[:8]/code)
                         item['three_original_audit'] = three
-                        complete = (three.get('all_research_components_observed_by_t12') is True
+                        # Defense in depth: a top-level "complete" flag is
+                        # insufficient. Bind the verdict to this race, the
+                        # official two-source cutoff, and every independently
+                        # audited original component. A forged/incomplete audit
+                        # must never increase the research-complete counter.
+                        checks = three.get('component_checks')
+                        required_checks = {
+                            'racecard_original_hash_verified',
+                            'racecard_six_registrations',
+                            'racer_registration_ids_match',
+                            'racecard_received_by_t12',
+                            'beforeinfo_received_by_t12',
+                            'beforeinfo_six_unique_boats',
+                            'exhibition_six_courses',
+                            'exhibition_times_six',
+                            'tilt_six',
+                            'start_exhibition_six',
+                            'odds_120',
+                            'odds_received_by_t12',
+                        }
+                        margin = three.get('t12_receipt_margin_seconds')
+                        complete = (three.get('race_code') == code
+                                    and three.get('cutoff_jst') == result.get('cutoff_jst')
+                                    and isinstance(checks, dict)
+                                    and set(checks) == required_checks
+                                    and all(value is True for value in checks.values())
+                                    and three.get('missing_components') == []
+                                    and type(margin) in (int, float) and margin > 0
+                                    and three.get('all_research_components_observed_by_t12') is True
                                     and three.get('three_originals_hash_verified') is True
                                     and three.get('final_race_entry_verified') is False
                                     and three.get('full_t12_source_certified') is False
