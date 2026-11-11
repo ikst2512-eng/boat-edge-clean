@@ -199,6 +199,10 @@ const {chromium}=require('playwright');
       if(!ex||!st)throw Error('LIVE_EXHIBITION_MISSING_LANE '+lane);
       return {lane,text:'展示 '+ex.exhibition_time+'｜チルト '+ex.tilt+'｜進入 '+st.course+'コース｜展示ST '+st.st};
      });
+     // The current four-tab UI loads forecast exhibition details only on
+     // opening the user-facing Exhibition subtab. Exercise that real click;
+     // otherwise the old smoke waits on an intentionally unloaded panel.
+     await page.locator('[data-forecast-pane="exhibition"]').click();
      await page.waitForFunction(key=>document.getElementById('forecastPreviewRows')?.children.length===6&&sameRaceKey()===key,expected,{timeout:12000});
      const displayed=await page.locator('#forecastPreviewRows .clean-race-lane').allInnerTexts();
      if(displayed.length!==6||expectedRows.some((row,i)=>!displayed[i].includes(row.text)))
