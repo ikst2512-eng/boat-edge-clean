@@ -235,12 +235,16 @@ def store_once(path, body, cutoff, token, *, getter=api_request, putter=api_requ
             or result.get("content", {}).get("sha") != blob_sha(body)
             or not re.fullmatch(r"[a-f0-9]{40}", str(result.get("commit", {}).get("sha", "")))):
         raise RuntimeError("github_put_response_mismatch")
-    if readback(path, token, getter=getter) != body:
+    remote_bytes = readback(path, token, getter=getter)
+    readback_received = clock()
+    if remote_bytes != body:
         raise RuntimeError("github_initial_readback_content_mismatch")
     return {"status": "new_research_bundle_first_add_put_and_get_matched",
             "path": path, "stored": True, "newly_stored": True,
             "git_commit_sha": result["commit"]["sha"],
+            "git_blob_sha1": blob_sha(body),
             "put_response_observed_at_jst": observed.isoformat(),
+            "readback_response_observed_at_jst": readback_received.isoformat(),
             "sha256": hashlib.sha256(body).hexdigest(),
             "formal_t12_certified": False,
             "independent_remote_first_seen_verified": False}
@@ -313,7 +317,24 @@ def main():
             # Reparse all three original sources and rederive the exact research
             # forecast before ANY Git PUT; never trust the handoff summary.
             verify_independent_source_and_shadow_replay(row, source_dirs)
-            outcomes.append(store_once(path, body, cutoff, token))
+            try:
+                stored = store_once(path, body, cutoff, token)
+            except Exception as exc:
+                # A failed request can be ambiguous (e.g. 409 or a lost 201).
+                # Preserve the exact race/path/expected SHA without inventing
+                # a first-add success, and leave the remote original untouched.
+                outcomes.append({
+                    "race_code": row["race_code"],
+                    "path": path,
+                    "expected_sha256": hashlib.sha256(body).hexdigest(),
+                    "cutoff_jst": cutoff.isoformat(),
+                    "status": "unverified_writer_failure",
+                    "error_type": type(exc).__name__,
+                    "stored": False, "newly_stored": False,
+                })
+                raise
+            outcomes.append({"race_code": row["race_code"],
+                             "cutoff_jst": cutoff.isoformat(), **stored})
         status = "checked"
     except Exception as exc:
         error_type = type(exc).__name__
