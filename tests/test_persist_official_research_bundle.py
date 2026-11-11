@@ -9,7 +9,7 @@ from pathlib import Path
 
 from scripts.persist_official_research_bundle import (
     JST, SOURCE_FILES, blob_sha, build_bundle, store_once,
-    verify_independent_source_and_shadow_replay,
+    verify_independent_source_and_shadow_replay, receipt_snapshot,
 )
 
 
@@ -229,6 +229,49 @@ class BundleTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError,'git_create_unverified_or_too_late_http_201'):
             store_once(path,body,cutoff,'test',getter=missing,
                        putter=accepted,clock=lambda:next(stamps))
+
+    def test_action_receipt_identifies_write_and_remains_nonformal(self):
+        outcomes = [
+            {'race_code': self.race, 'path': 'official_source_forecast_bundles/20261111/'+self.race+'.json',
+             'status': 'new_research_bundle_first_add_put_and_get_matched',
+             'git_commit_sha': 'b'*40, 'sha256': 'c'*64, 'newly_stored': True},
+            {'race_code': '202611112411', 'status': 'cutoff_near_or_passed_no_write',
+             'stored': False},
+        ]
+        audit = receipt_snapshot(
+            outcomes, status='checked', event='workflow_dispatch',
+            run_id='43017934660', run_attempt='1',
+            observed_at_jst='2026-11-11T21:09:59+09:00')
+        self.assertEqual(audit['newly_stored'], 1)
+        self.assertEqual(audit['action_event'], 'workflow_dispatch')
+        self.assertFalse(audit['independent_remote_first_seen_verified'])
+        self.assertFalse(audit['formal_t12_certified'])
+        self.assertFalse(audit['purchase_approved'])
+        self.assertNotIn('GH_TOKEN', json.dumps(audit))
+        self.assertNotIn('official_raw_originals', json.dumps(audit))
+
+    def test_action_receipt_never_masks_failed_or_ambiguous_writer(self):
+        audit = receipt_snapshot(
+            [], status='failed', event='schedule', run_id='9',
+            run_attempt='1', observed_at_jst='2026-11-11T21:09:59+09:00',
+            error_type='RuntimeError',
+            error_code='git_create_unverified_or_too_late_http_409')
+        self.assertEqual(audit['newly_stored'], 0)
+        self.assertEqual(audit['status'], 'failed')
+        self.assertEqual(audit['error_code'], 'git_create_unverified_or_too_late_http_409')
+        self.assertIs(audit['independent_remote_first_seen_verified'], False)
+        with self.assertRaisesRegex(ValueError, 'invalid_git_store_audit_status'):
+            receipt_snapshot([], status='success', event='schedule',
+                             run_id='9', run_attempt='1',
+                             observed_at_jst='2026-11-11T21:09:59+09:00')
+
+    def test_writer_receipt_artifact_is_retained_on_failure(self):
+        workflow = (Path(__file__).resolve().parents[1] /
+                    '.github/workflows/research-live-preview-evidence.yml').read_text()
+        self.assertIn('name: official-research-git-receipt-${{ github.run_id }}-${{ github.run_attempt }}', workflow)
+        self.assertIn('path: official-source-git-receipt/receipt.json', workflow)
+        self.assertIn('if-no-files-found: warn', workflow)
+        self.assertIn('      - name: Retain immutable Git write/readback receipt as independent Action artifact\n        if: always()', workflow)
 
     def test_write_permission_isolated_from_pull_request_capture(self):
         workflow=(Path(__file__).resolve().parents[1] /
