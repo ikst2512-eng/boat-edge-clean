@@ -99,7 +99,40 @@ jobs:
           const day=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
           const hd=day.replace(/-/g,'');
           const report=[];
-          const out=s=>{console.log(s);fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,s+'\n')};
+          // Capture only this run's structured diagnostics. They are evidence of
+          // observations, not archived raw HTTP bodies or Git first-seen proof.
+          // Never let the historical contract fixture create a LIVE artifact.
+          const proofPath='.clean-live-official-pages-evidence.ndjson';
+          const isHistorical=process.argv.includes('--historical-contract-test');
+          if(!isHistorical)fs.writeFileSync(proofPath,JSON.stringify({
+            kind:'AUDIT_RUN_CONTEXT',schema:'CLEAN_LIVE_OFFICIAL_PAGES_AUDIT_V1',
+            event:process.env.GITHUB_EVENT_NAME||null,
+            run_id:process.env.GITHUB_RUN_ID||null,
+            checkout_sha:process.env.GITHUB_SHA||null,
+            started_utc:new Date().toISOString(),
+            formal_t12_certified:false,raw_official_original_archived:false})+'\n',{flag:'wx'});
+          const out=s=>{
+            console.log(s);fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,s+'\n');
+            const kind=s.split(' ',1)[0];
+            if(!isHistorical&&(
+              kind==='LIVE_OFFICIAL_PAGES_E2E_EVIDENCE'||
+              kind==='LIVE_OFFICIAL_PAGES_E2E_PASS'||
+              kind==='LIVE_OFFICIAL_PAGES_E2E_UNVERIFIED'||
+              kind==='RENDER_POST_E2E_DEPLOY'||
+              kind==='RENDER_POST_E2E_DEPLOY_UNVERIFIED')){
+              const raw=s.slice(kind.length).trim();
+              let details=raw;
+              if(raw.startsWith('{')||raw.startsWith('[')){
+                try{details=JSON.parse(raw)}catch(e){details=raw}
+              }
+              fs.appendFileSync(proofPath,JSON.stringify({
+                kind,details,observed_at_utc:new Date().toISOString(),
+                event:process.env.GITHUB_EVENT_NAME||null,
+                run_id:process.env.GITHUB_RUN_ID||null,
+                checkout_sha:process.env.GITHUB_SHA||null,
+                formal_t12_certified:false})+'\n');
+            }
+          };
           const get=async(ctx,url,opts={})=>{const r=await ctx.request.get(url,{timeout:20000,...opts});if(r.status()!==200)throw Error('HTTP_'+r.status()+' '+new URL(url).pathname);return {data:await r.json(),received:Date.now(),url:r.url()}};
           const valid6=a=>Array.isArray(a)&&a.length===6&&[1,2,3,4,5,6].every(x=>a.filter(y=>Number(y?.lane??y?.teino)===x).length===1);
           const finiteReading=v=>(typeof v==='string'||typeof v==='number')&&String(v).trim()!==''&&Number.isFinite(Number(v));
@@ -397,3 +430,13 @@ jobs:
           node --check .clean-live-official-pages.cjs
           node .clean-live-official-pages.cjs --historical-contract-test
           node .clean-live-official-pages.cjs
+      # Use the existing 19:35 gate and the same runner; don't add Cron or
+      # confuse a diagnostic artifact with the official upstream originals.
+      - name: Preserve real-source E2E decision and actual Render revision
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-live-e2e-decision-${{ github.run_id }}
+          path: .clean-live-official-pages-evidence.ndjson
+          if-no-files-found: warn
+          retention-days: 90
