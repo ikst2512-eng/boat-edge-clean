@@ -99,10 +99,10 @@ class ActivationTests(unittest.TestCase):
         self.assertEqual(watcher.count("- cron:"),1)
         self.assertNotIn("forecast_record: true",watcher)
 
-    def test_v236_early_schedule_only_wakes_08_jst_t12_rescue(self):
-        # An actual independent V236 main/schedule event at Nov 9 08:10 JST
-        # completed at 08:11, inside the 08:35 race's T12 selection window.
-        # Only UTC 23:00-23:59 corresponds to JST 08:00-08:59.
+    def test_v236_schedule_wakes_08_t12_and_19_official_rescue(self):
+        # V236 schedule completions only wake the existing guarded watchdog:
+        # UTC 23:xx = JST 08:xx and UTC 10:xx = JST 19:xx.
+        # The official probe itself cannot dispatch before 19:40 JST.
         from pathlib import Path
         from entry_course_t12_seed import near_t12
         root=Path(__file__).resolve().parent.parent
@@ -113,6 +113,7 @@ class ActivationTests(unittest.TestCase):
         self.assertIn('- "CLEAN V236 verification queue"',watchdog)
         self.assertIn("github.event.workflow_run.name != 'CLEAN V236 verification queue'",watchdog)
         self.assertIn("contains(github.event.workflow_run.created_at, 'T23:')",watchdog)
+        self.assertIn("contains(github.event.workflow_run.created_at, 'T10:')",watchdog)
         self.assertIn("github.event.workflow_run.event == 'schedule'",watchdog)
         self.assertIn("github.event.workflow_run.head_branch == 'main'",watchdog)
         self.assertIn("github.event.workflow_run.head_repository.full_name == github.repository",watchdog)
