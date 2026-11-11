@@ -120,6 +120,7 @@ jobs:
             if(!isHistorical&&(
               kind==='LIVE_OFFICIAL_PAGES_E2E_EVIDENCE'||
               kind==='LIVE_OFFICIAL_PAGES_E2E_PASS'||
+              kind==='LIVE_CSV_ALTERNATE_24_PASS'||
               kind==='LIVE_OFFICIAL_PAGES_E2E_UNVERIFIED'||
               kind==='LIVE_OFFICIAL_CASE_UNVERIFIED_EVIDENCE'||
               kind==='RENDER_POST_E2E_DEPLOY'||
@@ -213,6 +214,15 @@ jobs:
             }
             return 24;
           };
+          // Provenance detail is taken from the actual Render API response.
+          // A LIVE CSV pass requires the ordinary 24/24 source/API/Pages gate;
+          // it is not inferred from installed parser code or synthetic tests.
+          const csvReceiptEvidence=audit=>audit?.source==='BoatraceCSV predeadline snapshots'
+            ? Object.fromEntries(['tkz','stt'].map(kind=>{
+                const s=audit.sources[kind];
+                return [kind,{sha256:s.sha256,observed_at:s.observed_at,
+                  received_at_jst:s.received_at_jst}];
+              })) : null;
           // Diagnostic-only field detail for source disagreement; never
           // modifies the actual 24-value acceptance or missing-data guards.
           const officialRenderFieldDiffs=(d,exp)=>{
@@ -286,6 +296,11 @@ jobs:
               catch(e){rejected=/public_api_missing_verified_six|public_api_source_mismatch_lane_1/.test(String(e.message))}
               if(!rejected)throw Error('synthetic_csv_negative_accepted '+name);
             }
+            if(csvReceiptEvidence(api.source_audit.beforeinfo)!==null)
+              throw Error('archived_official_wrongly_classified_as_csv');
+            const csvEvidence=csvReceiptEvidence(csvApi.source_audit.beforeinfo);
+            if(!csvEvidence||!['tkz','stt'].every(k=>/^[a-f0-9]{64}$/.test(csvEvidence[k].sha256)))
+              throw Error('archived_synthetic_csv_receipt_trace_wrong');
             console.log('ARCHIVED_SYNTHETIC_CSV_RECEIPT_CONTRACT_PASS 24 values | two source hashes/times | 6 negative guards | NOT LIVE');
             const negative=[
               ['official_wrong_race',()=>verifiedOfficialValues(official.maindata,date,1,12,'20:03'),/official_identity/],
@@ -389,16 +404,34 @@ jobs:
                         render:{time:ex.exhibition_time,tilt:ex.tilt,st:st.st,course:st.course},
                         pages:{time:m['展示タイム'],tilt:m['チルト'],st:m['展示ST'],course:m['展示進入']}};
                     });
+                    const selectedPreviewSource=d.source_audit.beforeinfo.source;
+                    const csvReceipts=csvReceiptEvidence(d.source_audit.beforeinfo);
                     out('LIVE_OFFICIAL_PAGES_E2E_EVIDENCE '+JSON.stringify({
                       race_code:code,deadline_jst:race.deadline_jst,
                       official_http_received_utc:new Date(src.received).toISOString(),
                       render_http_received_utc:new Date(api.received).toISOString(),
                       render_source_fetched_at:d.source_audit.beforeinfo.fetched_at,
+                      render_source_kind:selectedPreviewSource,
                       render_source_sha256:d.source_audit.beforeinfo.sha256||null,
+                      render_csv_tkz_stt_receipts:csvReceipts,
                       pages_compared_utc:new Date().toISOString(),matched_metrics:24,
                       lanes:proof,formal_t12_certified:false}));
                     matched++;
-                    out('LIVE_OFFICIAL_PAGES_E2E_PASS '+code+' | official JSON -> Render API -> actual Pages browser | 6 lanes x 4 metrics = 24 exact values | before cutoff | not T-12');
+                    out('LIVE_OFFICIAL_PAGES_E2E_PASS '+code+' | independent official JSON versus Render ['+selectedPreviewSource+'] and actual Pages browser | 6 lanes x 4 metrics = 24 exact values | before cutoff | not T-12');
+                    if(csvReceipts){
+                      out('LIVE_CSV_ALTERNATE_24_PASS '+JSON.stringify({
+                        race_code:code,deadline_jst:race.deadline_jst,
+                        render_preview_source:selectedPreviewSource,
+                        render_csv_tkz_stt_receipts:csvReceipts,
+                        official_http_received_utc:new Date(src.received).toISOString(),
+                        render_http_received_utc:new Date(api.received).toISOString(),
+                        pages_compared_utc:new Date().toISOString(),
+                        official_and_csv_render_start_st:proof.map(x=>({lane:x.lane,
+                          official:x.official.st,csv_render:x.render.st,pages:x.pages.st})),
+                        exact_matched_metrics:24,real_csv_route_verified:true,
+                        formal_t12_certified:false,independent_remote_first_seen_verified:false
+                      }));
+                    }
                     break;
                   }finally{await page.close()}
                 }catch(e){
