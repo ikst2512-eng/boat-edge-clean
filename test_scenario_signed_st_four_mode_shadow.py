@@ -140,6 +140,95 @@ class Pinned1698SignedFMathTests(unittest.TestCase):
         self.assertEqual(base["all_mode_tickets"],updated["all_mode_tickets"])
         self.assertFalse(updated["official_first_remote_receipt_verified"])
 
+    def test_frozen_first_head_does_not_consume_exhibition_ST_or_time(self):
+        """Actual pinned #1698: ST/time alter SECOND/THIRD only, not first.
+
+        This proves the current model is not yet an evidence-selected
+        escape/wall/sashi/attack FIRST-HEAD model. No formal forecast.
+        """
+        from research_model import probabilities
+        from scenario_first_head_research import hypothetical_head_board
+        from scenario_four_mode_bridge import _valid_board
+        original=feature()
+        changed=feature(["F.19",".27",".03",".18",".11","F.02"])
+        def evidence(signed,times):
+            seconds=_signed_vector(signed)
+            return {"boats":[{
+                "boat":i,
+                "exhibition_st_s":seconds[i-1],
+                "exhibition_time_s":times[i-1],
+                "entry_course":signed["exhibition_st_by_boat"][i-1]["exhibition_course_only"],
+            } for i in range(1,7)],"context":{}}
+        a=evidence(original,TIMES)
+        b=evidence(changed,[6.9,6.7,6.8,6.9,6.7,6.8])
+        different_within_head=0
+        for name,plan in self.hypotheses.items():
+            first=hypothetical_head_board(
+                probabilities(RATES),plan["head_log_shifts"],
+                study_id=STUDY_ID+"_HEAD_"+name.upper())
+            coeffs=plan["position_coefficients"]
+            one=self.callback(first["ranked_board"],a,coeffs,
+                              STUDY_ID+"_PAIR_"+name.upper())
+            two=self.callback(first["ranked_board"],b,coeffs,
+                              STUDY_ID+"_PAIR_"+name.upper())
+            mass1=_valid_board(one["ranked_board"])
+            mass2=_valid_board(two["ranked_board"])
+            for h in range(1,7):
+                p1=sum(v for t,v in mass1.items() if t[0]==h)
+                p2=sum(v for t,v in mass2.items() if t[0]==h)
+                self.assertAlmostEqual(p1,p2,places=12,
+                   msg="Current first-head mass should not be mislabeled as ST-driven")
+            if any(abs(mass1[t]-mass2[t])>1e-8 for t in mass1):
+                different_within_head+=1
+        self.assertEqual(different_within_head,len(self.hypotheses))
+        self.assertFalse(self.run_math()["accuracy_improvement_proven"])
+
+    def test_registered_mode_world_weights_are_static_not_observed_wall(self):
+        """Prevent a static scenario label from masquerading as wall evidence."""
+        from pathlib import Path
+        from scenario_future_local_candidate_handoff import _git_blob_sha1
+        source=Path(__file__).resolve().parent/"research/four_mode_triple_source_forward_protocol_20261110.json"
+        self.assertEqual(_git_blob_sha1(source.read_bytes()),
+                         "bf60d2879065d1f9ecbd6b442db17fcb8fbcb8b7")
+        method=json.loads(source.read_text(encoding="utf-8"))
+        self.assertEqual(self.hypotheses,method["scenario_hypotheses"])
+        self.assertEqual(self.weights,method["mode_weights"])
+        self.assertEqual(set(self.hypotheses),{
+            "escape_wall","two_sashi","third_attack","outer_benefit"})
+        boosted={name:[i+1 for i,x in enumerate(plan["head_log_shifts"])
+                       if x!=0] for name,plan in self.hypotheses.items()}
+        self.assertEqual(boosted,{
+            "escape_wall":[1],"two_sashi":[2],
+            "third_attack":[3],"outer_benefit":[5]})
+        # Neither the course/wall/entry nor wind, motor, wave or tide
+        # is an ACTIVATED input to this pinned numeric head hypothesis.
+        for plan in self.hypotheses.values():
+            self.assertEqual(set(plan["position_coefficients"]),
+                             {"exhibition_st_s","exhibition_time_s"})
+            self.assertNotIn("two_course_wall_rate",plan["position_coefficients"])
+            self.assertNotIn("entry_course",plan["position_coefficients"])
+        for weights in self.weights.values():
+            self.assertAlmostEqual(sum(weights.values()),1.0)
+        self.assertFalse(self.run_math()["model_probabilities_calibrated"])
+
+    def test_same_rates_different_exhibition_changes_full_board_not_head_shift(self):
+        """Existing research reacts in conditional places; do not call it full."""
+        changed=feature(["F.19",".27",".03",".18",".11","F.02"])
+        before=self.run_math()
+        after=self.run_math(signed=changed,
+                            times=[6.9,6.7,6.8,6.9,6.7,6.8])
+        self.assertEqual(before["scenario_120_boards"].keys(),
+                         after["scenario_120_boards"].keys())
+        self.assertEqual(before["active_features_by_scenario"],
+                         after["active_features_by_scenario"])
+        self.assertTrue(all(
+            x==["exhibition_st_s","exhibition_time_s"]
+            for x in before["active_features_by_scenario"].values()))
+        self.assertNotEqual(
+            before["four_mode_hypothetical_tickets"]["narrow"]["full_120_mixture_sha256"],
+            after["four_mode_hypothetical_tickets"]["narrow"]["full_120_mixture_sha256"])
+        self.assertFalse(after["official_first_remote_receipt_verified"])
+
     def test_same_input_is_deterministic_no_mode_fabricated_uniqueness(self):
         first=self.run_math()
         self.assertEqual(first,self.run_math())
