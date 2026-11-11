@@ -1,5 +1,5 @@
 {
-  "checked_at_jst": "2026-11-11T21:28:36.317000+09:00",
+  "checked_at_jst": "2026-11-11T23:06:58.018491+09:00",
   "days": [
     {
       "day": "20261110",
@@ -12,15 +12,31 @@
     {
       "day": "20261111",
       "http_status": null,
-      "newly_saved": 8,
+      "newly_saved": 0,
       "source_races": 144,
       "source_url": null,
       "status": "available"
     }
   ],
   "historical_retries": {
-    "days": [],
-    "status": "not_hourly_window"
+    "days": [
+      {
+        "day": "20261028",
+        "saved": 0,
+        "source_races": 124
+      },
+      {
+        "day": "20261031",
+        "saved": 0,
+        "source_races": 155
+      },
+      {
+        "day": "20261102",
+        "saved": 0,
+        "source_races": 155
+      }
+    ],
+    "status": "checked"
   },
   "overdue_race_codes": [
     "202610280112",
