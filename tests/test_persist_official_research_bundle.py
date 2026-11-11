@@ -648,8 +648,9 @@ class BundleTests(unittest.TestCase):
 
         write_job = workflow.split('  persist-official-research:\n', 1)[1]
         raw = write_job.split('    if: >-\n', 1)[1].split('    runs-on:', 1)[0]
-        expression = ' '.join(raw.split()).replace('always()', 'True').replace(
-            '&&', ' and ').replace('||', ' or ')
+        self.assertIn('always() && !cancelled()', ' '.join(raw.split()))
+        expression = ' '.join(raw.split()).replace('!cancelled()', '(not __CANCELLED__)').replace(
+            'always()', 'True').replace('&&', ' and ').replace('||', ' or ')
         defaults = {
             'needs.capture.result': 'success',
             'needs.capture.outputs.official_tests_passed': 'true',
@@ -662,11 +663,12 @@ class BundleTests(unittest.TestCase):
             'github.event_name': 'schedule',
         }
 
-        def gate(**updates):
+        def gate(cancelled=False, **updates):
             values = {**defaults, **updates}
             evaluated = expression
             for name in sorted(values, key=len, reverse=True):
                 evaluated = evaluated.replace(name, repr(values[name]))
+            evaluated = evaluated.replace('__CANCELLED__', repr(cancelled))
             return eval(evaluated, {'__builtins__': {}}, {})
 
         # The sole job failure here is downstream CSV analysis after a
@@ -674,6 +676,10 @@ class BundleTests(unittest.TestCase):
         self.assertTrue(gate(**{'needs.capture.result': 'failure'}))
         self.assertTrue(gate(**{'github.event_name': 'workflow_dispatch'}))
         self.assertTrue(gate())
+        # Cancellation always wins, including when the prior job said success
+        # or failure and every source + handoff output remained true.
+        self.assertFalse(gate(cancelled=True))
+        self.assertFalse(gate(cancelled=True, **{'needs.capture.result': 'failure'}))
         for field, fail_value in (
             ('needs.capture.result', 'cancelled'),
             ('needs.capture.result', 'skipped'),
