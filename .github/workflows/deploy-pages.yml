@@ -1085,6 +1085,46 @@ jobs:
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
+      - name: Observe public Render revision and racecard HTTP after publish (diagnostic only)
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 3
+        shell: bash
+        run: |
+          set -uo pipefail
+          # A Pages publish and an independent Render auto-deploy can overlap.
+          # Observe, never interpret an old SHA during rollout as a permanent fault.
+          mkdir -p test-results
+          evidence="test-results/render-edge-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.log"
+          : > "$evidence"
+          for sample in 1 2 3; do
+            timestamp="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            headers="$(mktemp)"
+            health_code="$(curl --silent --show-error --location --head --max-time 12               -D "$headers" -o /dev/null -w '%{http_code}'               'https://boat-edge-clean.onrender.com/healthz' 2>/dev/null || true)"
+            revision="$(awk -F': *' 'tolower($1)=="x-boat-edge-deploy-commit" {gsub(/\r/,"",$2); print tolower($2)}' "$headers" | tail -n 1)"
+            rm -f "$headers"
+            if [[ "$health_code" == "200" && "$revision" =~ ^[0-9a-f]{40}$ ]]; then
+              if [[ "$revision" == "$GITHUB_SHA" ]]; then
+                state="same_as_publish_checkout"
+              else
+                state="other_live_revision_or_rollout"
+              fi
+            else
+              state="health_unverified"
+            fi
+            card_metrics="$(curl --silent --show-error --location --max-time 12               -o /dev/null -w 'http=%{http_code} total_s=%{time_total}'               'https://boat-edge-clean.onrender.com/api/clean-racecard?hd=20261028&jcd=01&rno=1' 2>/dev/null || true)"
+            printf 'RENDER_PUBLISH_EDGE_DIAGNOSTIC sample=%s at_utc=%s expected_sha=%s health_http=%s observed_sha=%s sha_state=%s racecard=%s\n'               "$sample" "$timestamp" "$GITHUB_SHA" "${health_code:-000}" "${revision:-none}" "$state" "${card_metrics:-http=000}"               | tee -a "$evidence"
+            if [[ "$sample" != 3 ]]; then sleep 2; fi
+          done
+          echo "Render public health/racecard: **diagnostic only** (sampled statuses, not zero-502 or readiness certification)" >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve Render publish edge samples
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clean-render-publish-edge-${{ github.run_id }}-${{ github.run_attempt }}
+          path: test-results/render-edge-*.log
+          if-no-files-found: warn
+          retention-days: 30
       - name: Browser-check deployed page
         timeout-minutes: 2
         env:
