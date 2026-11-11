@@ -596,6 +596,36 @@ class BundleTests(unittest.TestCase):
         self.assertIn("(github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')",workflow)
         self.assertNotIn("github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'",workflow)
 
+    def test_live_official_network_is_skipped_in_untrusted_pr_validation(self):
+        workflow = (Path(__file__).resolve().parents[1] /
+                    '.github/workflows/research-live-preview-evidence.yml').read_text()
+        official = workflow.split(
+            '      - name: Preserve official preview and odds originals before CSV collection',
+            1)[1].split(
+            '      - name: Independently recheck official originals against frozen prediction clocks',
+            1)[0]
+        clock_audit = workflow.split(
+            '      - name: Independently recheck official originals against frozen prediction clocks',
+            1)[1].split('      # This is a local source audit only', 1)[0]
+        self.assertIn(
+            "if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'",
+            official)
+        self.assertIn(
+            "if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')",
+            clock_audit)
+        self.assertIn('continue-on-error: true', official)
+        self.assertIn('continue-on-error: true', clock_audit)
+        self.assertIn(
+            "      - name: Capture eligible predeadline preview rows\n",
+            workflow)
+        self.assertIn(
+            "      - name: Test official research raw+shadow append-only store (no network)",
+            workflow)
+        # PR must not be able to run privileged code even when offline tests pass.
+        self.assertIn(
+            "(github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')",
+            workflow.split('  persist-official-research:', 1)[1])
+
     def test_later_csv_failure_does_not_erase_verified_official_handoff(self):
         """Evaluate the literal privileged job gate for real GitHub job outcomes."""
         workflow = (Path(__file__).resolve().parents[1] /
