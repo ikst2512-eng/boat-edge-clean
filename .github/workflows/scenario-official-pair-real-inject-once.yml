@@ -5,6 +5,27 @@ on:
       - research/scenario-all-modes-1708-20261109
     paths:
       - .github/workflows/scenario-official-pair-real-inject-once.yml
+      # An observed-source replay must not stay green from an old code SHA
+      # when the model, input parsers or comparison logic changes.
+      - scenario_official_pair_research_input.py
+      - scenario_actual_pair_four_mode_replay.py
+      - scenario_archived_rates_ablation.py
+      - scenario_exhibition_all_mode_runner.py
+      - scenario_mode_specific_exhibition_end_to_end.py
+      - scenario_four_mode_bridge.py
+      - scenario_first_head_research.py
+      - scenario_official_racelist_rates.py
+      - scenario_future_three_original_gateway.py
+      - scenario_signed_st_four_mode_shadow.py
+      - scenario_signed_st_registered_shadow.py
+      - scenario_signed_st_official_input_adapter.py
+      - scenario_signed_st_racelist_rates.py
+      - scenario_flagged_st_feature_study.py
+      - scripts/audit_three_official_t12_originals.py
+      - research/signed_F_four_mode_future_protocol_20261111.json
+      - test_scenario_archived_rates_ablation.py
+      - test_scenario_official_pair_research_input.py
+      - test_scenario_actual_pair_four_mode_replay.py
 permissions:
   contents: read
   actions: read
