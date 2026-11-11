@@ -103,6 +103,19 @@ def _call(route, token, *, method="GET", fields=None):
     return json.loads(data) if method=="GET" else None
 
 
+def _count_jst_day_runs(runs, now, event):
+    """Count only observed main-branch events from the current JST day.
+
+    The legacy observed_* count remains the number of historical API rows
+    fetched, not the number of runs that actually started today.
+    """
+    today=now.astimezone(JST).date()
+    return sum(row.get("event")==event and
+               row.get("head_branch")=="main" and
+               _timestamp(row.get("created_at")).astimezone(JST).date()==today
+               for row in runs)
+
+
 def run_once(*, now, fetch_runs, dispatch):
     if not isinstance(now,datetime) or now.utcoffset() is None:
         raise ValueError("entry_watchdog_clock_invalid")
@@ -121,6 +134,7 @@ def run_once(*, now, fetch_runs, dispatch):
             report["targets"][kind]={
                 "decision":"outside_research_hours",
                 "observed_schedule_runs":0,"observed_dispatch_runs":0,
+                "observed_schedule_runs_today":0,"observed_dispatch_runs_today":0,
                 "lookup_skipped_outside_hours":True,
                 "trigger_is_schedule":False,"dispatch_requested":False}
             continue
@@ -137,6 +151,8 @@ def run_once(*, now, fetch_runs, dispatch):
                 "lookup_skipped_outside_hours":False,
                 "observed_schedule_runs":sum(r.get("event")=="schedule" for r in runs),
                 "observed_dispatch_runs":sum(r.get("event")=="workflow_dispatch" for r in runs),
+                "observed_schedule_runs_today":_count_jst_day_runs(runs,now,"schedule"),
+                "observed_dispatch_runs_today":_count_jst_day_runs(runs,now,"workflow_dispatch"),
                 "trigger_is_schedule":False}
         record["dispatch_requested"]=False
         report["targets"][kind]=record

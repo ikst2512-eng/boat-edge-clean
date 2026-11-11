@@ -280,6 +280,34 @@ class ActivationTests(unittest.TestCase):
                         fetch_runs=lambda f,e:[malformed],
                         dispatch=lambda _:self.fail("malformed run triggered dispatch"))
 
+
+    def test_watchdog_reports_today_schedule_separately_from_history(self):
+        # API per_page=30 includes past JST days. Total returned rows
+        # are NOT evidence of that many schedule launches today.
+        now=datetime(2026,11,11,8,32,tzinfo=JST)
+        yesterday={"event":"schedule",
+                   "created_at":"2026-11-10T08:29:00+09:00",
+                   "head_branch":"main","status":"completed"}
+        same_day={"event":"schedule",
+                  "created_at":"2026-11-11T08:24:00+09:00",
+                  "head_branch":"main","status":"completed"}
+        wrong_branch=dict(same_day,head_branch="feature")
+        dispatch_today=dict(same_day,event="workflow_dispatch",
+                            created_at="2026-11-11T08:26:00+09:00")
+        def records(file,kind):
+            if file!=TARGETS["t12"]:
+                self.fail("08 JST must not query T2")
+            return ([yesterday,same_day,wrong_branch] if kind=="schedule"
+                    else [dispatch_today])
+        out=run_once(now=now,fetch_runs=records,dispatch=lambda *_:None)
+        counts=out["targets"]["t12"]
+        self.assertEqual(counts["observed_schedule_runs"],3) # historic API rows
+        self.assertEqual(counts["observed_schedule_runs_today"],1)
+        self.assertEqual(counts["observed_dispatch_runs"],1)
+        self.assertEqual(counts["observed_dispatch_runs_today"],1)
+        self.assertEqual(out["targets"]["t2"]["observed_schedule_runs_today"],0)
+        self.assertFalse(out["unattended_scheduled_capture_verified"])
+
     def test_preview_fallback_uses_existing_event_without_new_cron(self):
         requested=[]
         called=[]
