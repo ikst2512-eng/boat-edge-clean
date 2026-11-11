@@ -111,6 +111,17 @@ class OfficialForecastConsumptionTests(unittest.TestCase):
                 row = result["rows"][0]
                 self.assertEqual(row["official_original_status"],
                                  "three_originals_reaudited_research_only")
+
+                manifest = row["official_input_manifest"]
+                self.assertTrue(manifest["official_source_fields_reconstructed"])
+                self.assertEqual(len(manifest["six_boat_inputs"]), 6)
+                self.assertEqual(set(manifest["official_sources"]), {"racelist","beforeinfo","odds"})
+                self.assertEqual(len(manifest["input_sha256"]), 64)
+                self.assertEqual(manifest["six_boat_inputs"][0]["registration"], "4180")
+                self.assertEqual(manifest["six_boat_inputs"][0]["exhibition_course"], 6)
+                self.assertFalse(manifest["model_actually_consumed_fields"])
+                self.assertFalse(manifest["formal_t12_certified"])
+
                 self.assertEqual(row["forecast_statuses"]["prospective_predictions"]["status"],
                                  "official_model_input_consumption_unverified")
                 self.assertEqual(row["forecast_statuses"]["four_mode_forecasts"]["status"],
@@ -122,6 +133,7 @@ class OfficialForecastConsumptionTests(unittest.TestCase):
                 before_file.write_bytes(before_file.read_bytes() + b"\n")
                 changed = audit_batch(batch, tmp)
                 self.assertEqual(changed["research_three_originals_reaudited"], 0)
+                self.assertNotIn("official_input_manifest", changed["rows"][0])
                 self.assertEqual(changed["rows"][0]["official_original_status"],
                                  "official_original_reaudit_failed")
                 self.assertEqual(changed["official_consumed_forecasts"], 0)
