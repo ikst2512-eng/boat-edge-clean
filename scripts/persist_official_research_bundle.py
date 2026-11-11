@@ -389,6 +389,23 @@ def main():
                 or type(batch.get("three_originals_complete_before_t12")) is not int
                 or batch["three_originals_complete_before_t12"] < 1):
             raise ValueError("capture_batch_not_clean_complete")
+        # A complete-triple *counter* alone is not a race-specific receipt.
+        # Bind every proposed Git path to the capture batch's exact race rows.
+        observations = batch.get("observations")
+        if (batch.get("event") != os.environ.get("GITHUB_EVENT_NAME")
+                or type(observations) is not list):
+            raise ValueError("capture_batch_event_or_rows_invalid")
+        complete_codes = [
+            item["race_code"] for item in observations
+            if isinstance(item, dict)
+            and item.get("status") == "pair_complete"
+            and item.get("racecard_followup") == "three_originals_research_complete"
+            and type(item.get("race_code")) is str
+            and RACE.fullmatch(item["race_code"])
+        ]
+        if (len(complete_codes) != batch["three_originals_complete_before_t12"]
+                or len(set(complete_codes)) != len(complete_codes)):
+            raise ValueError("capture_batch_race_count_mismatch")
         report = read_json(args.batch_dir / "forecast_temporal_link_report.json")
         if (report.get("status") != "read_only_research_audited"
                 or report.get("formal_t12_certified") != 0
@@ -397,6 +414,8 @@ def main():
         for row in report.get("rows", []):
             if row.get("official_original_status") != "three_originals_reaudited_research_only":
                 continue
+            if row.get("race_code") not in complete_codes:
+                raise ValueError("source_audit_race_not_in_batch")
             shadow = row.get("official_research_shadow")
             if not isinstance(shadow, dict) or shadow.get("generated") is not True:
                 outcomes.append({"race_code": row.get("race_code"), "status": "shadow_not_generated"})
