@@ -53,6 +53,13 @@ class BundleTests(unittest.TestCase):
                   'independent_remote_first_seen_verified':False,
                   'purchase_approved':False, 'research_only':True,
                   'predictions':{'balance':{'tickets':[]}}}
+        inputs = {key: manifest[key] for key in
+                  ('race_code','cutoff_jst','official_sources','six_boat_inputs')}
+        digest = hashlib.sha256(json.dumps(
+            inputs, ensure_ascii=False, sort_keys=True, separators=(',',':')
+        ).encode()).hexdigest()
+        manifest['input_sha256'] = digest
+        shadow['official_input_sha256'] = digest
         self.row = {'race_code':self.race,
                     'formal_t12_certified':False,
                     'official_original_status':'three_originals_reaudited_research_only',
@@ -69,6 +76,12 @@ class BundleTests(unittest.TestCase):
         for kind, fname in SOURCE_FILES.items():
             got = base64.b64decode(bundle['official_raw_originals'][kind]['base64'])
             self.assertEqual(got, (self.dirs[kind]/fname).read_bytes())
+
+    def test_manifest_digest_rechecked_after_handoff(self):
+        self.row['official_input_manifest']['six_boat_inputs'][0]['exhibition_course'] = 6
+        self.row['official_input_manifest']['six_boat_inputs'][5]['exhibition_course'] = 1
+        with self.assertRaisesRegex(ValueError,'official_input_manifest_sha_mismatch'):
+            build_bundle(self.row,self.dirs)
 
     def test_wrong_raw_bytes_fail_closed(self):
         (self.dirs['odds']/SOURCE_FILES['odds']).write_bytes(b'tampered')
