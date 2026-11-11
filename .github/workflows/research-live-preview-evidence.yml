@@ -46,6 +46,10 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       official_bundle_ready: ${{ steps.bundle_ready.outputs.ready }}
+      official_tests_passed: ${{ steps.official_tests_passed.outputs.passed }}
+      official_capture_outcome: ${{ steps.official_pair_capture.outcome }}
+      official_audit_outcome: ${{ steps.official_forecast_clock.outcome }}
+      official_handoff_outcome: ${{ steps.official_handoff_upload.outcome }}
     timeout-minutes: 4
     steps:
       - uses: actions/checkout@v4
@@ -74,6 +78,11 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_persist_official_research_bundle.py' -v
       - name: Verify a single offpeak five-minute research Cron (config only)
         run: python -m unittest discover -s tests -p 'test_research_preview_native_schedule.py' -v
+      # Runs only after ALL required source, research and writer regression tests
+      # passed; subsequent unrelated CSV collection must not erase this proof.
+      - name: Record completed pre-handoff regression test gate
+        id: official_tests_passed
+        run: echo "passed=true" >> "$GITHUB_OUTPUT"
       - name: Preserve official preview and odds originals before CSV collection
         id: official_pair_capture
         continue-on-error: true  # Keep the existing CSV collection independent.
@@ -130,6 +139,7 @@ jobs:
           print("OFFICIAL_RESEARCH_BUNDLE_READY "+str(ready).lower()+" (not Git saved)")
           PY
       - name: Hand off already received official originals + shadow (no new HTTP)
+        id: official_handoff_upload
         if: steps.bundle_ready.outputs.ready == 'true'
         uses: actions/upload-artifact@v4
         with:
@@ -231,10 +241,17 @@ jobs:
 
   # Privileged job never executes PR code and never modifies the source collector.
   # Its separate job token keeps the source-auditing capture job read-only.
+  # A later CSV comparison failure can mark the capture job failed without
+  # erasing an already-successful pre-handoff source/test/artifact chain.
+  # No write if earlier tests, source collection, source audit, or handoff failed.
   persist-official-research:
     needs: capture
     if: >-
-      always() && needs.capture.result == 'success' &&
+      always() && (needs.capture.result == 'success' || needs.capture.result == 'failure') &&
+      needs.capture.outputs.official_tests_passed == 'true' &&
+      needs.capture.outputs.official_capture_outcome == 'success' &&
+      needs.capture.outputs.official_audit_outcome == 'success' &&
+      needs.capture.outputs.official_handoff_outcome == 'success' &&
       needs.capture.outputs.official_bundle_ready == 'true' &&
       github.repository == 'ikst2512-eng/boat-edge-clean' &&
       github.ref == 'refs/heads/main' &&
