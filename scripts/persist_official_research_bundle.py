@@ -80,6 +80,15 @@ def build_bundle(row, source_dirs):
                     and shadow.get("purchase_approved") is False
                     and shadow.get("research_only") is True)):
         raise ValueError("not_a_research_only_official_shadow")
+    # Recompute the exact original-input digest in the privileged job rather
+    # than trusting the transfer artifact's self-declared SHA alone.
+    base_fields = {key: manifest[key] for key in
+                   ("race_code", "cutoff_jst", "official_sources", "six_boat_inputs")}
+    digest = hashlib.sha256(json.dumps(
+        base_fields, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")).hexdigest()
+    if digest != manifest["input_sha256"]:
+        raise ValueError("official_input_manifest_sha_mismatch")
     boats = manifest["six_boat_inputs"]
     if ({b.get("lane") for b in boats if isinstance(b, dict)} != set(range(1, 7))
             or {b.get("exhibition_course") for b in boats if isinstance(b, dict)} != set(range(1, 7))
