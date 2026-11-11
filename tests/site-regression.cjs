@@ -16,6 +16,14 @@ assert.ok(candidateHtml.includes("timeZone:'Asia/Tokyo'"));
 assert.ok(candidateHtml.includes('過去の確定結果から作った研究候補を、本日の購入候補として表示することはありません。'));
 
 new vm.Script(script,{filename:'index.html'});
+// A national-win-rate-only baseline must never silently masquerade as
+// scenario/entry/ST/exhibition/wind-aware production prediction.
+assert.ok(script.includes("data.model_version==='CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED'"));
+assert.ok(script.includes('V2基準モデル：全国勝率と過去の艇番別着順傾向のみ。'));
+assert.ok(script.includes('展開・展示ST・モーター・風・波・潮は確率計算に未反映。'));
+assert.ok(script.includes('現在の正式予想とは区別しています。'));
+console.log('PASS: V2 research-only baseline is explicitly labeled; missing scenario inputs are not claimed');
+
 function extract(name){
  const line=script.split('\n').find(l=>l.startsWith('function '+name+'('));
  assert.ok(line,'production validator '+name+' missing');
