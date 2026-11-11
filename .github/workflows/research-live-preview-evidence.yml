@@ -215,7 +215,8 @@ jobs:
   persist-official-research:
     needs: capture
     if: >-
-      always() && needs.capture.outputs.official_bundle_ready == 'true' &&
+      always() && needs.capture.result == 'success' &&
+      needs.capture.outputs.official_bundle_ready == 'true' &&
       github.repository == 'ikst2512-eng/boat-edge-clean' &&
       github.ref == 'refs/heads/main' &&
       (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
