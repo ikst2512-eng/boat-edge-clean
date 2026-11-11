@@ -190,10 +190,15 @@ const {chromium}=require('playwright');
   const forecastState=await page.evaluate(()=>({
    forecastVisible:!document.getElementById('forecast').hidden,
    hasForecastPanel:!!document.querySelector('#forecast .forecast-combined-race'),
-   savedResult:document.getElementById('forecastResultDetail')?.textContent,
-   ticketCount:document.querySelectorAll('#forecast #predictionRows .prediction-row').length
+   // The primary result is now above the four-mode forecasts. The earlier
+   // forecastResultDetail is a separate, intentionally hidden result subtab.
+   savedResult:document.getElementById('forecastResultFirstDetail')?.textContent,
+   firstResultVisible:!document.querySelector('#forecast .forecast-result-first')?.hidden,
+   // Supplemental archived Top10 lives outside the forecast detail section.
+   ticketCount:document.querySelectorAll('#predictionRows .prediction-row').length
   }));
   if(!forecastState.forecastVisible||!forecastState.hasForecastPanel||
+      !forecastState.firstResultVisible||
       !forecastState.savedResult?.includes('2 - 3 - 1')||forecastState.ticketCount!==10)
    throw Error('FORECAST_SAVED_RESULT_MISMATCH '+JSON.stringify(forecastState));
   await page.evaluate(()=>{setView('result');render()});
