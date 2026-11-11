@@ -5,6 +5,7 @@ relax the pinned #1693/#1710 source/model admission.
 """
 import hashlib
 import json
+from pathlib import Path
 import unittest
 
 from scenario_flagged_st_feature_study import encode_signed_st_only
@@ -108,6 +109,33 @@ class FlaggedSTSignedFeatureOnlyTests(unittest.TestCase):
         for key in ('"winning_ticket"','"finish_order"','"payout"',
                     '"predictions"','"ranked_modes"','"probabilities"'):
             self.assertNotIn(key,wire)
+
+
+    def test_future_feature_study_is_pinned_and_does_not_override_old_600(self):
+        from scenario_future_local_candidate_handoff import _git_blob_sha1
+        root=Path(__file__).resolve().parent
+        file=root/"research/flagged_st_signed_feature_feasibility_20261111.json"
+        self.assertEqual(_git_blob_sha1(file.read_bytes()),
+                         "e02dad9035486f05550cec10855399d578ea9650")
+        protocol=json.loads(file.read_text(encoding="utf-8"))
+        self.assertEqual(protocol["eligible_new_source_deadline_from_jst"],
+                         "2026-11-12T00:00:00+09:00")
+        self.assertTrue(protocol["scientific_status"]["old_1693_and_1710_600_cohort_unchanged"])
+        self.assertFalse(protocol["scientific_status"]["feature_accuracy_method_specified"])
+        self.assertFalse(protocol["scientific_status"]["formal"])
+        self.assertFalse(protocol["scientific_status"]["promotion_allowed"])
+        self.assertEqual(protocol["scientific_status"]["new_accuracy_cohort_admitted"],0)
+        for path, expected in protocol["method_git_blob_sha1"].items():
+            self.assertEqual(_git_blob_sha1((root/path).read_bytes()),expected)
+
+    def test_historical_observations_are_not_future_pilot(self):
+        file=Path(__file__).resolve().parent/"research/flagged_st_signed_feature_feasibility_20261111.json"
+        study=json.loads(file.read_text(encoding="utf-8"))
+        historical={x["race_code"] for x in study["historical_known_examples_for_read_only_replay_only"]}
+        self.assertEqual(historical,{"202611111911","202611110711"})
+        self.assertTrue(all(x[:8]<"20261112" for x in historical))
+        self.assertEqual(study["scientific_status"]["new_forecast_predictions_generated"],0)
+        self.assertFalse(study["scientific_status"]["candidate_four_mode_generator_implemented"])
 
 
 if __name__ == "__main__":
