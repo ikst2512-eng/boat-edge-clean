@@ -19,8 +19,9 @@ import re
 
 from research_model import probabilities
 from scenario_first_head_research import hypothetical_head_board
-from scenario_signed_st_four_mode_shadow import signed_F_four_mode_math
-from scenario_four_mode_bridge import BUDGETS
+from scenario_signed_st_four_mode_shadow import _signed_vector
+from scenario_exhibition_all_mode_runner import _conditional_result
+from scenario_four_mode_bridge import BUDGETS, compose_scenario_research
 
 SCHEMA="SEPARATE_ATHLETE_HISTORY_FIRST_HEAD_SENSITIVITY_V1"
 HISTORY_SCHEMA="UNATTESTED_BEFORE_EVENT_OFFICIAL_K_C1_HISTORY_SUMMARY_V1"
@@ -172,14 +173,57 @@ def sensitivity_only(history, signed_feature, national_rates, exhibition_times,
     first_mass=lambda weights:{str(boat):math.fsum(
         weights[world]*head[world][str(boat)] for world in WORLDS)
         for boat in range(1,7)}
-    a=signed_F_four_mode_math(
-        signed_feature,national_rates,exhibition_times,
-        registered_plans,mode_control,reviewed_1698_callback,
-        study_id=STUDY)
-    b=signed_F_four_mode_math(
-        signed_feature,national_rates,exhibition_times,
-        registered_plans,mode_athlete,reviewed_1698_callback,
-        study_id=STUDY)
+    # The registered signed_F_four_mode_math function intentionally
+    # rejects any other study ID. NEVER bypass its identity guard. Reuse
+    # the exact pinned computational primitives individually instead.
+    st=_signed_vector(signed_feature)
+    if (type(exhibition_times) is not list or len(exhibition_times)!=6
+            or any(type(v) not in (int,float) or not math.isfinite(v)
+                   or not 5<=v<=10 for v in exhibition_times)
+            or not callable(reviewed_1698_callback)):
+        raise ValueError("C1_history_six_exhibition_times_or_1698_callback_invalid")
+    evidence={"boats":[{
+        "boat":i,"exhibition_st_s":st[i-1],
+        "exhibition_time_s":exhibition_times[i-1],
+        "entry_course":signed_feature["exhibition_st_by_boat"][i-1]["exhibition_course_only"],
+    } for i in range(1,7)],"context":{}}
+    scenario_boards={}
+    for world in WORLDS:
+        plan=registered_plans[world]
+        if (type(plan) is not dict
+                or set(plan)!={"head_log_shifts","position_coefficients"}
+                or type(plan["position_coefficients"]) is not dict
+                or set(plan["position_coefficients"])!=
+                   {"exhibition_st_s","exhibition_time_s"}):
+            raise ValueError("C1_history_unregistered_world_shape")
+        prior=hypothetical_head_board(
+            base,plan["head_log_shifts"],
+            study_id=STUDY+"_HEAD_"+world.upper())
+        coefficients=plan["position_coefficients"]
+        active={k for k,v in coefficients.items()
+                if v["second"]!=0 or v["third"]!=0}
+        response=reviewed_1698_callback(
+            prior["ranked_board"],evidence,coefficients,
+            STUDY+"_PAIR_"+world.upper())
+        scenario_boards[world]=_conditional_result(
+            response,prior["ranked_board"],active)
+    a=compose_scenario_research(scenario_boards,normal)
+    b=compose_scenario_research(scenario_boards,athlete)
+    if any(x[k] is not False for x in (a,b) for k in (
+            "forecast_usable","formal","probabilities_calibrated",
+            "promotion_allowed","production_changed")):
+        raise ValueError("C1_history_scenario_research_promoted")
+    a_modes=a["existing_four_mode_selector_on_mixture"]
+    b_modes=b["existing_four_mode_selector_on_mixture"]
+    for mode,n in BUDGETS.items():
+        if len(a_modes[mode]["tickets"])!=n or len(b_modes[mode]["tickets"])!=n:
+            raise ValueError("C1_history_mode_selection_budget_mismatch")
+    def packed(mix,modes):
+        return {mode:{
+            "tickets":modes[mode]["tickets"],
+            "top1":modes[mode]["tickets"][0]["combo"],
+            "full_120_mixture_sha256":mix["mixed_120_board_sha256"],
+        } for mode in BUDGETS}
     return {
         "schema":SCHEMA,"study_id":STUDY,
         "race_code":history["race_code"],
@@ -189,8 +233,8 @@ def sensitivity_only(history, signed_feature, national_rates, exhibition_times,
         "hypothesis_athlete_world_weights":athlete,
         "control_head_mass_by_boat":first_mass(normal),
         "hypothesis_head_mass_by_boat":first_mass(athlete),
-        "control_four_mode_tickets":a["four_mode_hypothetical_tickets"],
-        "hypothesis_four_mode_tickets":b["four_mode_hypothetical_tickets"],
+        "control_four_mode_tickets":packed(a,a_modes),
+        "hypothesis_four_mode_tickets":packed(b,b_modes),
         "same_mode_budgets":dict(BUDGETS),
         "world_splitting_is_uncalibrated_hypothesis":True,
         "wall_effect_measured":False,"actual_final_entry_verified":False,
