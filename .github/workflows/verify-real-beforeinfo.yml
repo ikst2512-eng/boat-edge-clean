@@ -19,6 +19,24 @@ jobs:
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
+      # Trigger a harmless HEAD request before browser installation so a
+      # sleeping Render instance has a chance to wake. HTTP readiness is
+      # diagnostic only; real official -> Render -> Pages 24/24 remains hard.
+      - name: Pre-warm public Render (diagnostic, not official evidence)
+        if: github.event_name != 'pull_request'
+        timeout-minutes: 1
+        run: |
+          set +e
+          curl --silent --show-error --head --connect-timeout 6 --max-time 20 \
+            --output /tmp/clean-render-prewarm.headers \
+            --write-out 'RENDER_PREWARM_HTTP %{http_code}\\n' \
+            https://boat-edge-clean.onrender.com/healthz
+          rc=$?
+          if [ "$rc" -ne 0 ]; then
+            echo "RENDER_PREWARM_UNVERIFIED curl_exit=$rc"
+          fi
+          echo "Render pre-warm is readiness-only; NOT a LIVE official 24-value pass." >> "$GITHUB_STEP_SUMMARY"
+          exit 0
       - name: Verify current-source probe classification
         run: python -m unittest discover -s tests -p test_real_preview_probe.py -v
       - name: Verify official six-boat values and missing-field diagnostics
