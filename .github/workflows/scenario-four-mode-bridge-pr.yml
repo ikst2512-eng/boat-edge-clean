@@ -216,7 +216,33 @@ jobs:
               "-0.05","-0.11","0.10","-0.02","-0.04","-0.03"]
           assert signed["model_executed"] is False and signed["formal"] is False
           from scenario_signed_st_official_input_adapter import extract_archived_signed_F_input
-          verified_input=extract_archived_signed_F_input(*groups)
+          try:
+              verified_input=extract_archived_signed_F_input(*groups)
+          except ValueError as exc:
+              if str(exc)=="official_rate_or_start_out_of_bounds":
+                  from html import unescape
+                  from scenario_official_racelist_rates import ROW, THREE, ST, _CellText
+                  raw=(groups[0]/"racelist.html").read_bytes()
+                  rows=[]
+                  for match in ROW.finditer(unescape(raw.decode("utf-8","replace"))):
+                      cells=_CellText()
+                      cells.feed("<tr>"+match.group("cells")+"</tr>")
+                      cells.close()
+                      if len(cells.cells)>=5:
+                          national=THREE.fullmatch(cells.cells[3]["text"])
+                          local=THREE.fullmatch(cells.cells[4]["text"])
+                          start=ST.fullmatch(cells.cells[2]["text"])
+                          rows.append({
+                              "boat":match.group(1),
+                              "national_3":list(national.groups()) if national else None,
+                              "local_3":list(local.groups()) if local else None,
+                              "average_ST":start.group(1) if start else None,
+                          })
+                  print("REAL_OFFICIAL_RATE_RANGE_PROBE "+json.dumps({
+                      "race_code":race,"official_original_rows":rows,
+                      "source_error":str(exc),"forecast_generated":False,
+                      "formal":False},sort_keys=True))
+              raise
           assert verified_input["independent_original_component_checks"]==12
           assert len(verified_input["six_official_racelist_national_win_rates"])==6
           assert len(verified_input["six_official_exhibition_times_s"])==6
@@ -327,7 +353,33 @@ jobs:
               "0.25","0.15","0.09","0.06","0.06","-0.03"]
           assert signed["model_executed"] is False and signed["formal"] is False
           from scenario_signed_st_official_input_adapter import extract_archived_signed_F_input
-          verified_input=extract_archived_signed_F_input(*groups)
+          try:
+              verified_input=extract_archived_signed_F_input(*groups)
+          except ValueError as exc:
+              if str(exc)=="official_rate_or_start_out_of_bounds":
+                  from html import unescape
+                  from scenario_official_racelist_rates import ROW, THREE, ST, _CellText
+                  raw=(groups[0]/"racelist.html").read_bytes()
+                  rows=[]
+                  for match in ROW.finditer(unescape(raw.decode("utf-8","replace"))):
+                      cells=_CellText()
+                      cells.feed("<tr>"+match.group("cells")+"</tr>")
+                      cells.close()
+                      if len(cells.cells)>=5:
+                          national=THREE.fullmatch(cells.cells[3]["text"])
+                          local=THREE.fullmatch(cells.cells[4]["text"])
+                          start=ST.fullmatch(cells.cells[2]["text"])
+                          rows.append({
+                              "boat":match.group(1),
+                              "national_3":list(national.groups()) if national else None,
+                              "local_3":list(local.groups()) if local else None,
+                              "average_ST":start.group(1) if start else None,
+                          })
+                  print("REAL_OFFICIAL_RATE_RANGE_PROBE "+json.dumps({
+                      "race_code":race,"official_original_rows":rows,
+                      "source_error":str(exc),"forecast_generated":False,
+                      "formal":False},sort_keys=True))
+              raise
           assert verified_input["independent_original_component_checks"]==12
           assert len(verified_input["six_official_racelist_national_win_rates"])==6
           assert len(verified_input["six_official_exhibition_times_s"])==6
