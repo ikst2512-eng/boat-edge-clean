@@ -371,6 +371,11 @@ class BundleTests(unittest.TestCase):
         }
         (batch / 'forecast_temporal_link_report.json').write_text(
             json.dumps(report), encoding='utf-8')
+        batch_report_path = batch / 'batch_report.json'
+        batch_report_path.write_text(json.dumps({
+            'status': 'complete_pairs_observed',
+            'three_originals_complete_before_t12': 1,
+        }), encoding='utf-8')
         receipt_path = self.root / 'official-source-git-receipt' / 'receipt.json'
         cli = ['persist_official_research_bundle.py', '--batch-dir', str(batch),
                '--receipt-output', str(receipt_path)]
@@ -413,6 +418,30 @@ class BundleTests(unittest.TestCase):
         self.assertEqual(set(persisted['official_raw_originals']), set(SOURCE_FILES))
         self.assertFalse(persisted['formal'])
 
+        # A complete temporal row must NOT override a failed source batch,
+        # even when the capture step was set to continue-on-error.
+        batch_report_path.write_text(json.dumps({
+            'status': 'source_capture_failed',
+            'three_originals_complete_before_t12': 1,
+        }), encoding='utf-8')
+        partial_path = self.root / 'official-source-git-receipt' / 'partial.json'
+        partial_cli = cli[:]
+        partial_cli[-1] = str(partial_path)
+        with (
+            patch.dict(os.environ, env),
+            patch.object(sys, 'argv', partial_cli),
+            patch.object(writer, 'verify_independent_source_and_shadow_replay',
+                         side_effect=AssertionError('replay forbidden')),
+            patch.object(writer, 'store_once',
+                         side_effect=AssertionError('write forbidden')),
+        ):
+            with self.assertRaisesRegex(ValueError, 'capture_batch_not_clean_complete'):
+                writer.main()
+        rejected_partial = json.loads(partial_path.read_text(encoding='utf-8'))
+        self.assertEqual(rejected_partial['status'], 'failed')
+        self.assertEqual(rejected_partial['newly_stored'], 0)
+        self.assertEqual(rejected_partial['error_code'], 'capture_batch_not_clean_complete')
+
         # Non-main, including PR code, must fail before ANY write or replay.
         rejected = self.root / 'official-source-git-receipt' / 'rejected.json'
         bad_cli = cli[:]
@@ -448,6 +477,12 @@ class BundleTests(unittest.TestCase):
         self.assertIn("    permissions:\n      contents: write",workflow)
         self.assertIn("needs.capture.result == 'success'",workflow)
         self.assertIn("needs.capture.outputs.official_bundle_ready == 'true'",workflow)
+        # continue-on-error step 'conclusion' is green even when 'outcome' fails.
+        self.assertIn("steps.official_pair_capture.outcome",workflow)
+        self.assertIn("steps.official_forecast_clock.outcome",workflow)
+        self.assertIn('os.environ.get("OFFICIAL_CAPTURE_OUTCOME")=="success"',workflow)
+        self.assertIn('os.environ.get("OFFICIAL_AUDIT_OUTCOME")=="success"',workflow)
+        self.assertIn('batch.get("status")=="complete_pairs_observed"',workflow)
         self.assertIn("github.repository == 'ikst2512-eng/boat-edge-clean'",workflow)
         self.assertIn("github.ref == 'refs/heads/main'",workflow)
         self.assertIn("(github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')",workflow)
