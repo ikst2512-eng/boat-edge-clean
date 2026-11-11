@@ -258,6 +258,25 @@ jobs:
                 }catch(e){report.push(code+':'+String(e.message).slice(0,130));console.log('LIVE_OFFICIAL_CASE_UNVERIFIED',code,String(e.message))}
               }
               if(!matched){out('LIVE_OFFICIAL_PAGES_E2E_UNVERIFIED '+JSON.stringify(report));process.exitCode=1}
+              // Retry deployment identity after the live API has woken Render.
+              // This is independent, read-only diagnostics. It MUST NOT
+              // upgrade a failed source/DOM comparison to a live PASS, nor
+              // turn an already proven 24/24 comparison into a failure.
+              try{
+                const health=await ctx.request.get(base+'/healthz',{timeout:10000});
+                const observed=(health.headers()['x-boat-edge-deploy-commit']||'').trim().toLowerCase();
+                if(health.status()===200&&/^[a-f0-9]{40}$/.test(observed)){
+                  out('RENDER_POST_E2E_DEPLOY '+JSON.stringify({
+                    observed_commit:observed,workflow_checkout_commit:process.env.GITHUB_SHA||null,
+                    same_as_checkout:observed===process.env.GITHUB_SHA,diagnostic_only:true}));
+                }else{
+                  out('RENDER_POST_E2E_DEPLOY_UNVERIFIED '+JSON.stringify({
+                    http_status:health.status(),commit_header_valid:false,diagnostic_only:true}));
+                }
+              }catch(e){
+                out('RENDER_POST_E2E_DEPLOY_UNVERIFIED '+JSON.stringify({
+                  reason:String(e.message).slice(0,100),diagnostic_only:true}));
+              }
             }catch(e){out('LIVE_OFFICIAL_PAGES_E2E_UNVERIFIED '+String(e));process.exitCode=1}
             finally{await ctx.close();await browser.close()}
           })().catch(e=>{console.error(e);process.exitCode=1});
