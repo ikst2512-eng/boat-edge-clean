@@ -698,3 +698,33 @@ Added full exact-ticket equality regression: the optimized 4-call path is compar
 5. #1710の別研究Ledgerは`scenario_four_mode_research/`パス404、保存候補**0**。旧研究T−12への保存が何件あっても、凍結プロトコルは**同一レースの公式racelist+beforeinfo6艇(ST/展示/進入)+odds120の原本と初回remote受領**を要求しており、旧CSV10票を変換/転用/正式600に算入しない。予想精度改善・確率校正・TopN非悪化/ROIはいずれも未実証、**pilot0/300 + confirm0/300 = formal0/600、#1710 Draft未統合**。本番予想、Pages/Render、旧モデル・原本・Cron・結果は不変更。
 
 **役割分担**：③は08時台scheduleの実未観測原因・watchdog救済遅れ・readback誤失敗の調査、①は公開サイト状況、本②は事前登録された新モデルへの公式3原本完全入力を待ち、結果LASTの独立研究へ渡す。モデル固定値や正式認定条件を後追い変更しない。11/13の阻害要因分類・12/10公開V1期限を優先して新PR/Cronは追加しない。
+
+
+## 2026-11-11 14時台｜当日T−12基準予想の実Git台帳監査：16件と#1710候補0件を厳格分離
+
+**最新の実証（本物のActions・GitHubリポジトリ・ZIP原本を読み取ったもの）**。今回の「予想をGitに保存」のpositive証拠は **既存mainの`national-beta0.4-exploratory-v1`（CSV全国勝率を使う10点のT−12基準研究）** である。11/10事前登録した **#1710の3つの公式原文+全6艇展示ST+オッズ120による4モード研究**とはモデル、収集前提、ブランチ、コホートが異なる。**取り込まず、正式pilot 0/300・confirmation 0/300を維持**。
+
+### 朝08時台の4レース別（JST）
+| レース | コード | 締切/T−12 | 独立 `entry-course-evidence-ledger` `t12_baselines/` |
+| --- | --- | --- | --- |
+| 芦屋1R | `202611112101` | 08:35 / 08:23 | 404・未保存 |
+| 三国1R | `202611111001` | 08:47 / 08:35 | 404・未保存 |
+| 芦屋2R | `202611112102` | 09:01 / 08:49 | 404・未保存 |
+| 三国2R | `202611111002` | 09:13 / 09:01 | **保存ファイルあり・Git added** |
+
+三国2Rは[既存Watchdog救済 dispatch #42926776029](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42926776029) **08:51:40 JSTに開始、success**。`t12-seed.json`ではeligible1/new1/failed0。ZIP原本artifact [#13814152344](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42926776029/artifacts/13814152344) SHA256 `54eaf4fd92a9d78279e4c93670d27e6d05aae30e858bc93fc89700fdde6d223f`、CRC・JSON正常。保存された10票原本 `t12_baselines/20261111/202611111002.json` は`generated_at=08:51:48.864629+09`、title/cards受領08:51:48、source締切09:13/T−12=09:01、`validated=false`、`confidence_calibrated=false`、`independent_first_seen_verified=false`。Git追加 [`903820a2`](https://github.com/ikst2512-eng/boat-edge-clean/commit/903820a2b495b1f80afc8a2ad0c8f4b1f1bd094e) のコミット日時は **08:51:49 JST**、`files[].status=added`、親`dfd0a909`にはファイル404、現Git blob `2a6d1e7eb90694af2a6c834bc03b6d5d87b6fb7a`で原本読み戻し一致。**Git committer日時は独立したGitHub first remote受信時計の証明ではない**。
+
+08:00–08:59 JSTにT12ワークフロー自身が`event=schedule`で開始したrunは取得済みActions全該当時間帯では見つからず、08:51の**別Workflowを親とするwatchdog救済`workflow_dispatch`**と同列にしない。10時/11時のscheduleや救済を08時台の起動証明に流用しない。08:51には早朝3RのT−12は通過済みで、後追い補充禁止。現状朝4Rは**基準予想Git保存1/4、完全な公式3原本＋独立first seenによる正式5条件合格0/4**。
+
+### 当日台帳の新しい証拠と失敗
+- GitHub APIの`entry-course-evidence-ledger/t12_baselines/20261111/`の**現物一覧は16 JSONパス**。従前に13件の初回addedが照合され、今回さらに14:05 JST生成の3件を個別Git API監査：
+  - `202611111710` 追加 [`b2d09002`](https://github.com/ikst2512-eng/boat-edge-clean/commit/b2d09002e637b74a8e5baa3769a2da359e891b4f) 14:05:31 JST、親404、現blob `6d493cb0bc49d62c954be620034b47a18cc66aec`。
+  - `202611111012` 追加 [`cc0740aa`](https://github.com/ikst2512-eng/boat-edge-clean/commit/cc0740aa9fa2b8cae4340dd7928621cc44040a27) 14:05:33 JST、親404、現blob `54a351d0901d2dfde6359491e891399d3913ba02`。
+  - `202611110909` 追加 [`87fb1609`](https://github.com/ikst2512-eng/boat-edge-clean/commit/87fb16091eaa4f417f060f6cf599bf634a34d133) 14:05:35 JST、親404、現blob `3599e20ddd5943b0d0395318de496dc3ff10757f`。
+  3件は各GitHub`commits?sha=ledger&path=...`の変更履歴1件、`files[].status=added`、Git原本`model_version=national-beta0.4-exploratory-v1`・`validated=false`・買い目10点。従って現物パス16は「**全16件のformal予想認定**」ではない。
+- 10:51救済 [#42941896948](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42941896948) の `202611112202`（場22=福岡2R）と13:57救済 [#42962567772](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42962567772) の `202611111608`（児島8R）は、各Actions runが`ValueError:t12_baseline_readback_failed`で**失敗**。それぞれ後からGit追加コミットは [`57ba6ab9`](https://github.com/ikst2512-eng/boat-edge-clean/commit/57ba6ab9d1e9233478cf9e3c63ae4f55a5e43433) と [`15b06157`](https://github.com/ikst2512-eng/boat-edge-clean/commit/15b06157afaa0ac9def03ed52abc445d6197c0d4) として確認済み。**Gitファイルが存在することと、そのrunの当時のreadback検査PASSは別**。失敗理由は、実際に観測したGET bytesが何であったかログに出ておらず、GitHubキャッシュ・別バイト・競合などの真因は未確定。原本上書き・後追い補填は禁止。
+- 13:57失敗runの実artifact [#13829418982](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42962567772/artifacts/13829418982) はダウンロードZIP SHA256 `387753c59c44680c61e42c8de87897173ce1b3f12dc2fa3baafa383f17c0ef00` がGitHubのdigestと一致、ZIP CRC/JSONを検査して`eligible=3, stored=2, failed=1, error_code=t12_baseline_readback_failed`を確認。成功run 11:39 JST [#42947528225](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42947528225) は別の`event=schedule`であり、08時台未起動の代用証拠にしない。
+
+**#1710の状態**：研究Ledger `scenario-four-mode-triple-source-evidence-ledger/scenario_four_mode_research/`はAPI404、実4モード研究候補0。今日Git追加したのは別研究のCSV基準10票で、公式beforeinfo6艇+原本odds120・モデルコードの固定受領・独立GitHub first-seenを満たしていない。新モデルの事前登録manifest・頭3.5・研究10コードSHAを変えず、#1710はDraft、最新main/Render/Pages、既存schedule/Cron、保存候補と結果は不変更。
+
+**次の調査依存は③**：08:09〜08:47 JSTにT−12 scheduleが不在だった原因（GitHub scheduler delay/失効/外部源のどれか未特定）、欠落3Rの当時のsource受領可能性、PUT201/GET200のreadback観測bytes/digestと競合を区別できるログ。②は**明日以降の新しい真の公式3原本/ST6/120オッズがT−12前に揃ったレース**だけを別研究`--publish`へ渡し、過去11/11朝候補を後付け生成しない。
