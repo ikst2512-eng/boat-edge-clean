@@ -24,6 +24,8 @@ on:
       - 'scenario_future_github_research_adapter.py'
       - 'scenario_future_archived_receipts_to_candidate.py'
       - 'test_scenario_future_archived_receipts_to_candidate.py'
+      - 'scenario_official_st_intake_diagnostic.py'
+      - 'test_scenario_official_st_intake_diagnostic.py'
       - 'test_scenario_future_github_research_adapter.py'
       - 'test_scenario_future_local_candidate_handoff.py'
       - 'research/four_mode_triple_source_forward_protocol_20261110.json'
@@ -68,7 +70,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Check scenario bridge safety and all four mode contracts
-        run: python -m unittest -v test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway test_scenario_official_racelist_rates test_scenario_future_protocol_freeze test_scenario_future_local_candidate_handoff test_scenario_future_github_research_adapter test_scenario_future_archived_receipts_to_candidate
+        run: python -m unittest -v test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway test_scenario_official_racelist_rates test_scenario_future_protocol_freeze test_scenario_future_local_candidate_handoff test_scenario_future_github_research_adapter test_scenario_future_archived_receipts_to_candidate test_scenario_official_st_intake_diagnostic
       - name: Materialize pinned existing #1698 conditional lab for integration (read-only)
         run: |
           set -euo pipefail
@@ -192,6 +194,13 @@ jobs:
           assert audit["missing_components"]==[]
           assert len(audit["component_checks"])==12
           assert all(x is True for x in audit["component_checks"].values())
+          from scenario_official_st_intake_diagnostic import diagnose_archived_triple
+          intake=diagnose_archived_triple(*groups)
+          assert intake["source_complete_12_of_12"] is True
+          assert intake["classification"]=="complete_three_originals_F_L_ST_rejected_by_frozen_parser"
+          assert intake["flagged_st_count"]==5
+          assert intake["model_executed"] is False and intake["formal"] is False
+          print("FROZEN_ST_INTAKE_REAL_5_FLAG_DIAGNOSTIC "+json.dumps(intake,sort_keys=True))
           # The pinned replay imports its pinned preflight as a sibling module.
           sys.path.insert(0,str(tmp/"semantic1693"))
           frozen_parser=tmp/"semantic1693"/"four_mode_official_raw_semantic_replay.py"
@@ -270,6 +279,13 @@ jobs:
           assert len(starts)==6
           flagged=[str(row["st"]) for row in starts if str(row["st"]).startswith(("F","L"))]
           assert flagged==["F.03"],flagged
+          from scenario_official_st_intake_diagnostic import diagnose_archived_triple
+          intake=diagnose_archived_triple(*groups)
+          assert intake["source_complete_12_of_12"] is True
+          assert intake["classification"]=="complete_three_originals_F_L_ST_rejected_by_frozen_parser"
+          assert intake["flagged_st_by_boat"]=={"6":"F.03"}
+          assert intake["model_executed"] is False and intake["formal"] is False
+          print("FROZEN_ST_INTAKE_REAL_1_FLAG_DIAGNOSTIC "+json.dumps(intake,sort_keys=True))
           frozen_parser=tmp/"semantic1693"/"four_mode_official_raw_semantic_replay.py"
           assert _git_blob_sha1(frozen_parser.read_bytes())=="2f5af32201e3060c57b5a999f0389ce67c3046cb"
           sys.path.insert(0,str(tmp/"semantic1693"))
