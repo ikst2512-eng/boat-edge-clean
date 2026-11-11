@@ -102,7 +102,7 @@ jobs:
           // Capture only this run's structured diagnostics. They are evidence of
           // observations, not archived raw HTTP bodies or Git first-seen proof.
           // Never let the historical contract fixture create a LIVE artifact.
-          const proofPath='.clean-live-official-pages-evidence.ndjson';
+          const proofPath='clean-live-official-pages-evidence.ndjson';
           const isHistorical=process.argv.includes('--historical-contract-test');
           if(!isHistorical)fs.writeFileSync(proofPath,JSON.stringify({
             kind:'AUDIT_RUN_CONTEXT',schema:'CLEAN_LIVE_OFFICIAL_PAGES_AUDIT_V1',
@@ -437,6 +437,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: official-live-e2e-decision-${{ github.run_id }}
-          path: .clean-live-official-pages-evidence.ndjson
+          path: clean-live-official-pages-evidence.ndjson
           if-no-files-found: warn
           retention-days: 90
