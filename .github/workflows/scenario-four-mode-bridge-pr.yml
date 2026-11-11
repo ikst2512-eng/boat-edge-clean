@@ -25,6 +25,8 @@ on:
       - 'scenario_future_archived_receipts_to_candidate.py'
       - 'test_scenario_future_archived_receipts_to_candidate.py'
       - 'scenario_official_st_intake_diagnostic.py'
+      - 'scenario_flagged_st_feature_study.py'
+      - 'test_scenario_flagged_st_feature_study.py'
       - 'test_scenario_official_st_intake_diagnostic.py'
       - 'test_scenario_future_github_research_adapter.py'
       - 'test_scenario_future_local_candidate_handoff.py'
@@ -70,7 +72,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Check scenario bridge safety and all four mode contracts
-        run: python -m unittest -v test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway test_scenario_official_racelist_rates test_scenario_future_protocol_freeze test_scenario_future_local_candidate_handoff test_scenario_future_github_research_adapter test_scenario_future_archived_receipts_to_candidate test_scenario_official_st_intake_diagnostic
+        run: python -m unittest -v test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway test_scenario_official_racelist_rates test_scenario_future_protocol_freeze test_scenario_future_local_candidate_handoff test_scenario_future_github_research_adapter test_scenario_future_archived_receipts_to_candidate test_scenario_official_st_intake_diagnostic test_scenario_flagged_st_feature_study
       - name: Materialize pinned existing #1698 conditional lab for integration (read-only)
         run: |
           set -euo pipefail
@@ -201,6 +203,21 @@ jobs:
           assert intake["flagged_st_count"]==5
           assert intake["model_executed"] is False and intake["formal"] is False
           print("FROZEN_ST_INTAKE_REAL_5_FLAG_DIAGNOSTIC "+json.dumps(intake,sort_keys=True))
+          from scenario_flagged_st_feature_study import encode_archived_triple
+          signed=encode_archived_triple(*groups)
+          assert signed["flag_F_count"]==5
+          assert signed["flag_L_count"]==0
+          assert signed["numeric_display_count"]==1
+          assert [r["signed_st_seconds_decimal_string"] for r in signed["exhibition_st_by_boat"]]==[
+              "-0.05","-0.11","0.10","-0.02","-0.04","-0.03"]
+          assert signed["model_executed"] is False and signed["formal"] is False
+          print("REAL_F_ST_SIGNED_FEATURE_ONLY_5_FLAG_PASS "+json.dumps({
+              "race_code":race,"F":signed["flag_F_count"],
+              "L":signed["flag_L_count"],
+              "source_sha256":signed["beforeinfo_source_sha256"],
+              "vector_sha256":signed["vector_sha256"],
+              "model_executed":signed["model_executed"],
+              "formal":signed["formal"]},sort_keys=True))
           # The pinned replay imports its pinned preflight as a sibling module.
           sys.path.insert(0,str(tmp/"semantic1693"))
           frozen_parser=tmp/"semantic1693"/"four_mode_official_raw_semantic_replay.py"
@@ -286,6 +303,19 @@ jobs:
           assert intake["flagged_st_by_boat"]=={"6":"F.03"}
           assert intake["model_executed"] is False and intake["formal"] is False
           print("FROZEN_ST_INTAKE_REAL_1_FLAG_DIAGNOSTIC "+json.dumps(intake,sort_keys=True))
+          from scenario_flagged_st_feature_study import encode_archived_triple
+          signed=encode_archived_triple(*groups)
+          assert signed["flag_F_count"]==1 and signed["flag_L_count"]==0
+          assert [r["signed_st_seconds_decimal_string"] for r in signed["exhibition_st_by_boat"]]==[
+              "0.25","0.15","0.09","0.06","0.06","-0.03"]
+          assert signed["model_executed"] is False and signed["formal"] is False
+          print("REAL_F_ST_SIGNED_FEATURE_ONLY_1_FLAG_PASS "+json.dumps({
+              "race_code":race,"F":signed["flag_F_count"],
+              "L":signed["flag_L_count"],
+              "source_sha256":signed["beforeinfo_source_sha256"],
+              "vector_sha256":signed["vector_sha256"],
+              "model_executed":signed["model_executed"],
+              "formal":signed["formal"]},sort_keys=True))
           frozen_parser=tmp/"semantic1693"/"four_mode_official_raw_semantic_replay.py"
           assert _git_blob_sha1(frozen_parser.read_bytes())=="2f5af32201e3060c57b5a999f0389ce67c3046cb"
           sys.path.insert(0,str(tmp/"semantic1693"))
