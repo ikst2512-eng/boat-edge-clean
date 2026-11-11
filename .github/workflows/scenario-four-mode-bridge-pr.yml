@@ -29,6 +29,7 @@ on:
       - 'test_scenario_flagged_st_feature_study.py'
       - 'scenario_signed_st_four_mode_shadow.py'
       - 'test_scenario_signed_st_four_mode_shadow.py'
+      - 'scenario_signed_st_official_input_adapter.py'
       - 'research/flagged_st_signed_feature_feasibility_20261111.json'
       - 'test_scenario_official_st_intake_diagnostic.py'
       - 'test_scenario_future_github_research_adapter.py'
@@ -214,6 +215,19 @@ jobs:
           assert [r["signed_st_seconds_decimal_string"] for r in signed["exhibition_st_by_boat"]]==[
               "-0.05","-0.11","0.10","-0.02","-0.04","-0.03"]
           assert signed["model_executed"] is False and signed["formal"] is False
+          from scenario_signed_st_official_input_adapter import extract_archived_signed_F_input
+          verified_input=extract_archived_signed_F_input(*groups)
+          assert verified_input["independent_original_component_checks"]==12
+          assert len(verified_input["six_official_racelist_national_win_rates"])==6
+          assert len(verified_input["six_official_exhibition_times_s"])==6
+          assert verified_input["signed_F_feature"]["vector_sha256"]==signed["vector_sha256"]
+          assert verified_input["model_executed"] is False
+          assert verified_input["candidate_created"] is False
+          print("FROZEN_F_REAL_SIX_RACER_MODEL_INPUT_ONLY_PASS "+json.dumps({
+              "race_code":race,"national_rates":verified_input["six_official_racelist_national_win_rates"],
+              "six_exhibition_times_s":verified_input["six_official_exhibition_times_s"],
+              "all_real_sources_sha256":verified_input["source_sha256"],
+              "model_executed":False,"candidate_created":False,"formal":False},sort_keys=True))
           print("REAL_F_ST_SIGNED_FEATURE_ONLY_5_FLAG_PASS "+json.dumps({
               "race_code":race,"F":signed["flag_F_count"],
               "L":signed["flag_L_count"],
@@ -312,6 +326,19 @@ jobs:
           assert [r["signed_st_seconds_decimal_string"] for r in signed["exhibition_st_by_boat"]]==[
               "0.25","0.15","0.09","0.06","0.06","-0.03"]
           assert signed["model_executed"] is False and signed["formal"] is False
+          from scenario_signed_st_official_input_adapter import extract_archived_signed_F_input
+          verified_input=extract_archived_signed_F_input(*groups)
+          assert verified_input["independent_original_component_checks"]==12
+          assert len(verified_input["six_official_racelist_national_win_rates"])==6
+          assert len(verified_input["six_official_exhibition_times_s"])==6
+          assert verified_input["signed_F_feature"]["vector_sha256"]==signed["vector_sha256"]
+          assert verified_input["model_executed"] is False
+          assert verified_input["candidate_created"] is False
+          print("FROZEN_F_REAL_SIX_RACER_MODEL_INPUT_ONLY_PASS "+json.dumps({
+              "race_code":race,"national_rates":verified_input["six_official_racelist_national_win_rates"],
+              "six_exhibition_times_s":verified_input["six_official_exhibition_times_s"],
+              "all_real_sources_sha256":verified_input["source_sha256"],
+              "model_executed":False,"candidate_created":False,"formal":False},sort_keys=True))
           print("REAL_F_ST_SIGNED_FEATURE_ONLY_1_FLAG_PASS "+json.dumps({
               "race_code":race,"F":signed["flag_F_count"],
               "L":signed["flag_L_count"],
