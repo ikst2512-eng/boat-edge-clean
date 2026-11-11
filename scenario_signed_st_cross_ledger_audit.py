@@ -183,16 +183,20 @@ def audit_source_writer_against_signed_candidate(prepared, source_bundle_raw,
             or receipt.get("action_run_attempt")!=context.get("source_collection_action_run_attempt")):
         raise ValueError("cross_ledger_wrong_official_writer_receipt")
     records=receipt.get("outcomes")
-    if type(records) is not list or len(records)!=1:
+    if (type(records) is not list or not records
+            or any(type(x) is not dict for x in records)
+            or receipt.get("newly_stored")!=sum(x.get("newly_stored") is True for x in records)):
+        raise ValueError("cross_ledger_writer_receipt_inventory_invalid")
+    matches=[x for x in records if x.get("race_code")==race]
+    if len(matches)!=1:
         raise ValueError("cross_ledger_ambiguous_or_missing_writer_race")
-    stored=records[0]
+    stored=matches[0]
     if (type(stored) is not dict
             or stored.get("race_code")!=race
             or stored.get("path")!=official_path
             or stored.get("status")!="new_research_bundle_first_add_put_and_get_matched"
             or stored.get("stored") is not True
             or stored.get("newly_stored") is not True
-            or receipt.get("newly_stored")!=1
             or stored.get("git_commit_added_path_verified") is not True
             or stored.get("git_commit_file_status")!="added"
             or stored.get("git_blob_sha1")!=_git_blob_sha1(source_bundle_raw)
