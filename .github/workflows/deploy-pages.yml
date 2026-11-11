@@ -568,6 +568,10 @@ jobs:
                 const value=document.querySelector('#candidateStatus')?.textContent||'';
                 return value.startsWith('保存候補 ')||value.includes('読み込めません')||value.includes('公開されていません');
               },null,{timeout:30000});
+              if(await page.locator('#candidateHistoryFilters [data-candidate-filter="priority"]').getAttribute('aria-pressed')!=='true')
+                throw Error('published_research_shortlist_not_default');
+              // Full-history assertions must explicitly select all rows.
+              await page.locator('#candidateHistoryFilters [data-candidate-filter="all"]').click();
               const evidence=await page.evaluate(()=>{
                 const status=document.querySelector('#candidateStatus')?.textContent?.trim()||'';
                 const cards=[...document.querySelectorAll('#candidateCards > details.candidate-history-card')];
@@ -586,6 +590,7 @@ jobs:
               const payoutPage=new URL('candidates.html?date=2026-11-10',process.env.PAGE_URL).href;
               const loaded=await page.goto(payoutPage,{waitUntil:'domcontentloaded',timeout:30000});
               if(!loaded||loaded.status()!==200)throw Error('candidate_payout_page_http_'+loaded?.status());
+              await page.locator('#candidateHistoryFilters [data-candidate-filter="all"]').click({timeout:30000});
               const paidCode='202611100401';
               const paidSelector='#candidateCards > details.candidate-history-card[data-race-code="'+paidCode+'"]';
               await page.waitForFunction(code=>{
@@ -618,6 +623,7 @@ jobs:
               const todayResponse=await page.goto(todayUrl,{waitUntil:'domcontentloaded',timeout:30000});
               if(!todayResponse||todayResponse.status()!==200)throw Error('nov11_candidate_http_'+todayResponse?.status());
               await page.waitForFunction(()=>document.querySelector('#candidateStatus')?.textContent?.startsWith('保存候補 '),null,{timeout:30000});
+              await page.locator('#candidateHistoryFilters [data-candidate-filter="all"]').click();
               const publicToday=await page.evaluate(()=>({
                 status:document.querySelector('#candidateStatus')?.textContent?.trim()||'',
                 rows:[...document.querySelectorAll('#candidateCards > details.candidate-history-card')].map(n=>({

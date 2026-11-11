@@ -6,6 +6,7 @@ on:
       - candidate_history.js
       - candidates.html
       - tests/candidate_history_browser.cjs
+      - tests/test_candidate_research_selection.py
       - navigation.js
       - .github/workflows/deploy-pages.yml
       - selection.html
@@ -32,7 +33,9 @@ jobs:
           python -m compileall -q candidate_history.py server.py
           node --check candidate_history.js
       - name: Preserve all saved candidates and original predictions
-        run: python -m unittest -v test_candidate_history test_selection_dual test_four_mode_archive_api
+        run: |
+          python -m unittest -v test_candidate_history test_selection_dual test_four_mode_archive_api
+          python -m unittest discover -s tests -p test_candidate_research_selection.py -v
       - name: Stage the actual GitHub Pages candidate manifests offline
         shell: bash
         run: |
