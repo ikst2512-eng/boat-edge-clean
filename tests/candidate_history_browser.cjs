@@ -41,6 +41,7 @@ const { chromium } = require('playwright');
     links:[...card.querySelectorAll('.candidate-links a')].map(x=>x.href)};
   });
   const review=await page.locator('#candidateCards > details').first().locator('.candidate-detail').innerText();
+  if(!review.includes('研究入力の紐付け：'))throw Error('research_source_link_not_displayed');
   if(!review.includes('購入判断：見送り')||
      !review.includes('2コースの壁・逃がし率')||
      !review.includes('風・波・水面')||

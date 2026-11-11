@@ -112,6 +112,73 @@ class CandidateHistoryTests(unittest.TestCase):
         self.assertIsNone(row["research_input_received_jst"])
         self.assertEqual(d["purchase_review_approved_count"], 0)
 
+    def test_same_saved_research_source_requires_matching_hash_rates_and_cutoff(self):
+        code = DAY + "0101"
+        prospective = prediction(code)
+        prospective.update(
+            model_version="clean-prospective-national-beta0.4-v1",
+            national_win_rates=[6.34, 3.02, 3.93, 3.08, 4.53, 5.43],
+            source_title_sha256="a" * 64,
+            source_cards_sha256="b" * 64,
+        )
+        original = self.write("prospective_predictions", code, prospective)
+        (self.root / "four_mode_forecasts").mkdir()
+        archive = {
+            "schema": "CLEAN_FOUR_MODES_PREDEADLINE_V1",
+            "status": "provisional", "validated": False,
+            "race_code": code,
+            "generated_at_jst": "2026-11-08T09:00:03+09:00",
+            "source_title_received_jst": "2026-11-08T08:59:59+09:00",
+            "source_cards_received_jst": "2026-11-08T09:00:00+09:00",
+            "deadline_jst": prospective["source_deadline_jst"],
+            "input_national_win_rates": prospective["national_win_rates"],
+            "source_sha256": {"title": "a" * 64, "race_cards": "b" * 64},
+            "beforeinfo": "optional_not_in_snapshot",
+        }
+        mode_path = self.write("four_mode_forecasts", code, archive)
+
+        def link():
+            _, manifest = daily_candidate_history(DAY, self.root)
+            return manifest, manifest["races"][0]["four_mode_source_link"]
+
+        manifest, linked = link()
+        self.assertEqual(linked["status"], "same_research_source_unattested")
+        self.assertEqual(manifest["four_mode_research_source_link_count"], 1)
+        self.assertEqual(linked["source_sha256"], archive["source_sha256"])
+        self.assertEqual(linked["four_mode_source_received_jst"], "2026-11-08T09:00:00+09:00")
+        self.assertFalse(linked["official_beforeinfo_verified"])
+        self.assertFalse(linked["formal_attested"])
+        self.assertEqual(manifest["purchase_review_approved_count"], 0)
+
+        mismatch = dict(archive, source_sha256={"title": "c" * 64, "race_cards": "b" * 64})
+        mode_path.write_text(json.dumps(mismatch), encoding="utf-8")
+        _, linked = link()
+        self.assertEqual(linked["status"], "source_digest_mismatch")
+        self.assertIsNone(linked["source_sha256"])
+
+        mismatch = dict(archive, input_national_win_rates=[3.45, 5.88, 5.87, 5.62, 3.89, 6.28])
+        mode_path.write_text(json.dumps(mismatch), encoding="utf-8")
+        _, linked = link()
+        self.assertEqual(linked["status"], "six_racer_input_mismatch")
+
+        for bad in [
+            dict(archive, generated_at_jst="2026-11-08T15:15:00+09:00"),
+            dict(archive, race_code=DAY + "0102"),
+            dict(archive, deadline_jst="2026-11-08T15:30:00+09:00"),
+            dict(archive, validated=True),
+        ]:
+            with self.subTest(bad=bad):
+                mode_path.write_text(json.dumps(bad), encoding="utf-8")
+                _, linked = link()
+                self.assertEqual(linked["status"], "four_mode_invalid")
+        mode_path.unlink()
+        _, linked = link()
+        self.assertEqual(linked["status"], "four_mode_missing")
+        prospective["generated_at"] = "2026-11-08T15:20:00+09:00"
+        original.write_text(json.dumps(prospective), encoding="utf-8")
+        _, linked = link()
+        self.assertEqual(linked["status"], "candidate_unverified")
+
     def test_only_independently_verified_payout_is_shown(self):
         code = DAY + "0101"
         self.write("prospective_predictions", code, prediction(code))
