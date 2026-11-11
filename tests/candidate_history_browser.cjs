@@ -46,7 +46,7 @@ const { chromium } = require('playwright');
      !review.includes('風・波・水面')||
      !review.includes('初回保存証明・正式予想認定'))
    throw Error('candidate_evidence_hold_missing_'+review.slice(0,500));
-  if(!opened.open||!opened.saved?.includes('1-2-4')||  if(!opened.open||!opened.saved?.includes('1-2-4')||
+  if(!opened.open||!opened.saved?.includes('1-2-4')||
       !opened.links.some(x=>x.includes('screen=forecast'))||
       !opened.links.some(x=>x.includes('screen=result')))
    throw Error('candidate_detail_missing_'+JSON.stringify(opened));
