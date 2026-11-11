@@ -220,6 +220,76 @@ jobs:
               "Git_written":False,"prospective_samples_admitted":0,
               "formal":False,"accuracy_improvement_proven":False},sort_keys=True))
           PY
+      # Independent second real 12/12-source-complete observation; again
+      # no past forecast reconstruction, outcome reader or Git writer.
+      - name: Distinguish complete official source from F-ST-ineligible fixed model (second real race)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --retry 2 \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/13847911947/zip" \
+            --output "$RUNNER_TEMP/real-triple-second-f-st.zip"
+          echo "518f04ca8fa674ff11d73d81e393c86d16dd2ef65afcf5f34e2a53a65aa6012b  $RUNNER_TEMP/real-triple-second-f-st.zip" | sha256sum --check --status
+          python - <<'PY'
+          import importlib.util,json,os,stat,sys
+          from pathlib import Path
+          from zipfile import ZipFile
+          from scripts.audit_three_official_t12_originals import audit_three_originals
+          from scenario_future_archived_receipts_to_candidate import build_archive_bundle
+          from scenario_future_local_candidate_handoff import _git_blob_sha1
+          tmp=Path(os.environ["RUNNER_TEMP"])
+          archive=tmp/"real-triple-second-f-st.zip"
+          unpack=tmp/"real-triple-second-f-st"
+          unpack.mkdir(exist_ok=False)
+          with ZipFile(archive) as zipped:
+              assert zipped.testzip() is None
+              infos=zipped.infolist()
+              names=[i.filename for i in infos]
+              assert len(names)==len(set(names)) and len(names)<100
+              assert all(not i.filename.startswith("/") and ".." not in Path(i.filename).parts
+                         and not stat.S_ISLNK(i.external_attr >> 16) for i in infos)
+              zipped.extractall(unpack)
+          race="202611110711"
+          base=unpack/"official_joint_evidence"/"observations"
+          groups=[]
+          for prefix in ("racelist_","before_","odds_"):
+              matches=sorted(base.glob(prefix+"*/"+race[:8]+"/"+race))
+              assert len(matches)==1,(prefix,matches)
+              groups.append(matches[0])
+          report=audit_three_originals(*groups)
+          assert report["race_code"]==race
+          assert report["three_originals_hash_verified"] is True
+          assert report["all_research_components_observed_by_t12"] is True
+          assert len(report["component_checks"])==12
+          assert all(v is True for v in report["component_checks"].values())
+          assert report["missing_components"]==[]
+          starts=json.loads((groups[1]/"beforeinfo.json").read_bytes())["maindata"]["sttenjiinfolist"]
+          assert len(starts)==6
+          flagged=[str(row["st"]) for row in starts if str(row["st"]).startswith(("F","L"))]
+          assert flagged==["F.03"],flagged
+          frozen_parser=tmp/"semantic1693"/"four_mode_official_raw_semantic_replay.py"
+          assert _git_blob_sha1(frozen_parser.read_bytes())=="2f5af32201e3060c57b5a999f0389ce67c3046cb"
+          sys.path.insert(0,str(tmp/"semantic1693"))
+          spec=importlib.util.spec_from_file_location("second_real_semantic1693",str(frozen_parser))
+          module=importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          try:
+              build_archive_bundle(
+                  *groups,"2026-11-11T19:37:40.333688+09:00",
+                  before_parser=module._beforeinfo_features)
+          except ValueError as exc:
+              assert str(exc)=="official_start_flagged_or_ambiguous_st",str(exc)
+          else:
+              raise AssertionError("SECOND_REAL_FLAGGED_ST_SHOULD_NOT_GENERATE_CANDIDATE")
+          print("SECOND_REAL_COMPLETE_SOURCE_FLAGGED_ST_REJECTION_PASS "+json.dumps({
+              "race_code":race,"real_source_checks":12,"flagged_exhibition_st":flagged,
+              "flagged_boat_count":len(flagged),"fixed_parser_rejected":True,
+              "model_run":False,"Git_written":False,"formal":False,
+              "prospective_samples_admitted":0},sort_keys=True))
+          PY
       - name: Confirm all-mode scenario composition uses actual reviewed #1698 conditional math
         env:
           RESEARCH_1698_PIN_REQUIRED: '1'
