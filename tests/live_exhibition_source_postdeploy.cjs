@@ -129,17 +129,38 @@ async function checkOfficialReplay(page,ctx,engine){
  // published DOM. It is NOT a new independent official network observation.
  const f={day:'2026-11-11',venue:'24',race:10};
  const url=API+'?hd=20261111&jcd=24&rno=10';
- const response=await ctx.get(url,{timeout:40000});
- assert.equal(response.status(),200,'Historical official Render API missing');
+ let response;
+ for(let attempt=1;attempt<=3;attempt++){
+   try{response=await ctx.get(url,{timeout:40000});}
+   catch(e){if(attempt===3)throw e;console.log('PUBLIC_P2_HISTORICAL_API_RETRY '+JSON.stringify({attempt,error:String(e).slice(0,120)}));continue;}
+   if(response.status()===200)break;
+   if(![429,500,502,503,504].includes(response.status())||attempt===3)break;
+   console.log('PUBLIC_P2_HISTORICAL_API_RETRY '+JSON.stringify({attempt,status:response.status()}));
+ }
+ assert.equal(response?.status(),200,'Historical Render racecard unavailable; no official inference');
  const card=await response.json();
  assert.equal(card.race_key,key(f));
- assert.equal(card.source_audit?.beforeinfo?.status,'ok');
+ const observedStatus=card.source_audit?.beforeinfo?.status;
+ const got=await showExhibit(page,f);
+ if(observedStatus==='not_verified_historical'){
+   assert.equal(got.boats.length,6);
+   let withheld=0;
+   for(const boat of got.boats)for(const name of ['展示タイム','チルト','展示ST','展示進入']){
+     assert.equal(boat.official[name],'—','Unverified historical official value leaked '+name+' boat '+boat.lane);
+     withheld++;
+   }
+   assert.equal(withheld,24);
+   console.log('PUBLIC_P2_HISTORICAL_OFFICIAL_WITHHELD_PASS '+JSON.stringify({
+     engine,race:code(f),audit:observedStatus,withheld,source:'real public Render response and Pages DOM',noMocks:true,notOfficial24Pass:true
+   }));
+   return 'withheld';
+ }
+ assert.equal(observedStatus,'ok','Unknown historical official audit state');
  const observed=Date.parse(card.source_audit.beforeinfo.fetched_at);
  const deadline=Date.parse(f.day+'T'+card.meta.deadline+':00+09:00');
  assert.ok(Number.isFinite(observed)&&observed<deadline,'Historical official receipt not predeadline');
  assert.equal(card.beforeinfo?.racers?.length,6);
  assert.equal(card.beforeinfo?.start_exhibition?.length,6);
- const got=await showExhibit(page,f);
  let match=0;
  for(let lane=1;lane<=6;lane++){
    const official=card.beforeinfo.racers.find(x=>Number(x.lane)===lane);
