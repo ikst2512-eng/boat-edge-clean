@@ -158,7 +158,7 @@ jobs:
             --output "$RUNNER_TEMP/real-triple-complete-input-only.zip"
           echo "e4ff7c2f080ef526a74c036fc829153e8965903a83ab488ed3b134a5c10edef6  $RUNNER_TEMP/real-triple-complete-input-only.zip" | sha256sum --check --status
           python - <<'PY'
-          import hashlib, importlib.util, json, os, stat
+          import hashlib, importlib.util, json, os, stat, sys
           from pathlib import Path
           from zipfile import ZipFile
           from scripts.audit_three_official_t12_originals import audit_three_originals
@@ -192,6 +192,8 @@ jobs:
           assert audit["missing_components"]==[]
           assert len(audit["component_checks"])==12
           assert all(x is True for x in audit["component_checks"].values())
+          # The pinned replay imports its pinned preflight as a sibling module.
+          sys.path.insert(0,str(tmp/"semantic1693"))
           frozen_parser=tmp/"semantic1693"/"four_mode_official_raw_semantic_replay.py"
           assert _git_blob_sha1(frozen_parser.read_bytes())=="2f5af32201e3060c57b5a999f0389ce67c3046cb"
           spec=importlib.util.spec_from_file_location("real_source_only_semantic1693",str(frozen_parser))
