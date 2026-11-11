@@ -328,6 +328,9 @@ jobs:
             const browser=await chromium.launch({headless:true});
             const ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
             let matched=0;
+            // After first official-source parity, sample up to two extra races
+            // for an actual CSV-source 24/24 pass, without forcing its selection.
+            let inspectedAfterFirstPass=0;
             try{
               const schedule=await get(ctx,base+'/api/clean-schedule?date='+hd);
               if(schedule.data.date!==hd||!Array.isArray(schedule.data.races))throw Error('schedule_date_or_races_missing');
@@ -339,6 +342,8 @@ jobs:
               }).sort((a,b)=>a.deadline_jst.localeCompare(b.deadline_jst)).slice(0,8);
               if(!candidates.length)report.push('NO_STILL_OPEN_RACE_WITHIN_60_MIN');
               for(const race of candidates){
+                if(matched && inspectedAfterFirstPass>=2) break;
+                if(matched) inspectedAfterFirstPass++;
                 const venue=Number(race.venue_code),rno=race.race_no,deadline=Date.parse(race.deadline_jst);
                 const code=hd+String(venue).padStart(2,'0')+String(rno).padStart(2,'0');
                 // Only public source availability/provenance metadata. Do not log
@@ -432,7 +437,9 @@ jobs:
                         formal_t12_certified:false,independent_remote_first_seen_verified:false
                       }));
                     }
-                    break;
+                    // Keep verified official passes, but inspect at most two
+                    // further eligible races. A real CSV parity PASS finishes.
+                    if(csvReceipts) break;
                   }finally{await page.close()}
                 }catch(e){
                   report.push(code+':'+String(e.message).slice(0,130));
