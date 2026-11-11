@@ -141,6 +141,17 @@ class BundleTests(unittest.TestCase):
         a = store_once(path,body,cutoff,'test',getter=forbidden,putter=forbidden,clock=clock)
         self.assertEqual(a['status'],'cutoff_near_or_passed_no_write')
 
+    def test_write_permission_isolated_from_pull_request_capture(self):
+        workflow=(Path(__file__).resolve().parents[1] /
+                  '.github/workflows/research-live-preview-evidence.yml').read_text()
+        self.assertIn("permissions:\n  # Untrusted PR tests and official collection MUST remain read-only.\n  contents: read",workflow)
+        self.assertIn("\n  persist-official-research:\n",workflow)
+        self.assertIn("    permissions:\n      contents: write",workflow)
+        self.assertIn("github.repository == 'ikst2512-eng/boat-edge-clean'",workflow)
+        self.assertIn("github.ref == 'refs/heads/main'",workflow)
+        self.assertIn("(github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')",workflow)
+        self.assertNotIn("github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'",workflow)
+
     def test_noncanonical_namespace_rejected(self):
         _, body, cutoff = build_bundle(self.row, self.dirs)
         with self.assertRaisesRegex(ValueError,'namespace'):
