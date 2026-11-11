@@ -14,6 +14,7 @@ import hashlib
 import io
 import json
 import re
+from time import sleep
 
 from entry_course_durable_ledger import github_ops
 from research_model import JST, predict, _record_path
@@ -182,6 +183,31 @@ def validate_base(raw, code, *, now, expected_deadline=None):
     return f"t12_baselines/{code[:8]}/{code}.json"
 
 
+def _readback_with_brief_retry(path, expected, remote_read, *, clock, cutoff):
+    """GitHub Contents GET can briefly lag a successful create-only PUT.
+
+    Only a missing response or a transient ledger read error is retryable.
+    Conflicting bytes are ALWAYS rejected, and a cutoff overrun never proves
+    a timely first add. This helper never creates or modifies a Git file.
+    """
+    for attempt in range(4):
+        if clock()>=cutoff:
+            raise ValueError("t12_baseline_remote_commit_after_cutoff")
+        try:
+            observed=remote_read(path)
+        except ValueError as exc:
+            if str(exc)!="course_ledger_read_failed":
+                raise
+            observed=None
+        if observed==expected:
+            return
+        if observed is not None:
+            raise ValueError("t12_baseline_readback_failed")
+        if attempt<3:
+            sleep((0.2,0.4,0.8)[attempt])
+    raise ValueError("t12_baseline_readback_failed")
+
+
 def publish_base(raw, code, remote_read, remote_create, *, clock,
                  expected_deadline=None):
     now=clock()
@@ -194,8 +220,8 @@ def publish_base(raw, code, remote_read, remote_create, *, clock,
         state="new_t12_baseline"
     else:
         state="existing_identical_t12_baseline"
-    if remote_read(path)!=raw:
-        raise ValueError("t12_baseline_readback_failed")
+    _readback_with_brief_retry(path,raw,remote_read,clock=clock,
+                               cutoff=_dt(json.loads(raw)["cutoff_jst"]))
     if clock()>=_dt(json.loads(raw)["cutoff_jst"]):
         raise ValueError("t12_baseline_remote_commit_after_cutoff")
     return {"status":state,"path":path,
@@ -247,8 +273,13 @@ def seed_once(*, now, fetch_title=None, fallback_title=None, predictor=predict,
                                    expected_deadline=expected_deadlines[code])
                 if path!=remote_path:
                     raise ValueError("t12_existing_baseline_wrong_path")
-                if read(remote_path)!=existing:
-                    raise ValueError("t12_existing_baseline_readback_changed")
+                try:
+                    _readback_with_brief_retry(remote_path,existing,read,
+                        clock=now,cutoff=_dt(json.loads(existing)["cutoff_jst"]))
+                except ValueError as exc:
+                    if str(exc)=="t12_baseline_readback_failed":
+                        raise ValueError("t12_existing_baseline_readback_changed") from exc
+                    raise
                 states.append({"race_code":code,"status":"existing_identical_t12_baseline",
                                "path":remote_path,
                                "sha256":hashlib.sha256(existing).hexdigest(),
