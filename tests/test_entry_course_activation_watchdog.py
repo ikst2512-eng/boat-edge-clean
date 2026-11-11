@@ -362,6 +362,68 @@ class ActivationTests(unittest.TestCase):
                 self.assertEqual(result["decision"],"outside_preview_hours")
                 self.assertFalse(result["dispatch_requested"])
 
+    def test_preview_native_schedule_day_and_gap_are_separate_from_manual_rescue(self):
+        # At 19:05 JST the only observed native run was at 14:24 JST.
+        # The 19:04 rescue is a separate event and suppresses a duplicate.
+        now=datetime(2026,11,11,19,5,tzinfo=JST)
+        historic={"event":"schedule","created_at":"2026-11-10T14:24:20+09:00",
+                  "head_branch":"main","status":"completed"}
+        last_native={"event":"schedule","created_at":"2026-11-11T14:24:20+09:00",
+                     "head_branch":"main","status":"completed"}
+        wrong_branch={**last_native,"created_at":"2026-11-11T19:04:00+09:00",
+                      "head_branch":"research"}
+        rescue={"event":"workflow_dispatch","created_at":"2026-11-11T19:04:00+09:00",
+                "head_branch":"main","status":"completed"}
+        called=[]
+        def fetched(file,kind):
+            self.assertEqual(file,PREVIEW_WORKFLOW)
+            return ([historic,last_native,wrong_branch] if kind=="schedule"
+                    else [rescue])
+        out=preview_fallback(now,fetched,lambda file:called.append(file))
+        self.assertEqual(out["observed_schedule_runs"],3)
+        self.assertEqual(out["observed_schedule_runs_today"],1)
+        self.assertEqual(out["observed_dispatch_runs_today"],1)
+        self.assertEqual(out["native_schedule_observation"],
+                         "native_schedule_observed_with_over_20min_gap")
+        self.assertEqual(out["latest_native_schedule_jst"],
+                         "2026-11-11T14:24:20+09:00")
+        self.assertGreater(out["latest_native_schedule_age_minutes"],280)
+        self.assertEqual(out["decision"],"research_run_recently_started")
+        self.assertFalse(out["dispatch_requested"])
+        self.assertEqual(called,[])
+        self.assertFalse(out["trigger_is_schedule"])
+
+    def test_preview_native_schedule_unobserved_today_despite_rescue_success(self):
+        now=datetime(2026,11,11,19,5,tzinfo=JST)
+        yesterday={"event":"schedule","created_at":"2026-11-10T21:00:00+09:00",
+                   "head_branch":"main","status":"completed"}
+        rescue={"event":"workflow_dispatch","created_at":"2026-11-11T19:03:00+09:00",
+                "head_branch":"main","status":"completed"}
+        out=preview_fallback(now,
+            lambda f,e: [yesterday] if e=="schedule" else [rescue],
+            lambda _:self.fail("No duplicate dispatch after manual rescue"))
+        self.assertEqual(out["observed_schedule_runs"],1)
+        self.assertEqual(out["observed_schedule_runs_today"],0)
+        self.assertEqual(out["observed_dispatch_runs_today"],1)
+        self.assertEqual(out["native_schedule_observation"],
+                         "no_native_schedule_observed_today")
+        self.assertFalse(out["dispatch_requested"])
+        self.assertFalse(out["saved_forecast_verified"])
+
+    def test_preview_recent_native_schedule_is_not_a_forecast_certificate(self):
+        now=datetime(2026,11,11,19,5,tzinfo=JST)
+        native={"event":"schedule","created_at":"2026-11-11T19:02:00+09:00",
+                "head_branch":"main","status":"completed"}
+        out=preview_fallback(now,
+            lambda f,e:[native] if e=="schedule" else [],
+            lambda _:self.fail("recent native schedule must suppress fallback"))
+        self.assertEqual(out["observed_schedule_runs_today"],1)
+        self.assertEqual(out["native_schedule_observation"],
+                         "native_schedule_observed_within_20min")
+        self.assertEqual(out["latest_native_schedule_age_minutes"],3)
+        self.assertFalse(out["dispatch_requested"])
+        self.assertFalse(out["saved_forecast_verified"])
+
     def test_preview_recent_or_active_prevents_duplicate_dispatch(self):
         for row,expected in (
             (event(minutes=3,kind="schedule"),"research_run_recently_started"),
