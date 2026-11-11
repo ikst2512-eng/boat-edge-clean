@@ -48,3 +48,75 @@ jobs:
             browser-smoke.log
             test-results/
           if-no-files-found: warn
+
+  # Reuse the existing daily/manual smoke. No new Cron, collector, or live site changes.
+  published-p0-acceptance:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify actual Pages and Render frontend bytes match this checkout
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          set -euo pipefail
+          for asset in index.html navigation.js; do
+            for origin in https://ikst2512-eng.github.io/boat-edge-clean/ https://boat-edge-clean.onrender.com/; do
+              matched=0
+              for attempt in 1 2 3; do
+                if curl --fail --silent --show-error --location --max-time 40 "${origin}${asset}?site_p0_check=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" -o /tmp/boat-edge-actual-asset && cmp -s "${asset}" /tmp/boat-edge-actual-asset; then
+                  matched=1
+                  break
+                fi
+                echo "PUBLIC_P0_ASSET_MISMATCH origin=${origin} asset=${asset} attempt=${attempt}" | tee -a site-p0-acceptance.log
+                sleep 5
+              done
+              if [ "${matched}" -ne 1 ]; then
+                echo "PUBLIC_P0_FRONTEND_PARITY_FAIL origin=${origin} asset=${asset}" | tee -a site-p0-acceptance.log
+                exit 1
+              fi
+              echo "PUBLIC_P0_FRONTEND_BYTE_IDENTICAL origin=${origin} asset=${asset}" | tee -a site-p0-acceptance.log
+            done
+          done
+      - name: Check original published-test scripts (no mocks)
+        run: |
+          node --check tests/live_webkit_history_postdeploy.cjs
+          node --check tests/live_four_mode_archive_cors_postdeploy.cjs
+          node --check tests/live_four_mode_display_postdeploy.cjs
+      - name: Install real browser engines
+        timeout-minutes: 10
+        run: |
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium webkit
+      - name: Verify published Pages WebKit history, four tabs and back/forward
+        timeout-minutes: 4
+        shell: bash
+        run: |
+          set -o pipefail
+          node tests/live_webkit_history_postdeploy.cjs 2>&1 | tee -a site-p0-acceptance.log
+      - name: Verify real Pages to Render 200/404/422 CORS in Chromium and WebKit
+        timeout-minutes: 4
+        shell: bash
+        run: |
+          set -o pipefail
+          node tests/live_four_mode_archive_cors_postdeploy.cjs 2>&1 | tee -a site-p0-acceptance.log
+      - name: Verify live archived four-mode tickets, probabilities and race switching
+        timeout-minutes: 6
+        shell: bash
+        run: |
+          set -o pipefail
+          node tests/live_four_mode_display_postdeploy.cjs 2>&1 | tee -a site-p0-acceptance.log
+      - name: Preserve exact published-site acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clean-published-p0-${{ github.run_id }}-${{ github.run_attempt }}
+          path: site-p0-acceptance.log
+          if-no-files-found: warn
