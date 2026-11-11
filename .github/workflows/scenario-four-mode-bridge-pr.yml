@@ -27,6 +27,7 @@ on:
       - 'scenario_official_st_intake_diagnostic.py'
       - 'scenario_flagged_st_feature_study.py'
       - 'test_scenario_flagged_st_feature_study.py'
+      - 'research/flagged_st_signed_feature_feasibility_20261111.json'
       - 'test_scenario_official_st_intake_diagnostic.py'
       - 'test_scenario_future_github_research_adapter.py'
       - 'test_scenario_future_local_candidate_handoff.py'
