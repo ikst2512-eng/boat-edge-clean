@@ -7,6 +7,8 @@ on:
       - tests/site-regression.cjs
       - tests/test_prospective_receipt_order.py
       - server.py
+      - legacy_scenario_engine.py
+      - test_legacy_scenario_engine.py
       - tests/test_four_mode_archive_cors_hotfix.py
       - entry_course_t12_seed.py
       - research_model.py
@@ -22,6 +24,8 @@ on:
       - tests/site-regression.cjs
       - tests/test_prospective_receipt_order.py
       - server.py
+      - legacy_scenario_engine.py
+      - test_legacy_scenario_engine.py
       - tests/test_four_mode_archive_cors_hotfix.py
       - entry_course_t12_seed.py
       - research_model.py
@@ -49,6 +53,8 @@ jobs:
           node tests/site-regression.cjs 2>&1 | tee test-results/site-regression.log
       - name: Verify archived research source receipt ordering
         run: python3 -m unittest discover -s tests -p 'test_prospective_receipt_order.py' -v
+      - name: Verify restored scenario engine and immutable V2 comparison
+        run: python3 -m unittest -v test_legacy_scenario_engine test_forecast_strategy_contract
       - name: Verify real local HTTP CORS and Render deploy revision header
         run: python3 -m unittest discover -s tests -p 'test_four_mode_archive_cors_hotfix.py' -v
       - name: Observe actual Render deploy commit (read-only; not a publish claim)
