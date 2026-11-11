@@ -1880,8 +1880,11 @@ async function loadFourModeArchives(key,token){
   }
   const counts=modes.map(([id])=>data.modes[id].tickets.length);
   const orderValid=counts.every((count,i)=>i===0||counts[i-1]<count);
+  const modelScope=data.model_version==='CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED'
+    ?'V2基準モデル：全国勝率と過去の艇番別着順傾向のみ。展開・展示ST・モーター・風・波・潮は確率計算に未反映。'
+    :'過去のV1研究予想：展開・直前情報を実際に使用した証拠はありません。';
   status.textContent=orderValid
-    ?'4モードの過去保存予想。Git初回保存証拠は未検証で、現在の正式予想とは区別しています。'
+    ?modelScope+' 4モードの過去保存予想。Git初回保存証拠は未検証で、現在の正式予想とは区別しています。'
     :'点数順が合意仕様（絞り＜本命＜バランス＜穴）と異なる保存データです。過去の記録は変更せず表示しています。正式予想として使用しないでください。';
   root.dataset.raceKey=key;
   status.dataset.loaded='true';
