@@ -16,6 +16,19 @@ assert.ok(candidateHtml.includes("timeZone:'Asia/Tokyo'"));
 assert.ok(candidateHtml.includes('過去の確定結果から作った研究候補を、本日の購入候補として表示することはありません。'));
 
 new vm.Script(script,{filename:'index.html'});
+// A single restored scenario-first path runs alongside—not over—the V2 archive.
+assert.equal((html.match(/id="restoredScenarioPanel"/g)||[]).length,1);
+assert.equal((html.match(/id="restoredScenarioStatus"/g)||[]).length,1);
+assert.equal((html.match(/id="restoredScenarioRows"/g)||[]).length,1);
+assert.ok(script.includes('async function loadRestoredScenarioPreview(key,token)'));
+assert.ok(script.includes('void loadRestoredScenarioPreview(raceKey,token)'));
+assert.ok(script.includes('void loadFourModeArchives(raceKey,token)'));
+assert.ok(script.includes('/api/legacy-scenario-preview?hd='));
+assert.ok(script.includes('LEGACY_SCENARIO_SCORE_RESTORED_FOUR_MODE_REFERENCE_V1'));
+assert.ok(script.includes('head_top2_is_not_trifecta_hit70!==true'));
+assert.ok(script.includes('未検証・未保存のため独立的中率に加算しません。'));
+assert.ok(script.includes('V2保存済み4モード（原本変更なし）'));
+console.log('PASS: restored scenario-first preview and original V2 comparator remain distinct');
 // A national-win-rate-only baseline must never silently masquerade as
 // scenario/entry/ST/exhibition/wind-aware production prediction.
 assert.ok(script.includes("data.model_version==='CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED'"));
