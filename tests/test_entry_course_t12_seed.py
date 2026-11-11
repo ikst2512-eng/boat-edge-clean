@@ -30,6 +30,57 @@ def title():
     return ("レースコード,電話投票締切予定\n"+CODE+",18:33\n").encode()
 
 class T12SeedTests(unittest.TestCase):
+    def test_both_missing_morning_schedules_use_existing_pre_race_openapi(self):
+        from unittest.mock import patch
+        from urllib.error import HTTPError
+        from entry_course_t12_seed import _title
+        unavailable=HTTPError("https://source.example",404,"not yet published",None,None)
+        rows=[{"レースコード":CODE,"電話投票締切予定":"18:33"}]
+        cards=[dict({"レースコード":CODE},
+                    **{f"艇{i}_全国勝率":"5.5" for i in range(1,7)})]
+        alt=(rows,cards,NOW,"e"*64,
+             {"source":"nonofficial_openapi_v1"})
+        with (patch("entry_course_t12_seed.urlopen",side_effect=unavailable),
+              patch("clean_direct_sources.holding_rows",side_effect=unavailable),
+              patch("clean_openapi_sources.load",return_value=alt) as fallback):
+            found,day,digest,source=_title(NOW)
+        self.assertEqual(found,rows)
+        self.assertEqual(day,"20261103")
+        self.assertEqual(digest,"e"*64)
+        self.assertEqual(source,"nonofficial_openapi_v1")
+        fallback.assert_called_once_with("20261103")
+
+    def test_morning_alternative_receipt_cannot_be_future_or_unverified(self):
+        from unittest.mock import patch
+        from urllib.error import HTTPError
+        from entry_course_t12_seed import _title
+        unavailable=HTTPError("https://source.example",404,"not yet published",None,None)
+        rows=[{"レースコード":CODE,"電話投票締切予定":"18:33"}]
+        cards=[{"レースコード":CODE}]
+        for arrived,digest in [
+            (NOW+timedelta(minutes=1),"e"*64),
+            (NOW,"invalid"),
+        ]:
+            with self.subTest(received=arrived,digest=digest):
+                with (patch("entry_course_t12_seed.urlopen",side_effect=unavailable),
+                      patch("clean_direct_sources.holding_rows",side_effect=unavailable),
+                      patch("clean_openapi_sources.load",return_value=(
+                          rows,cards,arrived,digest,
+                          {"source":"nonofficial_openapi_v1"}))):
+                    with self.assertRaisesRegex(ValueError,"alt_pre_race_schedule_receipt_invalid"):
+                        _title(NOW)
+
+    def test_all_morning_pre_race_sources_unavailable_fails_closed(self):
+        from unittest.mock import patch
+        from urllib.error import HTTPError
+        from entry_course_t12_seed import _title
+        unavailable=HTTPError("https://source.example",404,"not yet published",None,None)
+        with (patch("entry_course_t12_seed.urlopen",side_effect=unavailable),
+              patch("clean_direct_sources.holding_rows",side_effect=unavailable),
+              patch("clean_openapi_sources.load",side_effect=unavailable)):
+            with self.assertRaisesRegex(ValueError,"t12_all_pre_race_schedules_unavailable"):
+                _title(NOW)
+
     def test_missing_published_title_uses_timestamped_live_holding_list(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);store={}
