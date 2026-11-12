@@ -1,0 +1,1485 @@
+{
+  "formal": false,
+  "github_server_observation_not_first_receipt": true,
+  "independent_first_remote_receipt_verified": false,
+  "observed_after_t_minus_12": 0,
+  "observed_before_t_minus_12": 147,
+  "production_forecast_changed": false,
+  "publication_commit_sha": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+  "publication_count": 147,
+  "records": [
+    {
+      "deadline_minus_12_jst": "2026-11-13T11:27:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:15+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "4f7d6a5726b1643f3f9d58521462d5a365ede27ff2861e502cdbc793542c00b5",
+      "race_code": "202611130203",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T11:54:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:15+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "60d31abaf97857875dc46fa22df775c644a18a68e4779440b7427a736691b28f",
+      "race_code": "202611130204",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T12:21:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:16+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "bd5d5497656cd4d55f77a28a91c2e766685e5b421ce24b5b246412d6bf2ce978",
+      "race_code": "202611130205",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T13:43:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:16+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "828baee100f73ce1d247fc0032c2d6fed9a41a55d4cd6f6acb35791b3a1d15fb",
+      "race_code": "202611130208",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T14:11:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:16+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "a2a735fed81ad57aaffce7c34d6c65aad8570cb5cd07a5fc3cb76ebd8239a389",
+      "race_code": "202611130209",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T14:40:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:16+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "2288c031c6d0991ba90e0324fb2a39924355b21668383b4a915ad887d1001c67",
+      "race_code": "202611130210",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T15:11:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:17+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "4ee7735a12948b43f3e14b613f00387d32765e2276fce8879af5f79f7b334d1a",
+      "race_code": "202611130211",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T15:43:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:17+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "71a49253be3eef82e41cb839dde5b6ef19687c694f2ccdbaab3c09ffa7b2719a",
+      "race_code": "202611130212",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T10:47:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:17+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "1084ff86963e40c796296d26aa14fd7fde00ee38f29964a665b6fbfcefff632c",
+      "race_code": "202611130301",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T11:13:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:18+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "40788c9336b8fa3e846dbcb445b7f96824126c8b18870c64425fe0f712c52f8e",
+      "race_code": "202611130302",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T11:39:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:18+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "2790c087d5c2698fb2f395e70678806020763b9b13c01690cfe4ef5c1867a4d4",
+      "race_code": "202611130303",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T12:05:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:18+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "075696a4a6f005a082234a0bd2339a21adf91e10798a7df3efa95ac84127a464",
+      "race_code": "202611130304",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T12:31:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:18+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "e791dd8df1fc90557690c0acdd4992c30d8544956b4fe0aef5250f5bb94d1bdb",
+      "race_code": "202611130305",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T12:57:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:19+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "8587b57d162031ede5b7aa2b8f1a3d54a94d30d1bfb8ea77bff2b3e72b5dc0ce",
+      "race_code": "202611130306",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T13:23:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:19+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "0dcb8019a41a9f86b5f6f158fd9b4ba637a7199a781735b4caf04b13263e18fb",
+      "race_code": "202611130307",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T13:50:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:19+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "686b73e7c20d03b26f1931a5e7dedbc6f56c332b15939ca1f8e7b810bd119b54",
+      "race_code": "202611130308",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T14:18:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:20+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "37129ea1629718b2bc534aaf77bb522425e29d2e3c76e1a46433e08e61917885",
+      "race_code": "202611130309",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T14:47:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:20+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "7db7273d6713a56eb49d258e7aacb01d70076e1b1550bfab7567afc531776caa",
+      "race_code": "202611130310",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T15:17:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:20+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "d6f4c8fe2b30e0d45386b28c292f38853ce4339408c68bb99843a485656aa3cf",
+      "race_code": "202611130311",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T15:48:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:21+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "cb30b035845f527ee9bd019474b37d9a59eed86ee043507ba24129afa586eee1",
+      "race_code": "202611130312",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T10:39:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:21+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "8fb21dcd676a76b2233b291a7c3ddb2535bd2635f6b590f8b03dde15b11054f9",
+      "race_code": "202611130401",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T11:06:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:21+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "7eee50bce8d7bdeab5706faa80bf520ab9d5ca2e678bbf828ebe901878a83a84",
+      "race_code": "202611130402",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T11:33:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:21+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "547c933a9dff4cc0dc6cddabeaf9e27072df87e0e2e547f08382ea2f9126f007",
+      "race_code": "202611130403",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T12:01:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:22+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "e11bf706f6c8e66b2b6d9c76f31d0523765bd60965321b53122c5e7258def98c",
+      "race_code": "202611130404",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T12:28:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:22+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "ae555035aeaca585b6c5ccd2c781c6305b8075faabc71a9269b9399698352baf",
+      "race_code": "202611130405",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T12:55:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:22+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "393f0d1fd9984598d99c3cfaea954597ead05ca260e50871ec743eb8ce026854",
+      "race_code": "202611130406",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T13:23:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:23+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "14e9732f85391b149808b4da3b2e12b27ebeecc735bb5b8c35b73589e685052b",
+      "race_code": "202611130407",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T13:53:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:23+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "e3792314ad1fcfcdbc8fac66a4e4666dee07c52aaa95fb47977bddc3122fab70",
+      "race_code": "202611130408",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T14:21:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:23+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "f4108bb78077ea187d1eb6c0bf11adf5cd3e197b0fa647dc0f4f844cad246e4d",
+      "race_code": "202611130409",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T14:51:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:23+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "5771692d857205b04179f8b2d30159241e09d956224cfacd4f13751fa4011d56",
+      "race_code": "202611130410",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T15:20:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:24+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "79718bb02df5b7287d639369307027329a918c44484c7d78579da4a6a8a8d543",
+      "race_code": "202611130411",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T15:54:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:24+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "f76513121df6f32ab2be237a49c5de99d5916c43ffd113a1b2cf875482c74ea5",
+      "race_code": "202611130412",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T15:13:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:24+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "e5079b5170558e6f15bcdca9ecacdc4fc1225a8ae46fa9abeb93abf337b02a53",
+      "race_code": "202611130701",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T15:37:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:24+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "cb4b5d5199738b04441c5a3a2c0be8e5064296966fdd3fd40b5e24552a02ad23",
+      "race_code": "202611130702",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T16:04:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:25+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "18b9180180d29c0d3b0fd2ea9d276d6d6a0a1fbf25007d37fe65c2416c2100c6",
+      "race_code": "202611130703",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T16:31:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:25+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "4fbabc137d9dd01153c18232b19df8ecb5430690b062c3c089e3ef3204240da5",
+      "race_code": "202611130704",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T16:58:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:25+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "e46b14bb1cb737678e79041cbdad34ac85835e44decfc29a7d958beee8b19f61",
+      "race_code": "202611130705",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T17:25:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:25+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "15e064de8c94903a4a0a249b1d4a6f0b7630a4fb885192d741bedb2bc90296cc",
+      "race_code": "202611130706",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T17:52:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:26+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "190af52ff3ce2144f64919ac94fe0f98dce3b226a2c4d7003b9812124dd03794",
+      "race_code": "202611130707",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T18:21:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:26+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "f8b7f9c373b5c95eeaa954937e42eb49012040bf03800de8c98e269cbbf25feb",
+      "race_code": "202611130708",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T18:52:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:26+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "2896b786f9b44de0de68bf35bc410333637da42bbd6cb61bf22a028c3b300521",
+      "race_code": "202611130709",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T19:24:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:26+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "ee203e74ee1ef929dcb9a5c02fb9553a09bb3d20e3adafde2b871c9b67a65181",
+      "race_code": "202611130710",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T19:55:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:27+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "49c8d67ed4cea03de6a44585c0ef4d6d830bb27c24df747d08e519393187a901",
+      "race_code": "202611130711",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T20:26:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:27+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "b70d370258638b6d30ac975ef665ca9ec24ac8a789a4522eed31c02a38c672c9",
+      "race_code": "202611130712",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T10:06:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:27+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "e88dc9c81fe94970c477dfd619a6eea05bd8bfac1b6edd72561e99b7682ff775",
+      "race_code": "202611130801",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T11:02:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:28+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "61c374c9734c7e7c7e3553bfcfaac075dd3d4d0bb79933a6d58398fffe94d7e4",
+      "race_code": "202611130803",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T11:31:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:28+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "a1a281a8a289936945c426d6cd8961ddb395c4c1f403f15f36e2f2416ea0d544",
+      "race_code": "202611130804",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T12:07:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:28+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "b32c4dbb91af893317c4b68b004edfd659c09180f1ed775eb5479a1b79846ac8",
+      "race_code": "202611130805",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T12:37:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:28+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "7d0c50247aa7bca83430be0418d0231d7bd895e34425db915c94a1cb1807a001",
+      "race_code": "202611130806",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T13:03:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:29+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "3211ed24e9bfabecf6e38f1b14e5704b5c979e9b2a637b16a22a37bdb9b73c16",
+      "race_code": "202611130807",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T13:30:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:29+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "e8c44e888222821a10400062588eb5dea751714f5318c0a97689a5a5fe67bc65",
+      "race_code": "202611130808",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T14:02:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:29+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "626a3e212145cf7210055ce68a42bd109c760278b4c07855dd14d524d6771aac",
+      "race_code": "202611130809",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T14:34:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:30+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "57450d6e79bf547a265c2b229db0d6793eb18edd2416f1cbbd2034c6a6ac785d",
+      "race_code": "202611130810",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T15:06:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:30+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "d999e27fdaff240f6fd335d1d56995ead1ed5ff48ee6f01fe7038621b650396f",
+      "race_code": "202611130811",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T15:41:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:30+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "4794982eeb7a0abc4551f8aaabe8fb4c68e34d0147ab66ddca919097e29d2256",
+      "race_code": "202611130812",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T10:16:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:30+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "aac6ffa5590ccd3e102ba3fb4c667d0101884270ed9b4cd4a1e10105e176a8ca",
+      "race_code": "202611130901",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T10:44:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:31+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "f0b362ae28dfebb5d543b0274c74b1381c748b6014eaf9caa589980646f67ca2",
+      "race_code": "202611130902",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T11:12:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:31+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "5ea885f1f37e266b4e9912a1c43b08458a484a630c2aafa4852a97e50cd971b6",
+      "race_code": "202611130903",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T11:41:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:31+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "3933c7cba116b07c4f4361e815021054cdff7d186ca14e53dbd18eb6c2410397",
+      "race_code": "202611130904",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T12:11:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:31+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "543f774c37fce399c67ad02b51bde884a3015ce23b8dfeab1b8f11b7d2e88e98",
+      "race_code": "202611130905",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T12:42:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:32+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "2b7a8780c586850218c95af07d2bfd7b6d53495dffc696edc56c5b0ccbaa1871",
+      "race_code": "202611130906",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T13:13:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:32+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "3da547109069fec9c9d0ffe932db71fa1a3f839b907e040ed3cbd0c8a9b683e0",
+      "race_code": "202611130907",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T13:44:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:32+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "b19fb6345fa835c00c336706602d61a67e7c13cdfcdf1246e6f60c2092230138",
+      "race_code": "202611130908",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T14:14:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:32+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "15c1abdd7e994cf4b52d6129deb54091cd30b877b6fad4772940a1c13951bbbe",
+      "race_code": "202611130909",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T14:47:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:33+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "653ded15fd35d1cb635aa5652e8fa057d2531e9427e56db5a8e6155946a2758c",
+      "race_code": "202611130910",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T15:22:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:33+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "1192b3603768070bd47bb0d35525d716e83dbacc3aee2c413a3e3d0f59f1e9aa",
+      "race_code": "202611130911",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T15:57:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:33+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "0963144fdaa66c4749d4b11424586b09298451aebc08d6291c68b954d6243d6b",
+      "race_code": "202611130912",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T08:23:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:33+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "479ded8546f0c5cb6a590f4c4f8868b4e1687c8b1d9c9c3a25f1254b041846b3",
+      "race_code": "202611131001",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T08:49:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:34+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "f9b809f9b485a98f4855228ff3a94963a95f62ca4abafd888d1fd7fdb5243960",
+      "race_code": "202611131002",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T09:15:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:34+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "15a900955a2e6eaecce648cad814c1987bf1cc3b1f4a2d68326a49a2cefbd8b8",
+      "race_code": "202611131003",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T09:41:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:34+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "7967bc7ca39a649ed9c8c603c806811929cdf68a0ad2c3ffc7275ae4f649093e",
+      "race_code": "202611131004",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T10:09:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:35+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "7775c1448cc1296a930d792d879ad8f796986eb38a312adbef5f1a63a76ea7e5",
+      "race_code": "202611131005",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T10:41:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:35+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "bf98a7c3cac541ffd98ca93c5e27b3f1c0a0efb7c79f39d8204629f60420c646",
+      "race_code": "202611131006",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T11:10:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:35+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "3efd6c8e40f70022dd8cdb5ee61e09bb8c6ff0291bc589955cdc76d7ad4db43e",
+      "race_code": "202611131007",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T11:44:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:35+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "6f80696b60e696520db98efd9ab84d21fcbce4e0364e3578b209e5c642be6bbc",
+      "race_code": "202611131008",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T12:17:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:36+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "b2eb24daaa26fe104a3b6ab05b3f83cb5697bbefbe4d353b20947cb7de435545",
+      "race_code": "202611131009",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T12:51:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:36+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "b5c0eef830741fe7ef9a4ae6dc8a0a9aacfa1c5e6da633132c08465ef6ab2463",
+      "race_code": "202611131010",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T13:26:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:36+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "f8a25b7e0bb70b33d2b3483fe4727971ad8933418470026a736725ad72f59555",
+      "race_code": "202611131011",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T14:05:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:36+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "d47af2074def23fb24d5abf5726a0ec5c55ee8ea632a1c528f243fff620861f8",
+      "race_code": "202611131012",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T10:58:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:38+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "96a1f15ab5cb2db02b770232069933aa63d5ec48515af37a2b0c53d3eaab90bc",
+      "race_code": "202611131302",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T11:24:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:38+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "ce79d63c590ed6c0af09f2bfd7a1b5d60f3810182326c43c134b09a11520a9c1",
+      "race_code": "202611131303",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T11:49:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:38+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "d130c55c31e4958d034187d0bff1ca0f41193da633682df3a55dd2f184612fcd",
+      "race_code": "202611131304",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T12:15:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:38+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "18170c77591eb9e8be77761a536b0d3d5793f66fd53c9939234498ae6e8006f1",
+      "race_code": "202611131305",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T13:21:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:39+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "fa9a44f49caa74ffc1f0892265e1e9620ba6a2b1fbd3ce296b71cc3fc8492bd3",
+      "race_code": "202611131307",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T13:48:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:39+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "6b5a7372674347873fe08d028512c5778f6bd9eb29c3f033f2ecf55cdb860685",
+      "race_code": "202611131308",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T14:28:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:39+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "52000fc4436399356db09450619cdb8b55631c46eedff92e93dda376fd17989c",
+      "race_code": "202611131309",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T14:55:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:39+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "c5ca60cf6b6ec5c2409dbcbed0219f20faf84ca3a12ba032ad03e96164b8aaea",
+      "race_code": "202611131310",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T15:27:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:40+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "0680af9db421d9391192c0aacfdac2664ec7bd00e1a1702b07f5c1c645edc6ef",
+      "race_code": "202611131311",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T15:52:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:40+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "5e5b3ece12832c3e57bb55d972d8bea574f33344d64faea78ce1a68c0ed8b30e",
+      "race_code": "202611131312",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T10:32:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:40+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "e6554fdf0749ee2ceef81188feff3944e35f9b0ef3672c47a7e317ece76d6c04",
+      "race_code": "202611131601",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T11:08:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:40+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "152163d8495bf9b02626a2eacd72dbaf3247a91c612ba0d995b83cb32df2497f",
+      "race_code": "202611131602",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T11:37:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:41+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "ca05d0ccbcdd5b8a9b8ed972a7f8c4801969bbfcae9dbb912552f4c5b27bfd03",
+      "race_code": "202611131603",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T12:09:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:41+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "b26fe001401d562b856197bf14cd019569e72a076c5c12f9c87b6b83725149e6",
+      "race_code": "202611131604",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T12:40:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:41+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "36776a66f4e9ebdf12115a516bf6e93a10f9cd0e7643471951a0b4807a36bc5b",
+      "race_code": "202611131605",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T13:11:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:41+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "ec6aecc3b4b913a7eddabdd81f4b4eb1b0719408ce5dbc6900d15e2c57afde17",
+      "race_code": "202611131606",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T13:40:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:41+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "05d0217c4b10d5654c14a76f0b8fc4cad018fb38813023f82b3eb92f9d0d6873",
+      "race_code": "202611131607",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T14:09:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:42+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "d7947f5b58b85978bcd74d63a047146f6061d6e39c616fcbe63679bd3cbe42f5",
+      "race_code": "202611131608",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T14:36:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:42+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "23cc44a11fb8ece35cff01df761e7fb5519dc4b74d5ccc58dfd55bfdd2e616ea",
+      "race_code": "202611131609",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T15:03:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:42+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "f8f8cd9189c0d82c5ad2a6d1c9c7befcda32bc12778cb326c8ce31fda07f48d3",
+      "race_code": "202611131610",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T15:35:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:43+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "28dac32046fac2e6981cfe5487a38a5339311ff10a3e08fdd030f8c05beddf65",
+      "race_code": "202611131611",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T16:11:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:43+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "16c4260f66521c317ca1213bb02cc0fdbdb55ac98d7b4c277acc97ee59277909",
+      "race_code": "202611131612",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T15:08:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:43+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "47bc1cbcc5d9c3b0aa0ff16acf1b0f8f56a2cbaf603a2593542470058af27b65",
+      "race_code": "202611132001",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T15:56:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:43+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "f922a65eda92d20cf1f3b8af5929cb3b54f8a17fba5139957212ef0f1a43fb58",
+      "race_code": "202611132003",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T16:49:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:44+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "54485e1c4956998a1f3a1bc0a2f2f3ef45f470c0261602d34bf8b62eb8b934bd",
+      "race_code": "202611132005",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T17:16:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:44+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "e8f4ed010331dbeb939c432a16dc04d1c67d44a99d61e56654f14cdfead4f35c",
+      "race_code": "202611132006",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T17:43:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:44+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "3527c94b610312a78dd7412f7d4dd84ee318b37ddbec28adbf1ebd8cf27cc667",
+      "race_code": "202611132007",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T18:11:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:44+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "ec1b4799656ad9ca96558603f291931fbe347cf776caf6e39eacc3a3fb8ba5ca",
+      "race_code": "202611132008",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T18:42:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:45+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "9d4da72405f50a8baa1a3ceb87df89928ca7bd9a816f30d78614428936b67d85",
+      "race_code": "202611132009",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T19:13:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:45+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "6becf1ac639e17313db5c95bba8249c45cd38b021091202026561e1ba11ed4ef",
+      "race_code": "202611132010",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T19:46:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:45+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "20ed6e3860b5d33279a665cf2ef6986f7420534defd84ead1278367b9688d8ad",
+      "race_code": "202611132011",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T20:18:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:45+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "7531b93a4ab64b932404b1e471d76f739c72bbdabdf763de30c5a6adb56473a6",
+      "race_code": "202611132012",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T10:36:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:46+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "ca6611b8f8dcf35845a1abab743e19f37c1df71d45d94d98f882db18cc1abe48",
+      "race_code": "202611132201",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T11:04:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:46+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "7567de03a8fb1d3826b55849c027d103dce9c1d361b1f0876df7da769e51d132",
+      "race_code": "202611132202",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T11:35:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:46+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "fb896a11d3c6a274e945059da003b85de768d6c729282663855f092768684567",
+      "race_code": "202611132203",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T12:03:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:46+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "5bcb762fd2239865686c071a7ce6dff929798fbeeb22dd598eae688884a6c332",
+      "race_code": "202611132204",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T12:35:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:47+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "f74d2de4cbb255053ff4a02baefb2a4f253c62097d99014b18a9f82f0d057bb8",
+      "race_code": "202611132205",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T13:06:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:47+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "f56b27cb163b671af2bc8052d35086e8dd425fdcfb6d5db639b721b48f762064",
+      "race_code": "202611132206",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T13:33:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:47+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "9af9e6ea3d3523e4afb1993b08210ad70123649d3c50e690be980842cd9b2341",
+      "race_code": "202611132207",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T13:58:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:47+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "4e50dbd74414cb34da5491947099b23145fe58ef75c3045dfe9e8f8a8b7232f3",
+      "race_code": "202611132208",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T14:32:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:48+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "ccf3cc74fc38ee77f397f07fc8cf142e6a6574c2b129836fc0cf7ab25be5f5ea",
+      "race_code": "202611132209",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T15:00:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:48+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "0de15733c9e69e010846303817de2b9c115259e5f3c650f664f349247764fb2f",
+      "race_code": "202611132210",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T15:40:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:48+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "25b416ae179176f9ed2e708652edce3dbda429cc37def7bed742c81fd20393d1",
+      "race_code": "202611132211",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T16:18:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:48+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "639d3ab1cf0c26012bc03530bbefd63e2b15177732acc31b0c0e759d776fc47e",
+      "race_code": "202611132212",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T08:35:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:49+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "d0e26050ac99dfe8fdd6a12e03f30750f5dec844b72a1783aeade28dd9765b3a",
+      "race_code": "202611132301",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T09:01:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:50+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "991941494c76063e961387ae6cf426e3d57c5ed1579467549de1191285234b5d",
+      "race_code": "202611132302",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T09:27:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:50+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "d989ac8e302b6a23a360d4a5e2c59e6ec5278738c57488f46295724bec29ea48",
+      "race_code": "202611132303",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T09:53:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:50+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "c838a216a0effa690da4b7087e25089b03205b580273d67394240ac5637fc359",
+      "race_code": "202611132304",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T10:22:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:51+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "e806053d746bce477eb825f84194d0aa0d3cda4d1bbf9659cd66fc0e975fa988",
+      "race_code": "202611132305",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T10:51:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:51+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "bf59f7124c739330e63033154087462d361c5a82ea82457657b28732343534c5",
+      "race_code": "202611132306",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T11:21:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:51+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "5dc80849b9232feebc6bdb9bec0c1331eb59590bf9fd7897fc7c38f102b6f38b",
+      "race_code": "202611132307",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T11:52:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:51+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "6a1c06f6be199de047a1629f6599615fb4640f7749de0c76ec8921ddc427b9a8",
+      "race_code": "202611132308",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T12:25:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:52+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "7a771ca739bfb218e9e4d3c149ef8a3f34388d909315b7b6b6e9cdcbde4d455f",
+      "race_code": "202611132309",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T13:00:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:52+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "1fda594fa10c2a7546821f1bc6f03ac36a735d50896807a03f932f926e65be10",
+      "race_code": "202611132310",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T13:36:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:52+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "2e655532434eb65673fd3e7234f299c34ecdb36f0affb63bb194c4afee308f54",
+      "race_code": "202611132311",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T14:16:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:52+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "e4c35d0a3d36b40c862792bb1defd84b1423bb15e29f71c51fc3920288f1c27b",
+      "race_code": "202611132312",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T15:04:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:53+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "4c4b806e67c0ed7956156240092fabc88bda754e7474f1f96865b953a649cf86",
+      "race_code": "202611132401",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T15:29:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:53+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "b4bbfd050618baa00ebd24dce1829fae7108c0a43a16e93213c4af0b2e115d9b",
+      "race_code": "202611132402",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T16:08:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:53+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "c6bcb7bf7f365ac127116c598a4004001a8c9e60b4796ce2a5dd76f7967b64c9",
+      "race_code": "202611132403",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T16:40:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:53+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "a9dc09f4e4f0e703e7493b35a05b9c87f8fcc7ed82ec2ebcdd7d3fd0933a9d84",
+      "race_code": "202611132404",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T17:07:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:54+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "124b5ad0549ef37b779672c0162c3a56dcb197cf8a8ae1ae0b0c908a3ba59a3d",
+      "race_code": "202611132405",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T17:34:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:54+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "36c3bb6290683eaaa1a50fee89012138e54b169e8ca35e53ce5de44ef3305d2b",
+      "race_code": "202611132406",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T18:01:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:54+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "55835eadce0bcd62281f937d12992fba9d98338a4fe5aca37106b8fca8123d3c",
+      "race_code": "202611132407",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T18:31:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:54+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "2456ddf16b1c60d972b46801dfa3b91685ed59c518c295aaa078966c9efdc9cb",
+      "race_code": "202611132408",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T19:02:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:55+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "85aff3188025b09846952f3f600ca4ed1198fe025ab8f525a0d16f2c719c035c",
+      "race_code": "202611132409",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T19:35:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:55+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "90589904aad86c063f55d60579f14776b8215c820c6381c63eddf6c51373d261",
+      "race_code": "202611132410",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T20:04:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:56+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "1809c7c9134c3eb965480346e2b343745860d4eb777d91c2c6971a7dc58b87ef",
+      "race_code": "202611132411",
+      "status": "github_server_observed_before_t_minus_12"
+    },
+    {
+      "deadline_minus_12_jst": "2026-11-13T20:33:00+09:00",
+      "first_add_blob_matches_remote": true,
+      "first_add_commit": "59953c4cf0309d95211a1d62cc6dd2ebb8e1e546",
+      "github_api_server_date_utc": "2026-11-12T15:56:56+00:00",
+      "independent_first_remote_receipt_verified": false,
+      "original_sha256": "7660403955bd984c30d4522cda05d67c4f5748162b9737a45f1ecc6472088338",
+      "race_code": "202611132412",
+      "status": "github_server_observed_before_t_minus_12"
+    }
+  ],
+  "schema": "FOUR_MODE_GITHUB_REMOTE_OBSERVATION_V1",
+  "status": "remote_observation_audited_nonformal",
+  "unverified_count": 0
+}
