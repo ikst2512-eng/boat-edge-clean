@@ -1,5 +1,5 @@
 {
-  "checked_at_jst": "2026-11-13T15:30:47.923542+09:00",
+  "checked_at_jst": "2026-11-13T19:03:32.966899+09:00",
   "days": [
     {
       "day": "20261112",
@@ -12,15 +12,31 @@
     {
       "day": "20261113",
       "http_status": null,
-      "newly_saved": 19,
-      "source_races": 102,
+      "newly_saved": 41,
+      "source_races": 143,
       "source_url": null,
       "status": "available"
     }
   ],
   "historical_retries": {
-    "days": [],
-    "status": "not_hourly_window"
+    "days": [
+      {
+        "day": "20261028",
+        "saved": 0,
+        "source_races": 124
+      },
+      {
+        "day": "20261031",
+        "saved": 0,
+        "source_races": 155
+      },
+      {
+        "day": "20261102",
+        "saved": 0,
+        "source_races": 155
+      }
+    ],
+    "status": "checked"
   },
   "overdue_race_codes": [
     "202610280112",
@@ -47,15 +63,9 @@
     "202611060811",
     "202611060812",
     "202611070302",
-    "202611130211",
-    "202611130311",
-    "202611130701",
-    "202611130811",
-    "202611131610",
-    "202611132001",
-    "202611132210",
-    "202611132401"
+    "202611132009",
+    "202611132408"
   ],
-  "overdue_result_count": 32,
+  "overdue_result_count": 26,
   "schema": "CLEAN_RESULT_COLLECTION_STATUS_V1"
 }
