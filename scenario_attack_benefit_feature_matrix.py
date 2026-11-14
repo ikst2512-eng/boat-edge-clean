@@ -19,12 +19,14 @@ RATES = {"motor_2ren_pct", "meeting_2ren_pct", "two_escape_assist_pct",
          "makuri_pct", "makuri_sashi_pct", "sashi_pct"}
 SECONDS = {"average_st_s", "meeting_st_s"}
 SIGNALS = RATES | SECONDS
-# These are rates per actual course START, not "share of wins by winning method".
+# Win-method rates use actual-course starts, NOT shares of winner methods.
+# Escape-assist requires a separately declared eligible 2C/1C sample: the
+# original vendor's exclusions must be verified before loading any rate.
 # 逃がし率 and 逃がし2着率 must never be conflated.
 DENOMINATORS = {
     "motor_2ren_pct": "motor_starts",
     "meeting_2ren_pct": "meeting_starts",
-    "two_escape_assist_pct": "actual_course2_starts",
+    "two_escape_assist_pct": "eligible_course2_1c_escape_trials",
     "makuri_pct": "actual_course_starts",
     "makuri_sashi_pct": "actual_course_starts",
     "sashi_pct": "actual_course_starts",
