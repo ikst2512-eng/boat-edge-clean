@@ -1865,16 +1865,18 @@ async function loadOriginalV133Frozen(key,token,status,root){
  const validRows=(rows,n)=>Array.isArray(rows)&&rows.length===n&&
    rows.every(t=>t&&validTicket(t.combo)&&Number.isFinite(t.p)&&t.p>=0&&t.p<=100)&&
    new Set(rows.map(t=>t.combo)).size===n;
- const validModes=m=>m&&validRows(m.narrow?.tickets,3)&&
-   validRows(m.hit?.tickets,10)&&validRows(m.balance?.tickets,10)&&
-   [12,15,18].some(n=>validRows(m.hole?.tickets,n))&&
+ // Old immutable snapshots are rendered verbatim under their old point policy.
+ // Only live forecasts follow the user-requested 12 / 15-18-20 policy.
+ const validModes=(m,oldSaved=false)=>m&&validRows(m.narrow?.tickets,3)&&
+   validRows(m.hit?.tickets,10)&&validRows(m.balance?.tickets,oldSaved?10:12)&&
+   (oldSaved?[12,15,18]:[15,18,20]).some(n=>validRows(m.hole?.tickets,n))&&
    (m.tail===undefined||validRows(m.tail?.tickets,10));
  const appendModes=(m,oldSaved)=>{
   root.replaceChildren();
   const intro=document.createElement('p');intro.className='muted';
   intro.textContent=oldSaved
     ?'旧V127/V133の当時の保存原本。買い目の順序は原本どおりで、後付け生成はしていません。正式的中率・独立初回保存認定ではありません。'
-    :'旧V127スコアとV133の4モードをCLEANの直前入力から計算（参考・未校正・未保存）。旧サイトの3か月コース集計など一部情報は未接続。正式的中率ではありません。';
+    :'V127展開スコア継承・新配分（絞り3／本命10／バランス12／穴15〜20点）。CLEAN直前入力による参考・未校正・未保存の予想です。旧サイトの3か月コース集計など一部情報は未接続。正式的中率ではありません。';
   root.append(intro);
   for(const [mode,label] of [['narrow','激絞り'],['hit','的中重視'],['balance','バランス'],['hole','波乱展開']]){
    const article=document.createElement('article');article.className='four-mode-forecast-item';
@@ -1921,7 +1923,7 @@ async function loadOriginalV133Frozen(key,token,status,root){
      first<=saved&&saved<cutoff&&0<(cutoff-first)&&cutoff-first<=15*60*1000&&
      /^[a-f0-9]{64}$/.test(d.race_sha256||'')&&
      /^[a-f0-9]{64}$/.test(d.odds_sha256||'')&&
-     validModes(d.modes)&&(d.modes.tail===undefined||validRows(d.modes.tail.tickets,10));
+     validModes(d.modes,true)&&(d.modes.tail===undefined||validRows(d.modes.tail.tickets,10));
    if(!ok){root.replaceChildren();status.textContent='旧V127/V133の保存原本・時刻・モードを検証できません。推測の買い目は表示しません。';return true;}
    appendModes(d.modes,true);
    const link=document.createElement('a');link.href=frozenUrl;link.target='_blank';link.rel='noopener noreferrer';link.textContent='保護した旧予想原本を確認';root.append(link);
@@ -1957,18 +1959,19 @@ async function loadOriginalV133Frozen(key,token,status,root){
   }
   const d=await response.json();
   if(!(d.ok===true&&d.status==='live_old_v127_v133_reference_not_formal'&&
-       d.model_version==='V127_V133_SOURCE_PORT_INPUT_GUARDED_REFERENCE_V1'&&
+       d.model_version==='V127_V133_BALANCE12_HOLE15_18_20_REFERENCE_V2'&&
+       d.selection_policy==='BALANCE12_WAVE15_18_20_V133_REFERENCE_V2'&&
        d.race_code===code&&d.formal===false&&d.calibrated===false&&
        d.production_buy_approved===false&&d.first_remote_add_verified===false&&
        d.source_audit?.race_card?.status==='ok'&&d.source_audit?.beforeinfo?.status==='ok'&&
-       validModes(d.modes))){
+       validModes(d.modes,false))){
     root.replaceChildren();status.textContent='V127/V133のCLEAN直前情報検証に失敗。正式予想として表示しません。';return true;
   }
   appendModes(d.modes,false);
   const evidence=document.createElement('p');evidence.className='muted';
   evidence.textContent='使用 '+(d.used_features||[]).join('・')+' ／ 未接続 '+(d.missing_or_unverified||[]).join('・');
   root.append(evidence);
-  status.textContent='V127/V133の元ロジックによる直前参考予想（未校正・未保存）。V2は比較欄。';
+  status.textContent='V127/V133展開スコア＋新配分：バランス12点／穴15〜20点（未校正・未保存）。全国勝率V2は比較欄。';
   return true;
  }catch(_){
   if(live()){

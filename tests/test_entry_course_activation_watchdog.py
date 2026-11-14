@@ -5,6 +5,7 @@ from scripts.entry_course_activation_watchdog import (
     dispatch_decision,run_once,preview_fallback,PREVIEW_WORKFLOW,
     PREVIEW_WATCHDOG_MARK,dispatch_payload,TARGETS,JST,
     OFFICIAL_PROBE_WORKFLOW,official_live_probe_fallback,
+    audit_wakeup_origin,
 )
 
 NOW=datetime(2026,11,4,10,12,tzinfo=JST)
@@ -13,6 +14,60 @@ def event(*,minutes=0,kind="schedule",status="completed",branch="main",
           conclusion="success"):
     return {"event":kind,"created_at":(NOW-timedelta(minutes=minutes)).isoformat(),
             "status":status,"head_branch":branch,"conclusion":conclusion}
+
+class WakeupOriginAuditTests(unittest.TestCase):
+    def test_native_odds_parent_is_reported_but_never_certified_as_official_cron(self):
+        parent={"workflow_run":{
+            "name":"CLEAN live official trifecta odds probe",
+            "id":43586637099,"event":"schedule","conclusion":"success",
+            "created_at":"2026-11-14T10:43:39Z","head_branch":"main",
+            "head_repository":{"full_name":"ikst2512-eng/boat-edge-clean"}}}
+        result=audit_wakeup_origin("workflow_run",parent)
+        self.assertEqual(result["reported_parent"]["run_id"],43586637099)
+        self.assertEqual(result["reported_parent"]["event"],"schedule")
+        self.assertEqual(result["reported_parent"]["head_repository"],
+                         "ikst2512-eng/boat-edge-clean")
+        self.assertEqual(result["source_status"],
+                         "github_webhook_metadata_observed_not_attestation")
+        self.assertFalse(result["native_official_schedule_verified"])
+        self.assertFalse(result["official_24_values_verified"])
+        self.assertFalse(result["formal_t12_certified"])
+
+    def test_untrusted_manual_or_pr_parent_remains_descriptive_only(self):
+        parent={"workflow_run":{"name":"other","id":3,"event":"pull_request",
+                                "conclusion":"success","head_branch":"not-main",
+                                "head_repository":{"full_name":"other/repo"}}}
+        result=audit_wakeup_origin("workflow_run",parent)
+        self.assertEqual(result["reported_parent"]["event"],"pull_request")
+        self.assertFalse(result["native_official_schedule_verified"])
+        self.assertFalse(result["formal_t12_certified"])
+        self.assertEqual(audit_wakeup_origin("push",parent)["reported_parent"],None)
+        self.assertEqual(audit_wakeup_origin("workflow_dispatch",parent)["reported_parent"],None)
+
+    def test_missing_or_malformed_webhook_fails_closed_without_effect_on_dispatch(self):
+        for payload in (None,{},{"workflow_run":"bad"},[],{"workflow_run":None}):
+            with self.subTest(payload=payload):
+                result=audit_wakeup_origin("workflow_run",payload)
+                self.assertEqual(result["source_status"],"parent_metadata_unavailable")
+                self.assertIsNone(result["reported_parent"])
+                self.assertFalse(result["official_24_values_verified"])
+        malformed={"workflow_run":{"id":True,"name":3,"event":None,
+                                    "head_repository":"bad"}}
+        record=audit_wakeup_origin("workflow_run",malformed)
+        self.assertIsNone(record["reported_parent"]["run_id"])
+        self.assertIsNone(record["reported_parent"]["event"])
+        self.assertIsNone(record["reported_parent"]["head_repository"])
+
+    def test_audit_only_is_used_after_dispatch_without_changing_cron(self):
+        from pathlib import Path
+        root=Path(__file__).resolve().parent.parent
+        script=(root/"scripts/entry_course_activation_watchdog.py").read_text()
+        workflow=(root/".github/workflows/entry-course-activation-watchdog.yml").read_text()
+        self.assertLess(script.index("report=run_once("),
+                        script.index('report["wakeup_origin"]=audit_wakeup_origin('))
+        self.assertEqual(workflow.count("- cron:"),1)
+        self.assertIn("GITHUB_EVENT_PATH",script)
+
 
 class ActivationTests(unittest.TestCase):
     def test_empty_active_hour_dispatches_both_separately(self):
@@ -190,6 +245,49 @@ class ActivationTests(unittest.TestCase):
         self.assertEqual(result["decision"],"requested_missing_official_probe")
         self.assertFalse(result["trigger_is_schedule"])
         self.assertFalse(result["formal_t12_certified"])
+
+    def test_independent_official_odds_schedule_wakes_only_evening_rescue(self):
+        # An already scheduled odds probe launched late at 19:43 JST on
+        # 2026-11-14. Its successful same-repo/main/schedule completion may
+        # wake the EXISTING 19:40-19:59 watchdog, never certify native 19:35.
+        from pathlib import Path
+        root=Path(__file__).resolve().parent.parent
+        parent=(root/".github/workflows/live-official-odds-probe.yml").read_text()
+        watchdog=(root/".github/workflows/entry-course-activation-watchdog.yml").read_text()
+        self.assertIn("name: CLEAN live official trifecta odds probe",parent)
+        self.assertIn('- "CLEAN live official trifecta odds probe"',watchdog)
+        self.assertIn("github.event.workflow_run.event == 'schedule'",watchdog)
+        self.assertIn("github.event.workflow_run.head_branch == 'main'",watchdog)
+        self.assertIn("github.event.workflow_run.head_repository.full_name == github.repository",watchdog)
+        self.assertIn(
+            "github.event.workflow_run.name != 'CLEAN live official trifecta odds probe'",
+            watchdog)
+        self.assertIn("github.event.workflow_run.conclusion == 'success'",watchdog)
+        self.assertIn("contains(github.event.workflow_run.created_at, 'T10:4')",watchdog)
+        self.assertIn("contains(github.event.workflow_run.created_at, 'T10:5')",watchdog)
+        self.assertEqual(watchdog.count("- cron:"),1)
+        self.assertNotIn('- "Entry course missed-cron activation watchdog"',parent)
+
+        now=datetime(2026,11,14,19,45,tzinfo=JST)
+        called=[]
+        result=official_live_probe_fallback(
+            now,lambda file,event:[],lambda file:called.append(file))
+        self.assertEqual(called,[OFFICIAL_PROBE_WORKFLOW])
+        self.assertEqual(result["decision"],"requested_missing_official_probe")
+        self.assertFalse(result["trigger_is_schedule"])
+        self.assertFalse(result["live_24_values_verified"])
+        self.assertFalse(result["formal_t12_certified"])
+
+        # Even a previously FAILED 19:35 job is not blindly doubled at 19:45.
+        existing={"event":"schedule","head_branch":"main","status":"completed",
+                  "conclusion":"failure","created_at":
+                  datetime(2026,11,14,19,35,tzinfo=JST).isoformat()}
+        called.clear()
+        blocked=official_live_probe_fallback(
+            now,lambda file,event:[existing] if event=="schedule" else [],
+            lambda file:called.append(file))
+        self.assertEqual(called,[])
+        self.assertEqual(blocked["decision"],"official_probe_started_already")
 
     def test_existing_readonly_audit_completions_can_opportunistically_wake_t12(self):
         # 11/11 real GitHub schedules: AI audit completed ~08:31 JST,

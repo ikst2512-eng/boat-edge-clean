@@ -283,6 +283,40 @@ def official_live_probe_fallback(now, fetch_runs, dispatch):
     return report
 
 
+
+def audit_wakeup_origin(event_name, payload):
+    """Describe the GitHub wakeup source; never promote it to source proof.
+
+    An upstream schedule event can wake an existing watchdog, but cannot
+    prove the 19:35 official cron ran or that any official fields were read.
+    This function has no effect on the dispatcher policy.
+    """
+    record={"event_name":event_name if isinstance(event_name,str) else "unknown",
+            "source_status":"not_workflow_run",
+            "reported_parent":None,
+            "native_official_schedule_verified":False,
+            "official_24_values_verified":False,
+            "formal_t12_certified":False}
+    if event_name!="workflow_run":
+        return record
+    record["source_status"]="parent_metadata_unavailable"
+    parent=payload.get("workflow_run") if isinstance(payload,dict) else None
+    if not isinstance(parent,dict):
+        return record
+    repo=parent.get("head_repository")
+    record["reported_parent"]={
+        "name":parent.get("name") if isinstance(parent.get("name"),str) else None,
+        "run_id":parent.get("id") if type(parent.get("id")) is int else None,
+        "event":parent.get("event") if isinstance(parent.get("event"),str) else None,
+        "conclusion":parent.get("conclusion") if isinstance(parent.get("conclusion"),str) else None,
+        "created_at":parent.get("created_at") if isinstance(parent.get("created_at"),str) else None,
+        "head_branch":parent.get("head_branch") if isinstance(parent.get("head_branch"),str) else None,
+        "head_repository":repo.get("full_name") if isinstance(repo,dict)
+                          and isinstance(repo.get("full_name"),str) else None}
+    record["source_status"]="github_webhook_metadata_observed_not_attestation"
+    return record
+
+
 def main():
     repo=os.environ.get("GITHUB_REPOSITORY")
     if repo!=REPO:
@@ -302,6 +336,22 @@ def main():
         _call(f"actions/workflows/{quote(file)}/dispatches",token,
               method="POST",fields=dispatch_payload(file))
     report=run_once(now=now,fetch_runs=fetch_runs,dispatch=dispatch)
+    # Pure diagnostic from GitHub's delivered webhook. Never affects dispatch.
+    # A missing or malformed event payload must not cancel the T12/T2 rescue.
+    try:
+        event_path=os.environ.get("GITHUB_EVENT_PATH")
+        event_payload=json.loads(Path(event_path).read_text(encoding="utf-8")) if event_path else None
+        report["wakeup_origin"]=audit_wakeup_origin(
+            os.environ.get("GITHUB_EVENT_NAME","unavailable"),event_payload)
+    except (OSError,UnicodeError,ValueError,TypeError) as exc:
+        report["wakeup_origin"]={
+            "event_name":os.environ.get("GITHUB_EVENT_NAME","unavailable"),
+            "source_status":"event_payload_unavailable",
+            "error_type":type(exc).__name__,
+            "reported_parent":None,
+            "native_official_schedule_verified":False,
+            "official_24_values_verified":False,
+            "formal_t12_certified":False}
     # A preview service outage must not cancel T12/T2 rescue actions already
     # taken. Save an honest independent diagnostic before returning failure.
     preview_error=None
