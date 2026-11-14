@@ -207,6 +207,57 @@ class CourseHolderStructuralTests(unittest.TestCase):
         self.assertFalse(prepared["history_source_join"][
             "official_K_original_replayed_here"])
 
+    def test_unverified_K_full_claim_is_traceable_but_not_used_as_probability(self):
+        case = input_case(3)
+        baseline = prepare(*case)
+        claim = baseline["history_source_join"]
+        self.assertEqual(
+            claim["history_claimed_input_sha256"],
+            lab._handoff_digest(case[4]))
+        self.assertEqual(
+            claim["history_claimed_national_escape_count"],
+            case[4]["national_training_C1_escape_count"])
+        self.assertEqual(
+            claim["history_claimed_venue_escape_count"],
+            case[4]["venue_training_C1_escape_count"])
+        self.assertFalse(claim["official_K_original_replayed_here"])
+        self.assertFalse(baseline["history_counts_applied_to_head_or_world_weights"])
+
+        # Previously two different source claims with identical denominators
+        # and residual could create the SAME audit handoff digest, because
+        # their numerator fields were discarded after validation.
+        for field, replacement in (
+            ("national_training_C1_escape_count",
+             case[4]["national_training_C1_escape_count"]+1),
+            ("venue_training_C1_escape_count",
+             case[4]["venue_training_C1_escape_count"]+1),
+            ("historic_training_end_date_jst", "2026-09-29"),
+            ("C1_athlete_venue_centered_residual_sum", -10.0),
+        ):
+            different = copy.deepcopy(case)
+            different[4][field] = replacement
+            changed = prepare(*different)
+            with self.subTest(field=field):
+                self.assertNotEqual(
+                    claim["history_claimed_input_sha256"],
+                    changed["history_source_join"]["history_claimed_input_sha256"])
+                self.assertNotEqual(
+                    baseline["handoff_digest_sha256"],
+                    changed["handoff_digest_sha256"])
+                self.assertEqual(
+                    baseline["head_models"], changed["head_models"],
+                    "unreplayed K input must NOT silently change forecast math")
+                self.assertEqual(
+                    baseline["scenario_weights"], changed["scenario_weights"])
+                self.assertFalse(changed["original_K_history_replayed_and_verified"])
+
+        tampered = copy.deepcopy(baseline)
+        tampered["history_source_join"]["history_claimed_venue_escape_count"] += 1
+        with self.assertRaisesRegex(
+                ValueError, "course_holder_handoff_modified_since_source_join"):
+            run_course_holder_four_mode_sensitivity(
+                tampered, case[3], lambda *args: None)
+
     def test_history_weak_provenance_is_not_promoted_into_model(self):
         a=prepare(*input_case(2))
         bcase=list(input_case(2))
