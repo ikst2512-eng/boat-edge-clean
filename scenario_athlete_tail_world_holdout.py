@@ -32,7 +32,8 @@ ALTERNATIVES = (
     "head_latent_style",
     "head_style_and_athlete_tail",
 )
-ALL_MODELS = ("global_boat",) + ALTERNATIVES
+ABLATION_MODELS = ("head_second_only", "head_third_only")
+ALL_MODELS = ("global_boat",) + ALTERNATIVES + ABLATION_MODELS
 STYLE_PRIOR_WINS = 20
 WORLD_TAIL_PRIOR_RACES = 30
 POSITION_PRIOR_EXPECTED = 10
@@ -178,6 +179,8 @@ def predict_120(fit, registration_ids):
     style_tail = {}
     ability_tail = {}
     both_tail = {}
+    second_only = {}
+    third_only = {}
     for h in BOATS:
         winner_reg = registration_ids[h-1]
         training_wins = fit["athlete_wins"].get(winner_reg, 0)
@@ -193,6 +196,8 @@ def predict_120(fit, registration_ids):
         raw_ability = {}
         raw_style = {}
         raw_both = {}
+        raw_second = {}
+        raw_third = {}
         for _, second, third in (row for row in TICKETS if row[0] == h):
             b2, b3 = registration_ids[second-1], registration_ids[third-1]
             m2 = fit["tail_multipliers"].get(b2,(1.,1.))[0]
@@ -203,9 +208,12 @@ def predict_120(fit, registration_ids):
                 for method in METHODS)
             tail = (second,third)
             raw_ability[tail] = base_conditional*m2*m3
+            raw_second[tail] = base_conditional*m2
+            raw_third[tail] = base_conditional*m3
             raw_style[tail] = style_conditional
             raw_both[tail] = style_conditional*m2*m3
         for raw,dest in ((raw_ability,ability_tail),
+                         (raw_second,second_only),(raw_third,third_only),
                          (raw_style,style_tail),(raw_both,both_tail)):
             total = math.fsum(raw.values())
             if total <= 0 or not math.isfinite(total):
@@ -216,6 +224,8 @@ def predict_120(fit, registration_ids):
         "global_boat":base,
         "head_only":head_only,
         "head_athlete_tail":ability_tail,
+        "head_second_only":second_only,
+        "head_third_only":third_only,
         "head_latent_style":style_tail,
         "head_style_and_athlete_tail":both_tail,
     }
@@ -258,7 +268,8 @@ def evaluate(fit, records, test_month, *, strata=False):
     totals = {name:_empty() for name in ALL_MODELS}
     strata_summary = defaultdict(lambda: {name:_empty() for name in ALL_MODELS})
     compare = {name:{k:Counter() for k in TOPS} for name in ALTERNATIVES[1:]}
-    by_day = defaultdict(lambda: {name:{"n":0,"log":0.,"tail":0.} for name in ALTERNATIVES[1:]})
+    by_day = defaultdict(lambda: {name:{"n":0,"log":0.,"tail":0.,
+                                    "top5":0,"top10":0} for name in ALTERNATIVES[1:]})
     days = Counter()
     coverage = Counter()
     # This loop never passes a result row to the predictor.
@@ -294,6 +305,9 @@ def evaluate(fit, records, test_month, *, strata=False):
             by_day[day][name]["n"]+=1
             by_day[day][name]["log"]+=row_losses[name][0]-row_losses["head_only"][0]
             by_day[day][name]["tail"]+=row_losses[name][1]-row_losses["head_only"][1]
+            for top in (5,10):
+                by_day[day][name][f"top{top}"] += (
+                    int(row_hits[name][top])-int(row_hits["head_only"][top]))
             for k in TOPS:
                 a,b=row_hits["head_only"][k],row_hits[name][k]
                 case="both" if a and b else "gained" if b else "lost" if a else "neither"
@@ -307,7 +321,7 @@ def evaluate(fit, records, test_month, *, strata=False):
     intervals={}
     for index,name in enumerate(ALTERNATIVES[1:]):
         rng=random.Random(BOOTSTRAP_SEED+index)
-        sims={"log":[],"tail":[]}
+        sims={"log":[],"tail":[],"top5":[],"top10":[]}
         for _ in range(BOOTSTRAP_N):
             sample=[sorted_days[rng.randrange(len(sorted_days))]
                     for __ in sorted_days]
