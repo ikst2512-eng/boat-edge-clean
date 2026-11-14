@@ -806,6 +806,168 @@ jobs:
                   "production_changed":False,"accuracy_improvement_proven":False,
               },sort_keys=True))
           PY
+      - name: Result-blind multi-race Nov14 ORIGINAL-source K92 ablation (strict coverage)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Four predeclared real races in TWO existing official 3-source
+          # Actions ZIPs. Pin ZIP contents, not summaries. No results/payouts.
+          curl --fail --location --silent --show-error --retry 2 \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/14101194590/zip" \
+            --output "$RUNNER_TEMP/real-nov14-other-pair-A.zip"
+          echo "b33fb4c44bc6cb387d2c949f3d0cdaa40e87791ed30c9418105e9c77ade3b504  $RUNNER_TEMP/real-nov14-other-pair-A.zip" | sha256sum --check --status
+          curl --fail --location --silent --show-error --retry 2 \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/14102591172/zip" \
+            --output "$RUNNER_TEMP/real-nov14-other-pair-B.zip"
+          echo "8d5f4deefe4dd0d44490474be42daeefdd21b24747fbbb07b260e961f56202d5  $RUNNER_TEMP/real-nov14-other-pair-B.zip" | sha256sum --check --status
+          OFFICIAL_K_ZIP="$RUNNER_TEMP/official-K-92day-original.zip" \
+          PYTHONPATH="$RUNNER_TEMP/position1698:$RUNNER_TEMP/K1692:$PWD" python - <<'PY'
+          import json,os,stat
+          from collections import Counter
+          from pathlib import Path
+          from zipfile import ZipFile
+          from scripts.audit_three_official_t12_originals import audit_three_originals
+          from scenario_official_K_training_roster_bridge import _training_history,K92_ZIP_SHA256
+          from research_official_k_c2_athlete_chronological_holdout import official_rows
+          from scenario_escape_prior_first_head_sensitivity import historical_C1_escape_proxy,sensitivity_only
+          from scenario_flagged_st_feature_study import encode_archived_triple
+          from scenario_official_racelist_rates import extract_six_official_racelist_rates
+          from test_scenario_mode_specific_exhibition_end_to_end import hypotheses
+          from position_sensitive_conditioned_lab import experimental_conditional_board
+          import hashlib
+
+          original=Path(os.environ["OFFICIAL_K_ZIP"])
+          assert hashlib.sha256(original.read_bytes()).hexdigest()==K92_ZIP_SHA256
+          training,sha,days=official_rows(original)
+          assert sha==K92_ZIP_SHA256 and len(training)==13815 and len(days)==92
+          tmp=Path(os.environ["RUNNER_TEMP"])
+          batches=(
+              ("A","real-nov14-other-pair-A.zip",("202611140211","202611140701")),
+              ("B","real-nov14-other-pair-B.zip",("202611140411","202611141311")),
+          )
+          reports=[]
+          for batch,archive,codes in batches:
+              unpack=tmp/("nov14-multi-"+batch)
+              unpack.mkdir(exist_ok=False)
+              with ZipFile(tmp/archive) as z:
+                  assert z.testzip() is None
+                  infos=z.infolist(); names=[x.filename for x in infos]
+                  assert 3<=len(names)<100 and len(set(names))==len(names)
+                  assert sum(x.file_size for x in infos)<10_000_000
+                  assert all(not name.startswith("/") and ".." not in Path(name).parts
+                             and not stat.S_ISLNK(x.external_attr>>16)
+                             for name,x in zip(names,infos))
+                  z.extractall(unpack)
+              base=unpack/"official_joint_evidence"/"observations"
+              for code in codes:
+                  groups=[]
+                  for prefix in ("racelist_","before_","odds_"):
+                      dirs=sorted(base.glob(prefix+"*/"+code[:8]+"/"+code))
+                      assert len(dirs)==1,(code,prefix,len(dirs))
+                      groups.append(dirs[0])
+                  audit=audit_three_originals(*groups)
+                  assert audit["race_code"]==code and audit["three_originals_hash_verified"] is True
+                  assert audit["all_research_components_observed_by_t12"] is True
+                  assert all(v is True for v in audit["component_checks"].values())
+                  assert len(audit["component_checks"])==12
+                  assert audit["t12_receipt_margin_seconds"]>0
+                  assert audit["final_race_entry_verified"] is False
+                  assert audit["forecast_usable"] is False
+                  ids=audit["registrations_by_lane"]
+                  courses=audit["exhibition_course_to_boat"]
+                  assert set(ids)==set(courses)=={str(i) for i in range(1,7)}
+                  byboat={int(boat):int(course) for course,boat in courses.items()}
+                  assert set(byboat)==set(range(1,7))
+                  assert len(set(ids.values()))==6
+                  projection={"race_code":code,"exhibition_features_by_boat":[
+                      {"boat":i,"registration_id":ids[str(i)],
+                       "exhibition_course_only":byboat[i]}
+                      for i in range(1,7)]}
+                  history=_training_history(training,days,code,projection)
+                  assert history["national_training_race_count"]==9241
+                  assert history["historic_training_end_date_jst"]=="2026-09-30"
+                  holder=int(courses["1"])
+                  report={"race_code":code,"batch":batch,"source_checks":12,
+                          "t12_source_margin_s":audit["t12_receipt_margin_seconds"],
+                          "exhibition_course1_boat":holder,
+                          "historical_athlete_course1_n":
+                              history["C1_athlete_training_race_count"],
+                          "status":"not_checked"}
+                  if holder!=1:
+                      # Frozen scenario boosts *boat1*; do not silently
+                      # transfer its head to an exhibition course1 outsider.
+                      report["status"]="entry_swap_fixed_head_hypothesis_forbidden"
+                  else:
+                      feature={"race_code":code,"exhibition_st_by_boat":[
+                          {"boat":v["boat"],
+                           "exhibition_course_only":v["exhibition_course_only"]}
+                          for v in projection["exhibition_features_by_boat"]]}
+                      proxy=historical_C1_escape_proxy(history,feature)
+                      report["venue_C1_proxy"]=round(proxy["venue_C1_escape_proxy"],8)
+                      report["athlete_C1_proxy"]=round(
+                          proxy["athlete_adjusted_C1_escape_proxy"],8)
+                      report["effect_vs_venue"]=round(proxy["athlete_effect_vs_venue"],8)
+                      try:
+                          signed=encode_archived_triple(*groups)
+                          raw_card=(groups[0]/"racelist.html").read_bytes()
+                          rates=extract_six_official_racelist_rates(raw_card)
+                          assert [v["registration_id"] for v in rates["boats"]]==[
+                              ids[str(i)] for i in range(1,7)]
+                          raw_before=json.loads(
+                              (groups[1]/"beforeinfo.json").read_bytes())["maindata"]
+                          before_byboat={int(v["teino"]):v
+                                        for v in raw_before["teiinfolist"]}
+                          assert set(before_byboat)==set(range(1,7))
+                          assert all(str(before_byboat[i]["racerno"])==ids[str(i)]
+                                     for i in range(1,7))
+                          times=[float(before_byboat[i]["extime"]) for i in range(1,7)]
+                          if signed["flag_L_count"]:
+                              report["status"]="L_ST_numeric_offset_unavailable"
+                          else:
+                              result=sensitivity_only(
+                                  history,signed,rates["national_rates"],times,
+                                  hypotheses(),experimental_conditional_board)
+                              assert all(result[x] is False for x in (
+                                  "candidate_created","first_remote_receipt_verified",
+                                  "outcomes_read","formal","production_changed",
+                                  "accuracy_improvement_proven"))
+                              modes={}
+                              for mode,budget in result["same_mode_budgets"].items():
+                                  base=[v["combo"] for v in
+                                        result["control_four_mode_tickets"][mode]["tickets"]]
+                                  adj=[v["combo"] for v in
+                                       result["hypothesis_four_mode_tickets"][mode]["tickets"]]
+                                  assert len(base)==len(adj)==budget
+                                  modes[mode]={
+                                      "budget":budget,"set_overlap":len(set(base)&set(adj)),
+                                      "top1_changed":base[0]!=adj[0],
+                                      "rank_positions_changed":sum(a!=b for a,b in zip(base,adj))}
+                              report.update(status="math_ablation_completed",mode_diffs=modes,
+                                            F_count=signed["flag_F_count"])
+                      except (ValueError,AssertionError,KeyError,TypeError) as exc:
+                          report["status"]="strict_original_input_math_blocked"
+                          report["error_type"]=type(exc).__name__
+                          report["error_code"]=str(exc)[:90]
+                  reports.append(report)
+                  print("REAL_MULTIRACE_K92_ABLATION_INPUT_ONLY "+json.dumps(
+                      report,sort_keys=True))
+          assert len(reports)==4
+          statuses=Counter(x["status"] for x in reports)
+          print("REAL_MULTIRACE_K92_ABLATION_COVERAGE "+json.dumps({
+              "pinned_actual_archives":2,"actual_races_with_complete_3_originals":4,
+              "pre_t12_source_checks_per_race":12,"statuses":dict(statuses),
+              "K_original_sha256":sha,"K_train_n":9241,"K_oct_holdout_training_used":False,
+              "new_candidate_created":False,"results_or_payouts_read":False,
+              "first_remote_forecast_receipt_verified":False,
+              "formal":False,"production_changed":False,
+              "accuracy_improvement_proven":False,
+          },sort_keys=True))
+          PY
       - name: Confirm all-mode scenario composition uses actual reviewed #1698 conditional math
         env:
           RESEARCH_1698_PIN_REQUIRED: '1'
