@@ -42,7 +42,7 @@ class ActiveForecastLockTests(unittest.TestCase):
             with self.subTest(path=path):
                 raw = (ROOT / path).read_bytes()
                 actual = hashlib.sha1(
-                    b"blob " + str(len(raw)).encode("ascii") + b"\\0" + raw
+                    b"blob " + str(len(raw)).encode("ascii") + b"\0" + raw
                 ).hexdigest()
                 self.assertEqual(actual, pinned, path + " changed without user-approved model promotion")
 
