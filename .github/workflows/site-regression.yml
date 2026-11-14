@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - index.html
+      - styles.css
       - navigation.js
       - tests/site-regression.cjs
       - tests/test_prospective_receipt_order.py
@@ -20,6 +21,7 @@ on:
   pull_request:
     paths:
       - index.html
+      - styles.css
       - navigation.js
       - tests/site-regression.cjs
       - tests/test_prospective_receipt_order.py

@@ -17,6 +17,7 @@ class NavigationContractTest(unittest.TestCase):
         cls.nav = (ROOT / "navigation.js").read_text(encoding="utf-8")
         cls.server = (ROOT / "server.py").read_text(encoding="utf-8")
         cls.index = (ROOT / "index.html").read_text(encoding="utf-8")
+        cls.css = (ROOT / "styles.css").read_text(encoding="utf-8")
         cls.secondary = cls.nav
 
     def test_schedule_success_does_not_call_deleted_home_cards(self):
@@ -46,7 +47,8 @@ class NavigationContractTest(unittest.TestCase):
         self.assertLess(guard, initialized)
 
     def test_nested_forecast_nav_is_hidden_not_deleted(self):
-        self.assertIn('#forecast>.forecast-detail-tabs,#forecast .forecast-result-first{display:none!important}', self.index)
+        self.assertIn('#forecast>.forecast-detail-tabs,#forecast .forecast-result-first{display:none!important}', self.css)
+        self.assertIn('<link rel="stylesheet" href="styles.css">', self.index)
         self.assertIn('function setForecastPane(pane)', self.index)
         self.assertIn('class="forecast-combined-race"', self.index)
 

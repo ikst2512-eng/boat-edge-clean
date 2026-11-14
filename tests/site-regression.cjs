@@ -639,7 +639,9 @@ async function assertArchiveFetchOrder(host, statuses, expectedCalls, expectedSt
 })().catch(error=>{console.error(error);process.exitCode=1});
 
 // Narrow iPhone four-mode ticket hierarchy regression.
-const narrowTicketCss=html.match(/\/\* Narrow iPhone: readable picks outrank secondary odds without changing forecast data \*\/([\s\S]*?)<\/style>/)?.[1];
+const styles=fs.readFileSync('styles.css','utf8');
+assert.ok(html.includes('<link rel="stylesheet" href="styles.css">'),'single CSS asset must be loaded by HTML');
+const narrowTicketCss=styles.match(/\/\* Narrow iPhone: readable picks outrank secondary odds without changing forecast data \*\/([\s\S]*)$/)?.[1];
 assert.ok(narrowTicketCss,'narrow iPhone ticket hierarchy must exist');
 assert.match(narrowTicketCss,/@media\(max-width:420px\)/,'narrow mobile breakpoint');
 assert.match(narrowTicketCss,/\.four-mode-forecast-grid\{grid-template-columns:minmax\(0,1fr\)/,'one forecast mode per row on narrow iPhones');

@@ -494,6 +494,9 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/", "/index.html", "/forecast", "/exhibition", "/card", "/results", "/review"):
             body = (ROOT / "index.html").read_bytes()
             status, kind = 200, "text/html; charset=utf-8"
+        elif path == "/styles.css":
+            body = (ROOT / "styles.css").read_bytes()
+            status, kind = 200, "text/css; charset=utf-8"
         elif path == "/navigation.js":
             body = (ROOT / "navigation.js").read_bytes()
             status, kind = 200, "application/javascript; charset=utf-8"

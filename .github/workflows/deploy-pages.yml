@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - index.html
+      - styles.css
       - candidates.html
       - candidate_history.js
       - candidate_history.py
@@ -71,6 +72,7 @@ jobs:
         run: |
           mkdir -p public
           cp index.html navigation.js candidates.html candidate_history.js public/
+          cp styles.css public/
           mkdir -p public/candidate_history
           python3 - <<'PY'
           import json
@@ -112,6 +114,7 @@ jobs:
           test -s public/confirmed_results/202610310708.json
           test -s public/confirmed_results/202611031911.json
           test -s public/index.html
+          test -s public/styles.css
           test -s public/navigation.js
           test -s public/candidates.html
           test -s public/candidate_history.js

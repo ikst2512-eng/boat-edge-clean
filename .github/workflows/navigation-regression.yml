@@ -4,6 +4,7 @@ on:
     paths:
       - 'navigation.js'
       - 'index.html'
+      - 'styles.css'
       - 'server.py'
       - 'test_holdout_status_async.py'
       - 'tests/test_navigation_contract.py'
@@ -21,6 +22,7 @@ on:
     paths:
       - 'navigation.js'
       - 'index.html'
+      - 'styles.css'
       - 'server.py'
       - 'test_holdout_status_async.py'
       - 'tests/test_navigation_contract.py'
