@@ -1,0 +1,257 @@
+"""RESEARCH ONLY: a first-head world weight that varies with 1C racer history.
+
+Builds on #1692's *exploratory* chronological 1C-athlete residual idea,
+#1710's already-frozen four scenario head and 120-way pair composer and
+the exact external #1698 conditional callback. This is a SEPARATE,
+UNREGISTERED numerical sensitivity study, NOT a pre-T12 forecast, a
+certified official K statistic, an established causal 2C wall estimate
+or a measured improvement. No results, K-file I/O, API, Git writing, Cron,
+site selector changes or saved prediction mutation.
+
+Until the actual first course and source age are independently attested,
+exhibition course is only a PROXY; changed 1C exhibition is rejected because
+the frozen "escape_wall" hypothesis boosts boat 1 rather than course 1.
+"""
+from datetime import date
+import json
+import math
+from pathlib import Path
+import re
+
+from research_model import probabilities
+from scenario_first_head_research import hypothetical_head_board
+from scenario_signed_st_four_mode_shadow import _signed_vector
+from scenario_exhibition_all_mode_runner import _conditional_result
+from scenario_four_mode_bridge import BUDGETS, compose_scenario_research
+from scenario_future_local_candidate_handoff import _git_blob_sha1
+
+SCHEMA="SEPARATE_ATHLETE_HISTORY_FIRST_HEAD_SENSITIVITY_V1"
+HISTORY_SCHEMA="UNATTESTED_BEFORE_EVENT_OFFICIAL_K_C1_HISTORY_SUMMARY_V1"
+STUDY="EXPLORATORY_ONLY_C1_ATHLETE_ESCAPE_DYNAMIC_HEAD_V1"
+RACE=re.compile(r"20[0-9]{10}\Z")
+K92_ZIP_SHA256="c668f545bae54f8148616315e307ed2a2b04a77a0cb8abf88bf3ea078749ce8e"
+FROZEN_1710_PROTOCOL_BLOB="bf60d2879065d1f9ecbd6b442db17fcb8fbcb8b7"
+WORLDS=("escape_wall","two_sashi","third_attack","outer_benefit")
+HISTORY_FIELDS={
+    "schema","race_code","historic_training_end_date_jst",
+    "official_K_replay_zip_sha256_claim","venue_code",
+    "national_training_race_count","national_training_C1_escape_count",
+    "venue_training_race_count","venue_training_C1_escape_count",
+    "C1_athlete_registration","C1_athlete_training_race_count",
+    "C1_athlete_venue_centered_residual_sum",
+    "exhibition_entry_roster_by_boat","training_used_outcomes_after_target",
+    "official_source_receipt_independently_authenticated",
+    "exhibition_is_final_race_entry","outcomes_from_target_race_read",
+}
+ENTRY_FIELDS={"boat","registration","exhibition_course"}
+
+
+def _finite(value,label,*,low,high):
+    if type(value) not in (int,float) or not math.isfinite(value) or not low<=value<=high:
+        raise ValueError("C1_history_"+label+"_invalid")
+    return float(value)
+
+
+def _strict_count(value,label):
+    if type(value) is not int or value<0:
+        raise ValueError("C1_history_"+label+"_invalid")
+    return value
+
+
+def historical_C1_escape_proxy(history,feature):
+    """Return #1692-style venue+1C athlete residual as *sensitivity*, not P(1st)."""
+    if (type(history) is not dict or set(history)!=HISTORY_FIELDS
+            or history.get("schema")!=HISTORY_SCHEMA
+            or history.get("official_K_replay_zip_sha256_claim")!=K92_ZIP_SHA256
+            or history.get("training_used_outcomes_after_target") is not False
+            or history.get("official_source_receipt_independently_authenticated") is not False
+            or history.get("exhibition_is_final_race_entry") is not False
+            or history.get("outcomes_from_target_race_read") is not False):
+        raise ValueError("C1_history_source_claim_or_schema_forbidden")
+    code=history["race_code"]
+    if type(code) is not str or not RACE.fullmatch(code) or code!=feature.get("race_code"):
+        raise ValueError("C1_history_target_race_identity_mismatch")
+    if not 1<=int(code[8:10])<=24 or not 1<=int(code[10:12])<=12:
+        raise ValueError("C1_history_race_venue_or_number_invalid")
+    if history["venue_code"]!=code[8:10]:
+        raise ValueError("C1_history_venue_mismatch")
+    try:
+        end=date.fromisoformat(history["historic_training_end_date_jst"])
+        target=date.fromisoformat(code[:4]+"-"+code[4:6]+"-"+code[6:8])
+    except (TypeError,ValueError) as exc:
+        raise ValueError("C1_history_period_invalid") from exc
+    # Frozen official-K sample from 8/1-10/31; no October holdout
+    # labels used for an August-September learner.
+    if end>date(2026,9,30) or end<date(2026,8,1) or end>=target:
+        raise ValueError("C1_history_lookahead_or_untrained_period")
+    n=_strict_count(history["national_training_race_count"],"national_denominator")
+    k=_strict_count(history["national_training_C1_escape_count"],"national_numerator")
+    vn=_strict_count(history["venue_training_race_count"],"venue_denominator")
+    vk=_strict_count(history["venue_training_C1_escape_count"],"venue_numerator")
+    player_n=_strict_count(history["C1_athlete_training_race_count"],"athlete_denominator")
+    if (n<100 or k>n or vn<10 or vk>vn or vn>n
+            or player_n>n):
+        raise ValueError("C1_history_invalid_race_counts")
+    residual=_finite(history["C1_athlete_venue_centered_residual_sum"],
+                      "athlete_residual",low=-player_n,high=player_n)
+    racer=history["C1_athlete_registration"]
+    if type(racer) is not str or re.fullmatch(r"[0-9]{4,6}",racer) is None:
+        raise ValueError("C1_history_athlete_registration_invalid")
+    roster=history["exhibition_entry_roster_by_boat"]
+    feature_rows=feature.get("exhibition_st_by_boat")
+    if type(roster) is not list or len(roster)!=6 or type(feature_rows) is not list or len(feature_rows)!=6:
+        raise ValueError("C1_history_six_source_roster_required")
+    if (any(type(r) is not dict or set(r)!=ENTRY_FIELDS for r in roster)
+            or [r["boat"] for r in roster]!=list(range(1,7))
+            or any(type(r["registration"]) is not str or
+                   re.fullmatch(r"[0-9]{4,6}",r["registration"]) is None
+                   for r in roster)
+            or len({r["registration"] for r in roster})!=6
+            or any(type(r["exhibition_course"]) is not int
+                   for r in roster)
+            or {r["exhibition_course"] for r in roster}!=set(range(1,7))
+            or any(type(entry) is not dict
+                   or entry.get("boat")!=r["boat"]
+                   or entry.get("exhibition_course_only")!=r["exhibition_course"]
+                   for r,entry in zip(roster,feature_rows))):
+        raise ValueError("C1_history_roster_or_exhibition_course_mismatch")
+    # Cannot silently reassign old fixed head shift of boat1 to entrant2.
+    if roster[0]["exhibition_course"]!=1:
+        raise ValueError("C1_history_changed_exhibition_entry_requires_separate_world_mapping")
+    if racer!=roster[0]["registration"]:
+        raise ValueError("C1_history_athlete_does_not_match_exhibition_course1")
+    national=k/n
+    venue=(vk+40*national)/(vn+40)
+    player_delta=residual/(player_n+40)
+    candidate=min(.995,max(.005,venue+player_delta))
+    venue=min(.995,max(.005,venue))
+    return {
+        "venue_C1_escape_proxy":venue,
+        "athlete_adjusted_C1_escape_proxy":candidate,
+        "athlete_effect_vs_venue":candidate-venue,
+        "venue_smoothing_races":40,
+        "athlete_residual_smoothing_races":40,
+        "source_lookahead_tested_structurally":True,
+        "official_original_K_bytes_replayed_in_this_function":False,
+        "exhibition_course_assumed_final_entry":False,
+        "trained_coefficients_formally_calibrated":False,
+        "predictive_effect_proven":False,
+    }
+
+
+def _world_weights(escape_proxy):
+    """Illustrative escape/non-escape split; no calibrated scenario weights.
+
+    This is NOT a causal 2C wall probability. The remaining probability is
+    split equally among the frozen other three hypothetical head scenarios.
+    """
+    p=_finite(escape_proxy,"world_proxy",low=.005,high=.995)
+    return {
+        "escape_wall":p,
+        "two_sashi":(1-p)/3,
+        "third_attack":(1-p)/3,
+        "outer_benefit":(1-p)/3,
+    }
+
+
+def sensitivity_only(history, signed_feature, national_rates, exhibition_times,
+                     registered_plans, reviewed_1698_callback):
+    """Two paired four-mode boards; no authentication, scoring or persistence."""
+    hist=historical_C1_escape_proxy(history,signed_feature)
+    if (type(registered_plans) is not dict
+            or set(registered_plans)!=set(WORLDS)):
+        raise ValueError("C1_history_complete_four_frozen_worlds_required")
+    # Immutable old head worlds: no silent shift or coefficient tuning.
+    # This is a new, separate response to historical 1C evidence, NOT a
+    # change to the frozen existing forecast method.
+    manifest=(Path(__file__).resolve().parent/
+        "research/four_mode_triple_source_forward_protocol_20261110.json")
+    original=manifest.read_bytes()
+    if _git_blob_sha1(original)!=FROZEN_1710_PROTOCOL_BLOB:
+        raise ValueError("C1_history_frozen_1710_protocol_changed")
+    registered=json.loads(original)
+    if registered_plans!=registered["scenario_hypotheses"]:
+        raise ValueError("C1_history_frozen_scenario_coefficients_not_identical")
+    normal=_world_weights(hist["venue_C1_escape_proxy"])
+    athlete=_world_weights(hist["athlete_adjusted_C1_escape_proxy"])
+    base=probabilities(national_rates)
+    head={}
+    for world in WORLDS:
+        head[world]=hypothetical_head_board(
+            base,registered_plans[world]["head_log_shifts"],
+            study_id=STUDY+"_HEAD_"+world.upper())["hypothesis_first_mass"]
+    first_mass=lambda weights:{str(boat):math.fsum(
+        weights[world]*head[world][str(boat)] for world in WORLDS)
+        for boat in range(1,7)}
+    # The registered signed_F_four_mode_math function intentionally
+    # rejects any other study ID. NEVER bypass its identity guard. Reuse
+    # the exact pinned computational primitives individually instead.
+    st=_signed_vector(signed_feature)
+    if (type(exhibition_times) is not list or len(exhibition_times)!=6
+            or any(type(v) not in (int,float) or not math.isfinite(v)
+                   or not 5<=v<=10 for v in exhibition_times)
+            or not callable(reviewed_1698_callback)):
+        raise ValueError("C1_history_six_exhibition_times_or_1698_callback_invalid")
+    evidence={"boats":[{
+        "boat":i,"exhibition_st_s":st[i-1],
+        "exhibition_time_s":exhibition_times[i-1],
+        "entry_course":signed_feature["exhibition_st_by_boat"][i-1]["exhibition_course_only"],
+    } for i in range(1,7)],"context":{}}
+    scenario_boards={}
+    for world in WORLDS:
+        plan=registered_plans[world]
+        if (type(plan) is not dict
+                or set(plan)!={"head_log_shifts","position_coefficients"}
+                or type(plan["position_coefficients"]) is not dict
+                or set(plan["position_coefficients"])!=
+                   {"exhibition_st_s","exhibition_time_s"}):
+            raise ValueError("C1_history_unregistered_world_shape")
+        prior=hypothetical_head_board(
+            base,plan["head_log_shifts"],
+            study_id=STUDY+"_HEAD_"+world.upper())
+        coefficients=plan["position_coefficients"]
+        active={k for k,v in coefficients.items()
+                if v["second"]!=0 or v["third"]!=0}
+        response=reviewed_1698_callback(
+            prior["ranked_board"],evidence,coefficients,
+            STUDY+"_PAIR_"+world.upper())
+        scenario_boards[world]=_conditional_result(
+            response,prior["ranked_board"],active)
+    a=compose_scenario_research(scenario_boards,normal)
+    b=compose_scenario_research(scenario_boards,athlete)
+    if any(x[k] is not False for x in (a,b) for k in (
+            "forecast_usable","formal","probabilities_calibrated",
+            "promotion_allowed","production_changed")):
+        raise ValueError("C1_history_scenario_research_promoted")
+    a_modes=a["existing_four_mode_selector_on_mixture"]
+    b_modes=b["existing_four_mode_selector_on_mixture"]
+    for mode,n in BUDGETS.items():
+        if len(a_modes[mode]["tickets"])!=n or len(b_modes[mode]["tickets"])!=n:
+            raise ValueError("C1_history_mode_selection_budget_mismatch")
+    def packed(mix,modes):
+        return {mode:{
+            "tickets":modes[mode]["tickets"],
+            "top1":modes[mode]["tickets"][0]["combo"],
+            "full_120_mixture_sha256":mix["mixed_120_board_sha256"],
+        } for mode in BUDGETS}
+    return {
+        "schema":SCHEMA,"study_id":STUDY,
+        "race_code":history["race_code"],
+        "feature_status":"unverified_historical_training_and_exhibition_proxy_only",
+        "history_summary":hist,
+        "control_venue_only_world_weights":normal,
+        "hypothesis_athlete_world_weights":athlete,
+        "control_head_mass_by_boat":first_mass(normal),
+        "hypothesis_head_mass_by_boat":first_mass(athlete),
+        "control_four_mode_tickets":packed(a,a_modes),
+        "hypothesis_four_mode_tickets":packed(b,b_modes),
+        "same_mode_budgets":dict(BUDGETS),
+        "world_splitting_is_uncalibrated_hypothesis":True,
+        "wall_effect_measured":False,"actual_final_entry_verified":False,
+        "wind_wave_tide_motor_used":False,
+        "candidate_created":False,"first_remote_receipt_verified":False,
+        "eligible_for_existing_600":False,"eligible_for_new_600":False,
+        "outcomes_read":False,"formal":False,
+        "production_changed":False,"accuracy_improvement_proven":False,
+        "warning":"Postrace K-derived history summary unverified here. Pure sensitivity; not a validated future forecast.",
+    }

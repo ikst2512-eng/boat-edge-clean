@@ -1,0 +1,67 @@
+{
+  "schema": "SIGNED_EXHIBITION_FLAGGED_ST_FUTURE_FEATURE_FEASIBILITY_REGISTRATION_V1",
+  "study_id": "EXPLORATORY_ONLY_SIGNED_F_ST_FEATURE_FEASIBILITY_20261112",
+  "registered_on_date_jst": "2026-11-11",
+  "eligible_new_source_deadline_from_jst": "2026-11-12T00:00:00+09:00",
+  "status": "registered_read_only_feature_encoding_not_active_not_forecast_protocol",
+  "historical_known_examples_for_read_only_replay_only": [
+    {
+      "race_code": "202611111911",
+      "race": "Shimonoseki 11R",
+      "f_count": 5,
+      "official_archive_artifact_id": 13849470485
+    },
+    {
+      "race_code": "202611110711",
+      "race": "Gamagori 11R",
+      "f_count": 1,
+      "official_archive_artifact_id": 13847911947
+    }
+  ],
+  "method_git_blob_sha1": {
+    "scenario_flagged_st_feature_study.py": "3d5ba9e022ad487eeabd33c21bcafd0c9f6af48d",
+    "scenario_official_st_intake_diagnostic.py": "60a2ac02e8309fbe9e863af88c314739d5bd5ef1"
+  },
+  "official_source_semantics_reference": "https://boatrace.jp/owsp/sp/extra/enjoy/guide/level2/l2_01_01_04.html",
+  "study_unit": "one same-race archived official racelist+beforeinfo+odds120 triple with 12/12 checks, separately reverified original bytes",
+  "input_fields": [
+    "race_code",
+    "six_exhibition_start_course_boat_pairs",
+    "six_exhibition_start_ST_raw_display",
+    "official_received_at_jst",
+    "official_source_sha256"
+  ],
+  "encoding": {
+    "normal_decimal": "preserve official lexical string and encode decimal seconds after start as a nonnegative decimal string",
+    "F_decimal": "F.03 is preserved as original label and encoded as -0.03 second, with separate F classification; never treat F as a main-race disqualification",
+    "L_decimal": "retain raw L label and class; signed seconds is null, never silently assume a numeric seconds offset",
+    "F_zero": "F.00 is retained as F class and signed decimal string -0.00, not merged into ordinary 0.00",
+    "other_missing_or_ambiguous": "reject; no imputation or default numeric ST",
+    "exhibition_vs_main": "exhibition entry and ST are never automatically final entry or a completed main-race result"
+  },
+  "read_only_feasibility_descriptive_metrics": [
+    "number_of_full_12_of_12_source_races",
+    "number_of_six_numeric_races",
+    "F_count_by_race",
+    "L_count_by_race",
+    "source_complete_but_frozen_parser_rejected",
+    "signed_numeric_available_for_all_six"
+  ],
+  "prospective_sample_selection": "future official source receipt from the separate collection workstream only; no retroactive source first-remote claims, no substitution of missing races, never treat read-only replay as first observed live data",
+  "scientific_status": {
+    "feature_extraction_implemented": true,
+    "feature_accuracy_method_specified": false,
+    "candidate_four_mode_generator_implemented": false,
+    "candidate_results_read": false,
+    "independent_source_first_remote_witness_verified": false,
+    "independent_candidate_first_remote_witness_verified": false,
+    "new_accuracy_cohort_admitted": 0,
+    "old_1693_and_1710_600_cohort_unchanged": true,
+    "formal": false,
+    "new_forecast_predictions_generated": 0,
+    "model_accuracy_improvement_proven": false,
+    "promotion_allowed": false
+  },
+  "future_forecast_gate": "A distinct, future-only preregistered F-aware FOUR-MODE model with fully pinned math, conditional heads, independent same-race candidate first remote receipt before T-12, outcome-last scorer and new pilot+confirmation cohorts is required BEFORE any accuracy claim or live selector use.",
+  "scope": "feature_encoding ONLY; no model coefficients, odds-based ticket reordering, hypothetical winner, result/payout loader, live forecast, Cron, publisher or production change"
+}

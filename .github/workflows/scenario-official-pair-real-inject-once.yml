@@ -1,0 +1,470 @@
+name: Research 4-mode actual official beforeinfo injection (one shot)
+on:
+  push:
+    branches:
+      - research/scenario-all-modes-1708-20261109
+    paths:
+      - .github/workflows/scenario-official-pair-real-inject-once.yml
+      # An observed-source replay must not stay green from an old code SHA
+      # when the model, input parsers or comparison logic changes.
+      - scenario_official_pair_research_input.py
+      - scenario_actual_pair_four_mode_replay.py
+      - scenario_archived_rates_ablation.py
+      - scenario_exhibition_all_mode_runner.py
+      - scenario_mode_specific_exhibition_end_to_end.py
+      - scenario_four_mode_bridge.py
+      - scenario_first_head_research.py
+      - scenario_official_racelist_rates.py
+      - scenario_future_three_original_gateway.py
+      - scenario_signed_st_four_mode_shadow.py
+      - scenario_signed_st_registered_shadow.py
+      - scenario_signed_st_official_input_adapter.py
+      - scenario_signed_st_racelist_rates.py
+      - scenario_flagged_st_feature_study.py
+      - scripts/audit_three_official_t12_originals.py
+      - research/signed_F_four_mode_future_protocol_20261111.json
+      - test_scenario_archived_rates_ablation.py
+      - test_scenario_official_pair_research_input.py
+      - test_scenario_actual_pair_four_mode_replay.py
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: scenario-actual-official-pair-once
+  cancel-in-progress: false
+jobs:
+  exact-primary-real-input-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fail-closed source-contract tests (no fake racelist)
+        run: |
+          python -m py_compile scenario_official_pair_research_input.py scenario_actual_pair_four_mode_replay.py scenario_exhibition_all_mode_runner.py scenario_archived_rates_ablation.py scenario_future_three_original_gateway.py scenario_official_racelist_rates.py
+          python -m unittest -v test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway test_scenario_official_racelist_rates
+      - name: Fetch exactly pinned existing position-sensitive #1698 model
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin e152b57033f825e02343b004a9c013a8998f9954
+          mkdir -p "$RUNNER_TEMP/position1698"
+          git show e152b57033f825e02343b004a9c013a8998f9954:position_sensitive_conditioned_lab.py > "$RUNNER_TEMP/position1698/position_sensitive_conditioned_lab.py"
+          test "$(git hash-object "$RUNNER_TEMP/position1698/position_sensitive_conditioned_lab.py")" = "0019978a4e27a1235d0b466c11f514bd7105f261"
+      - name: Download original Nov9 Nov10 source artifacts (read-only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --retry 2 \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/13652131213/zip" \
+            --output "$RUNNER_TEMP/nov9-source-original.zip"
+          curl --fail --location --silent --show-error --retry 2 \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/13740574410/zip" \
+            --output "$RUNNER_TEMP/nov10-source-original.zip"
+          echo "99f02ff306307dd945f27c225e18ff8341be2832232b7dd0f2751e1d8935f451  $RUNNER_TEMP/nov9-source-original.zip" | sha256sum --check --status
+          echo "cdfdeae53222a5b7852ba5cf5b6b44080247ec074c8d3dbaf53c4a32fe9706dd  $RUNNER_TEMP/nov10-source-original.zip" | sha256sum --check --status
+      - name: Consume real 3 complete exhibitions in real #1710 x #1698 research math
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$RUNNER_TEMP/position1698:$PWD" python scenario_actual_pair_four_mode_replay.py \
+            --nov9-zip "$RUNNER_TEMP/nov9-source-original.zip" \
+            --nov10-zip "$RUNNER_TEMP/nov10-source-original.zip" \
+            --out "$RUNNER_TEMP/research-actual-4mode-two-source.json"
+      - name: Verify all 4-mode research boards ST effects and reject incomplete source
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          a=json.loads((Path(os.environ["RUNNER_TEMP"])/"research-actual-4mode-two-source.json").read_text())
+          assert a["counts"] == {
+              "races":4,"research_math_run_from_official_exhibition":3,
+              "missing_exhibition_rejected":1,"four_mode_study_reports_generated":3,
+              "formal_forecasts":0,"production_changes":0}
+          assert a["source_original_racelist_missing_all_races"]
+          assert not a["real_official_T12_input_certified"]
+          assert not a["formal_accuracy_improvement_proven"]
+          assert not a["live_forecasts_changed"]
+          for r in a["results"]:
+              if r["research_four_modes_computed"]:
+                  assert r["mode_ticket_budget"] == {"narrow":5,"hit":10,"balance":16,"hole":22}
+                  assert all(r["model_ST_ablation_digest_changes"].values())
+                  assert r["no_racelist_original"]
+                  assert not r["forecast_usable"]
+                  assert not r["wind_and_wave_consumed_in_scenario_probability"]
+                  assert r["official_source_witness"]["source_archive_sha256"] in a["original_primary_zip_sha256"]
+              else:
+                  assert r["race_code"]=="202611102211"
+                  assert r["status"]=="EXHIBITION_MISSING_REJECTED"
+          print("PRIMARY OFFICIAL 3/4 exhibitions consumed in all 4 research model modes; 1 missing rejected; formal=0")
+          PY
+      - name: Pin all four existing archived V2 national-rate originals without touching main
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin 1e8b6b86e4c700bcf10b5dfcb4cdaa981799bb78
+          mkdir -p "$RUNNER_TEMP/original-v2-rates"
+          for entry in \
+            202611091110:492f9d732df9fe46d6cba4f52135f4ee0c148592 \
+            202611091710:75252b292d1aa2bbd97d222e9c249d158edaad34 \
+            202611101202:d7801a878c4f2d1fd296f2d21c38906e92df0efb \
+            202611102211:f6f20088220f2c42d785f4b4eada20eef5d930cd; do
+            code="${entry%%:*}"
+            sha="${entry#*:}"
+            git show "1e8b6b86e4c700bcf10b5dfcb4cdaa981799bb78:four_mode_forecasts/$code.json" > "$RUNNER_TEMP/original-v2-rates/$code.json"
+            test "$(git hash-object "$RUNNER_TEMP/original-v2-rates/$code.json")" = "$sha"
+          done
+      - name: Measure archived six-rate effect vs neutral-rate reference (NO results)
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$RUNNER_TEMP/position1698:$PWD" python scenario_archived_rates_ablation.py \
+            --nov9-zip "$RUNNER_TEMP/nov9-source-original.zip" \
+            --nov10-zip "$RUNNER_TEMP/nov10-source-original.zip" \
+            --original-dir "$RUNNER_TEMP/original-v2-rates" \
+            --out "$RUNNER_TEMP/research-archived-rates-vs-neutral.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          out=json.loads((Path(os.environ["RUNNER_TEMP"])/"research-archived-rates-vs-neutral.json").read_text())
+          assert out["complete_exhibition_and_saved_rates"] == 3
+          assert out["exhibition_missing_rejected"] == 1
+          assert not out["formal"] and not out["results_read"]
+          assert not out["accuracy_improvement_proven"]
+          assert not out["original_forecasts_modified"]
+          assert not out["new_forecasts_published"]
+          for race in out["races"]:
+              assert race["original_v2_blob"] == out["original_blobs"][race["race_code"]]
+              if race["status"].startswith("ARCHIVED_SIX"):
+                  assert set(race["mode_input_ablation"]) == {"narrow","hit","balance","hole"}
+                  assert all(x["entire_120_probability_digest_changed"] for x in race["mode_input_ablation"].values())
+                  assert set(race["mode_uncalibrated_head_shift_ablation"]) == {"narrow","hit","balance","hole"}
+                  assert all(x["uncalibrated_head_shift_changes_120_board"] for x in race["mode_uncalibrated_head_shift_ablation"].values())
+                  assert race["head_shift_ablation_kept_real_rates_exhibition_and_position_features"]
+                  assert not race["head_shift_assumptions_validated_against_results"]
+                  assert not race["future_candidate_first_remote_receipt_verified"]
+                  assert not race["admitted_to_1693_registered_cohort"]
+                  exposure = race["archived_V2_vs_research_topn_exposure_result_blind"]
+                  assert set(exposure) == {"narrow","hit","balance","hole"}
+                  for mode, arms in exposure.items():
+                      assert set(arms) == {"with_uncalibrated_head_shift","without_uncalibrated_head_shift"}
+                      for comparison in arms.values():
+                          assert comparison["confirmed_result_read"] is False
+                          assert comparison["gain_or_loss_in_actual_hit_rate_computed"] is False
+                          assert not comparison["by_topn"]["top10"]["applicable"] if mode=="narrow" else comparison["by_topn"]["top10"]["applicable"]
+                  assert not race["formal"] and not race["results_read"]
+              else:
+                  assert race["race_code"] == "202611102211"
+          print("Three actual source+archived rate ablations verified, one exhibition missing, formal=0")
+          PY
+      - name: Download genuine #1713 three-original evidence (negative case only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --retry 2 \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/13749433042/zip" \
+            --output "$RUNNER_TEMP/real-triple-incomplete.zip"
+          echo "7eddf4704635613f7d8cb18a03f07bcc1f9037efafb52ee26a3723b333a30354  $RUNNER_TEMP/real-triple-incomplete.zip" | sha256sum --check --status
+      - name: Re-audit BOTH actual 3-source sets and demonstrate fail-closed gateway
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from zipfile import ZipFile
+          from scripts.audit_three_official_t12_originals import audit_three_originals
+          from scenario_official_racelist_rates import extract_six_official_racelist_rates
+          from scenario_future_three_original_gateway import validate_audited_source_pairing
+          tmp=Path(os.environ["RUNNER_TEMP"])
+          source=tmp/"real-triple-incomplete.zip"
+          unpack=tmp/"read-only-real-triple"
+          with ZipFile(source) as z:
+              assert z.testzip() is None
+              names=z.namelist()
+              assert len(names)==28 and len(names)==len(set(names))
+              assert all(not n.startswith("/") and ".." not in Path(n).parts for n in names)
+              z.extractall(unpack)
+          rows=[]
+          for code in ("202611101207","202611100708"):
+              base=unpack/"official_joint_evidence"/"observations"
+              def location(part):
+                  return base/(part+"run42786724704")/"20261110"/code
+              a=audit_three_originals(location("card_"),location("before_"),
+                                      location("odds_"))
+              assert a["race_code"]==code
+              assert a["three_originals_hash_verified"] is True
+              assert a["component_checks"]["racecard_six_registrations"] is True
+              assert a["component_checks"]["racer_registration_ids_match"] is True
+              assert a["component_checks"]["odds_120"] is True
+              stats=extract_six_official_racelist_rates(
+                  (location("card_")/"racelist.html").read_bytes())
+              expected_national={
+                  "202611101207":[7.19,6.83,6.87,7.24,7.03,6.99],
+                  "202611100708":[6.77,5.65,3.16,6.76,6.48,2.65],
+              }
+              assert stats["national_rates"] == expected_national[code]
+              assert stats["rates_extracted_from_original_html_not_csv"]
+              assert [row["registration_id"] for row in stats["boats"]] == [
+                  a["registrations_by_lane"][str(i)] for i in range(1,7)]
+              assert not stats["formal"] and not stats["forecast_usable"]
+              assert a["all_research_components_observed_by_t12"] is False
+              assert a["missing_components"]
+              assert a["full_t12_source_certified"] is False
+              try:
+                  validate_audited_source_pairing(a,{}, {}, {})
+              except ValueError as exc:
+                  assert str(exc)=="three_original_source_incomplete_or_forged_formal"
+              else:
+                  raise AssertionError("INCOMPLETE_TRIPLE_WRONGLY_ACCEPTED")
+              rows.append({
+                  "race_code":code,
+                  "real_three_originals_SHA_and_six_roster_reverified":True,
+                  "national_win_rate_six_from_official_racelist_original":stats["national_rates"],
+                  "mean_ST_six_from_official_racelist_original":stats["average_st"],
+                  "local_win_rate_six_from_official_racelist_original":stats["local_rates"],
+                  "real_exhibition_missing":a["missing_components"],
+                  "existing_future_gateway_rejected":True,
+                  "formal":False, "future_candidate_generated":False,
+              })
+          report={
+              "source_artifact_id":13749433042,
+              "source_zip_sha256":"7eddf4704635613f7d8cb18a03f07bcc1f9037efafb52ee26a3723b333a30354",
+              "records":rows,
+              "actual_incomplete_triples_rejected":len(rows),
+              "formal_accuracy_pairs":0,
+              "new_forecast_saved":False,
+              "production_changed":False,
+          }
+          (tmp/"research-real-triple-negative-evidence.json").write_text(
+              json.dumps(report,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
+          # Uploaded evidence MUST parse as strict JSON, not only pass a log assertion.
+          check=json.loads((tmp/"research-real-triple-negative-evidence.json").read_text(encoding="utf-8"))
+          assert check == report
+          print(json.dumps(report,ensure_ascii=False))
+          PY
+      - name: Verify REAL T-minus-12 source-publication window on six pinned archives (no results)
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from datetime import datetime,timedelta,timezone
+          from pathlib import Path
+          from zipfile import ZipFile
+          import hashlib,json,os
+          tmp=Path(os.environ["RUNNER_TEMP"])
+          sources=[
+              ("nov9-source-original.zip",42567310743,("202611091110","202611091710"),False),
+              ("nov10-source-original.zip",42769768447,("202611101202","202611102211"),False),
+              ("real-triple-incomplete.zip",42786724704,("202611101207","202611100708"),True),
+          ]
+          rows=[]
+          for file,run,codes,has_card in sources:
+              with ZipFile(tmp/file) as z:
+                  assert z.testzip() is None
+                  for code in codes:
+                      day=code[:8]
+                      def original(kind,name):
+                          return z.read(
+                              f"official_joint_evidence/observations/{kind}_run{run}/{day}/{code}/{name}")
+                      b=original("before","beforeinfo.json")
+                      bm=json.loads(original("before","manifest.json"))
+                      o=original("odds","original.html")
+                      om=json.loads(original("odds","manifest.json"))
+                      info=json.loads(b)["maindata"]
+                      deadline=datetime.strptime(day+info["deadline"],"%Y%m%d%H:%M").replace(
+                          tzinfo=timezone(timedelta(hours=9)))
+                      cutoff=deadline-timedelta(minutes=12)
+                      received=[]
+                      for raw,meta in ((b,bm),(o,om)):
+                          assert meta["race_code"]==code
+                          assert meta["sha256"]==hashlib.sha256(raw).hexdigest()
+                          stamp=datetime.fromisoformat(meta["received_at_jst"])
+                          assert stamp.utcoffset()==timedelta(hours=9) and stamp<cutoff
+                          received.append(stamp)
+                      if has_card:
+                          card=original("card","racelist.html")
+                          cm=json.loads(original("card","manifest.json"))
+                          assert cm["race_code"]==code
+                          assert cm["sha256"]==hashlib.sha256(card).hexdigest()
+                          stamp=datetime.fromisoformat(cm["received_at_jst"])
+                          assert stamp.utcoffset()==timedelta(hours=9) and stamp<cutoff
+                          received.append(stamp)
+                      exhibition=info.get("sttenjiinfolist")
+                      complete=(type(exhibition) is list and len(exhibition)==6
+                                and bm["start_exhibition_six_valid_rows"] is True)
+                      margin=round((cutoff-received[0]).total_seconds()/60,4)
+                      # Classification is about archived source bytes only.
+                      # Zero exhibition rows DOES NOT prove BOATRACE had not
+                      # published them at another clock or in another request.
+                      missing_kind=(
+                          "MISSING_RACELIST_AND_ST6" if not has_card and not complete else
+                          "MISSING_RACELIST" if not has_card else
+                          "MISSING_ST6" if not complete else "COMPLETE_3_ORIGINALS"
+                      )
+                      rows.append({
+                          "source_snapshot_completeness":missing_kind,
+                          "official_ST_publication_time_independently_verified":False,
+                          "race_code":code,"official_deadline_jst":deadline.isoformat(),
+                          "T_minus_12_cutoff_jst":cutoff.isoformat(),
+                          "beforeinfo_received_jst_source_claim":received[0].isoformat(),
+                          "odds_received_jst_source_claim":received[1].isoformat(),
+                          "beforeinfo_minutes_before_T12_cutoff":margin,
+                          "start_exhibition_six_complete":complete,
+                          "start_exhibition_observed_rows":(
+                              len(exhibition) if type(exhibition) is list else None),
+                          "racelist_original_present":has_card,
+                          "complete_three_originals":has_card and complete,
+                          "independent_remote_FIRST_candidate_receipt":False,"formal":False,
+                      })
+          rows.sort(key=lambda r:r["race_code"])
+          near=[r for r in rows if 0<=r["beforeinfo_minutes_before_T12_cutoff"]<4]
+          early=[r for r in rows if r["beforeinfo_minutes_before_T12_cutoff"]>=7]
+          assert len(rows)==6 and len(near)==4 and len(early)==2
+          assert sum(r["start_exhibition_six_complete"] for r in near)==3
+          assert sum(r["start_exhibition_six_complete"] for r in early)==0
+          assert sum(r["complete_three_originals"] for r in rows)==0
+          by_missing={name:sum(r["source_snapshot_completeness"]==name for r in rows)
+                      for name in ("MISSING_RACELIST","MISSING_ST6",
+                                   "MISSING_RACELIST_AND_ST6","COMPLETE_3_ORIGINALS")}
+          assert by_missing=={
+              "MISSING_RACELIST":3,"MISSING_ST6":2,
+              "MISSING_RACELIST_AND_ST6":1,"COMPLETE_3_ORIGINALS":0}
+          assert sum(by_missing.values())==len(rows)
+          result={
+              "schema":"RESEARCH_REAL_SIX_SOURCE_TIMING_V1",
+              "source_artifact_ids":[13652131213,13740574410,13749433042],
+              "under_four_minutes_before_T12":{"races":len(near),"ST6_complete":3},
+              "at_least_seven_minutes_before_T12":{"races":len(early),"ST6_complete":0},
+              "simultaneous_three_originals_and_ST6":0,
+              "total_source_snapshots_inspected":len(rows),
+              "completeness_by_reason":by_missing,
+              "all_attempts_inspected_for_this_fixed_archive_manifest":True,
+              "upstream_ST_actual_publication_clock_unknown":True,
+              "missing_source_does_not_prove_upstream_unpublished":True,
+              "source_snapshot_completeness_not_model_accuracy":True,
+              "collector_clock_self_report_not_independent_first_remote":True,
+              "results_read":False,"new_forecast_published":False,"formal":False,
+              "warning":"Selective six-source retrospective observation: not a timing optimum, causal test or prospective accuracy proof.",
+              "races":rows,
+          }
+          out=tmp/"research-real-six-source-T12-timing.json"
+          out.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+          assert json.loads(out.read_text(encoding="utf-8"))==result
+          print("SIX_REAL_SOURCE_TIMING",json.dumps({
+              "under_4m":result["under_four_minutes_before_T12"],
+              "at_least_7m":result["at_least_seven_minutes_before_T12"],
+              "complete_triples":result["simultaneous_three_originals_and_ST6"],
+              "completeness_by_reason":result["completeness_by_reason"],
+              "formal":False,
+          },sort_keys=True))
+          PY
+      - name: LAST STEP ONLY - 3 archived results vs locked historical hypotheses (NO prospective credit)
+        run: |
+          set -euo pipefail
+          # All model ranks already computed without outcomes in earlier steps.
+          git fetch --no-tags --depth=1 origin 8a674590d645a693dbd9f6fe7f79e8829b878452
+          mkdir -p "$RUNNER_TEMP/confirmed-results-locked"
+          for entry in \
+            202611091110:e6782220657537668ee369181e7f47154d647ccf \
+            202611091710:f9dbb694392a797a939ca8373222fb155962768d \
+            202611101202:a304815c7a534d3e9adf1e697159312cd576e77d; do
+            IFS=: read -r code blob <<< "$entry"
+            git show "8a674590d645a693dbd9f6fe7f79e8829b878452:confirmed_results/$code.json" > "$RUNNER_TEMP/confirmed-results-locked/$code.json"
+            test "$(git hash-object "$RUNNER_TEMP/confirmed-results-locked/$code.json")" = "$blob"
+          done
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          from itertools import permutations
+          tmp=Path(os.environ["RUNNER_TEMP"])
+          source=json.loads((tmp/"research-archived-rates-vs-neutral.json").read_text())
+          assert source["results_read"] is False and source["formal"] is False
+          assert source["new_forecasts_published"] is False
+          assert source["complete_exhibition_and_saved_rates"]==3
+          budgets={"narrow":5,"hit":10,"balance":16,"hole":22}
+          legal={"-".join(map(str,x)) for x in permutations(range(1,7),3)}
+          arms=("archived_V2","scenario_head35","scenario_head0_control")
+          codes=("202611091110","202611091710","202611101202")
+          stats={m:{str(n):{arm:0 for arm in arms} for n in (1,3,5,10)}
+                 for m in budgets}
+          rows=[]
+          archive={x["race_code"]:x for x in source["races"]}
+          assert set(archive)==set(codes)|{"202611102211"}
+          assert archive["202611102211"]["status"]=="EXHIBITION_MISSING_REJECTED"
+          for code in codes:
+              r=json.loads((tmp/"confirmed-results-locked"/(code+".json")).read_text())
+              finish=r["finish_order"]
+              assert r["race_code"]==code and r["status"]=="confirmed"
+              assert type(finish) is list and len(finish)==3 and len(set(finish))==3
+              assert all(type(x) is int and 1<=x<=6 for x in finish)
+              winner="-".join(map(str,finish))
+              saved=archive[code]
+              assert saved["status"]=="ARCHIVED_SIX_RATES_PLUS_REAL_EXHIBITION_RESEARCH_ONLY"
+              assert saved["formal"] is False and saved["results_read"] is False
+              selections=saved["unregistered_retrospective_ranked_lists_before_result_read"]
+              assert set(selections)==set(budgets)
+              out={"race_code":code,"confirmed_ticket_from_postrace_source":winner,
+                   "eligible_for_any_formal_future_cohort":False,"modes":{}}
+              for mode,budget in budgets.items():
+                  a=selections[mode]
+                  assert set(a)==set(arms)
+                  assert all(type(xs) is list and len(xs)==budget
+                             and len(set(xs))==budget and set(xs)<=legal
+                             for xs in a.values())
+                  prior=saved["archived_V2_vs_research_topn_exposure_result_blind"][mode]
+                  assert prior["with_uncalibrated_head_shift"]["original_top1"]==a["archived_V2"][0]
+                  assert prior["with_uncalibrated_head_shift"]["hypothetical_top1"]==a["scenario_head35"][0]
+                  assert prior["without_uncalibrated_head_shift"]["hypothetical_top1"]==a["scenario_head0_control"][0]
+                  report={}
+                  for n in (1,3,5,10):
+                      if n>budget:
+                          report["top"+str(n)]={"applicable":False,"reason":"only_"+str(budget)+"_tickets"}
+                          continue
+                      hits={arm:winner in a[arm][:n] for arm in arms}
+                      for arm,yes in hits.items():
+                          stats[mode][str(n)][arm]+=int(yes)
+                      report["top"+str(n)]={
+                          "applicable":True,"hit":hits,
+                          "head35_vs_archived_V2":(
+                              "gained" if hits["scenario_head35"] and not hits["archived_V2"]
+                              else "lost" if hits["archived_V2"] and not hits["scenario_head35"]
+                              else "unchanged")}
+                  out["modes"][mode]=report
+              rows.append(out)
+          assert len(rows)==3
+          result={
+              "schema":"THREE_HISTORICAL_SAME_RACE_RESULT_LAST_DESCRIPTIVE_V1",
+              "classification":"POST_HOC_EXPLORATORY_NOT_PROSPECTIVE_ACCURACY",
+              "source_research_result_blind":"research-archived-rates-vs-neutral.json",
+              "confirmed_results_git_commit":"8a674590d645a693dbd9f6fe7f79e8829b878452",
+              "historical_same_race_descriptive_races":3,
+              "future_300_plus_300_cohort_admitted":0,
+              "hypothesis_calibration_or_improvement_proven":False,
+              "results_read_only_in_last_step_after_model_math":True,
+              "results_used_to_change_model":False,
+              "formal":False,"production_changed":False,
+              "by_mode_and_topN_hit_counts":stats,"rows":rows}
+          output=tmp/"research-historical-three-race-result-last-DESCRIPTIVE.json"
+          output.write_text(json.dumps(result,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
+          assert json.loads(output.read_text())==result
+          print("LOCKED_HISTORICAL_RESULT_LAST_NOT_ACCURACY_PROOF",
+                json.dumps({"races":3,"hit_counts":stats,"formal":False},
+                           ensure_ascii=False))
+          PY
+      - name: Retain ONLY derived hypothetical rankings / evidence status
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-real-official-pair-fourmode-math-not-forecasts
+          path: |
+            ${{ runner.temp }}/research-actual-4mode-two-source.json
+            ${{ runner.temp }}/research-archived-rates-vs-neutral.json
+            ${{ runner.temp }}/research-real-triple-negative-evidence.json
+            ${{ runner.temp }}/research-real-six-source-T12-timing.json
+            ${{ runner.temp }}/research-historical-three-race-result-last-DESCRIPTIVE.json
+          retention-days: 7
+          if-no-files-found: error
