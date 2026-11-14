@@ -1114,6 +1114,68 @@ jobs:
           print("READ_ONLY_CROSS_PR_1746_SOURCE_INTAKE_VALID_4_OF_4 "
                 "HISTORICAL_RETROACTIVE_FORECAST_BLOCKED_4_OF_4")
           PY
+      - name: Independently audit frozen post-fix Git chronology rejections (no score promotion)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Independent existing MAIN schedule run, not a #1710 self-sourced
+          # summary. Never retrieve post-race results or reinterpret old
+          # same-second commits as verified before-cutoff receipts.
+          curl --fail --location --silent --show-error --retry 2 \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/14109944062/zip" \
+            --output "$RUNNER_TEMP/postfix-local-rejection-source.zip"
+          echo "b85ca302b3ac98bcd2f76d9c1413c88199e1332bcbf8ce7a53bfdd1bcbe5cde4  $RUNNER_TEMP/postfix-local-rejection-source.zip" | sha256sum --check --status
+          python - <<'PY'
+          import json,os,stat
+          from pathlib import Path
+          from zipfile import ZipFile
+          archive=Path(os.environ["RUNNER_TEMP"])/"postfix-local-rejection-source.zip"
+          with ZipFile(archive) as z:
+              assert z.testzip() is None
+              files=z.infolist()
+              assert len(files)==1 and files[0].filename.endswith(".json")
+              file=files[0]
+              assert not file.filename.startswith("/") and ".." not in Path(file.filename).parts
+              assert not stat.S_ISLNK(file.external_attr >> 16)
+              assert 0<file.file_size<=200000
+              report=json.loads(z.read(file).decode("utf-8"))
+          assert report["status"]=="post_fix_evidence_rejected"
+          assert report["post_fix_start"]=="20261105"
+          assert report["candidate_count"]==1319
+          assert report["local_audit_passed"]==1208
+          assert report["rejected"]==111
+          assert report["rejection_reasons"]=={"first_commit_same_second_unverified":111}
+          assert report["remote_first_seen_verified"] is False
+          assert report["formal"] is False
+          assert report["audit_checkout_sha"]=="43be60c83406fdb72b78d8fa731b490b6cefff12"
+          assert str(report["audit_run_id"])=="43586988538"
+          assert report["audit_event_name"]=="schedule"
+          by_day=report["by_day"]
+          assert set(by_day)=={"202611"+f"{d:02d}" for d in range(5,15)}
+          assert by_day["20261105"]=={
+              "local_audit_passed":0,"rejected":111,
+              "rejection_reasons":{"first_commit_same_second_unverified":111},
+              "total":111}
+          good={day:row for day,row in by_day.items() if day!="20261105"}
+          assert sum(x["local_audit_passed"] for x in good.values())==1208
+          assert all(x["rejected"]==0
+                     and x["local_audit_passed"]==x["total"]
+                     and x["rejection_reasons"]=={} for x in good.values())
+          print("FROZEN_POSTFIX_LOCAL_EVIDENCE_REJECTIONS_PRESERVED "+json.dumps({
+              "source_run_id":43586988538,
+              "original_candidates":1319,
+              "local_audit_passed_only":1208,
+              "same_second_first_commit_unverified_excluded":111,
+              "local_pass_is_remote_first_seen":False,
+              "new_300_plus_300_formal_count":0,
+              "official_original_model_consumption_proven":False,
+              "outcomes_or_payouts_read":False,
+              "production_or_saved_forecast_changed":False,
+          },sort_keys=True))
+          PY
       - name: Confirm all-mode scenario composition uses actual reviewed #1698 conditional math
         env:
           RESEARCH_1698_PIN_REQUIRED: '1'
