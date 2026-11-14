@@ -26,9 +26,16 @@ def summarize(codes, root=Path(__file__).resolve().parent, comparator=compare_ra
             part = row["modes"].get(mode)
             if not isinstance(part, dict):
                 raise ValueError("untrusted_mode_rows")
+            if "winning_rank" not in part:
+                raise ValueError("missing_winning_rank")
+            rank = part["winning_rank"]
+            if rank is not None and (type(rank) is not int or rank < 1):
+                raise ValueError("invalid_winning_rank")
             flags = [part.get(f"top{n}") for n in (3, 5, 10)]
             if any(type(flag) is not bool for flag in flags):
                 raise ValueError("invalid_topn_flags")
+            if any(flag != (rank is not None and rank <= n) for flag, n in zip(flags, (3, 5, 10))):
+                raise ValueError("rank_topn_mismatch")
             if (flags[0] and not flags[1]) or (flags[1] and not flags[2]):
                 raise ValueError("nonmonotonic_topn")
             if part.get("coverage_diagnostic") not in CATEGORIES:
@@ -40,28 +47,31 @@ def summarize(codes, root=Path(__file__).resolve().parent, comparator=compare_ra
     by_mode = {}
     for mode in MODES:
         counts = Counter()
-        hits = {f"top{n}": 0 for n in (3, 5, 10)}
+        hits = {f"top{n}": 0 for n in (1, 3, 5, 10)}
         for row in eligible:
             part = row["modes"][mode]
             category = part["coverage_diagnostic"]
             if category not in CATEGORIES or part.get("race_dynamics_cause") != "not_determined":
                 raise ValueError("untrusted diagnostic")
             counts[category] += 1
-            for n in (3, 5, 10):
-                hits[f"top{n}"] += int(part[f"top{n}"] is True)
+            for n in (1, 3, 5, 10):
+                hits[f"top{n}"] += int(part["winning_rank"] == 1 if n == 1 else part[f"top{n}"] is True)
         by_mode[mode] = {"evaluated": len(eligible), "coverage": dict(counts),
                          "topn_hits": hits,
                          "historical_topn_pct": {k: round(100 * v / len(eligible), 2)
                                                  if eligible else None for k, v in hits.items()}}
-    paired = {}
-    for left, right in (("narrow", "hit"), ("hit", "balance"), ("balance", "hole")):
+    # All six unordered mode pairs on exactly the same eligible race IDs.
+    # Keep the historical three adjacent pairs below for existing consumers.
+    pairwise = {}
+    for left, right in (("narrow", "hit"), ("narrow", "balance"), ("narrow", "hole"),
+                        ("hit", "balance"), ("hit", "hole"), ("balance", "hole")):
         topn = {}
-        for n in (3, 5, 10):
+        for n in (1, 3, 5, 10):
             key = f"top{n}"
             counts = {"both": 0, "left_only": 0, "right_only": 0, "neither": 0}
             for row in eligible:
-                l = row["modes"][left][key] is True
-                rr = row["modes"][right][key] is True
+                l = (row["modes"][left]["winning_rank"] == 1 if n == 1 else row["modes"][left][key] is True)
+                rr = (row["modes"][right]["winning_rank"] == 1 if n == 1 else row["modes"][right][key] is True)
                 group = "both" if l and rr else "left_only" if l else "right_only" if rr else "neither"
                 counts[group] += 1
             counts["net_additional_hits"] = counts["right_only"] - counts["left_only"]
@@ -71,17 +81,34 @@ def summarize(codes, root=Path(__file__).resolve().parent, comparator=compare_ra
             topn[key] = counts
         # Preserve the old top10 contract for existing research consumers.
         ten = topn["top10"]
-        paired[left + "_vs_" + right] = {
+        pairwise[left + "_vs_" + right] = {
             "evaluated": len(eligible), "both_top10": ten["both"],
             "left_only_top10": ten["left_only"], "right_only_top10": ten["right_only"],
             "neither_top10": ten["neither"], "topn": topn, "formal": False}
+    legacy_pairs = {key: pairwise[key] for key in
+                    ("narrow_vs_hit", "hit_vs_balance", "balance_vs_hole")}
+    # The winning result is consulted only for retrospective audit, never for
+    # model ranking or deciding which candidate ticket to replace.
+    per_race = [
+        {"race_code": row["race_code"],
+         "winning_ticket": row.get("winning_ticket"),
+         "modes": {mode: {
+             "winning_rank": row["modes"][mode]["winning_rank"],
+             "top1": row["modes"][mode]["winning_rank"] == 1,
+             "top3": row["modes"][mode]["top3"],
+             "top5": row["modes"][mode]["top5"],
+             "top10": row["modes"][mode]["top10"],
+             "coverage_diagnostic": row["modes"][mode]["coverage_diagnostic"]}
+             for mode in MODES}}
+        for row in eligible]
     return {"schema": "FOUR_MODE_HISTORICAL_AI_BATCH_V1",
             "formal": False, "simulated_only": True, "model_improvement_proven": False,
             "remote_first_seen_verified": False,
             "requested": len(codes), "historical_comparable": len(eligible),
             "unavailable": [{"race_code": row.get("race_code"), "status": row.get("status")}
                             for row in rows if row not in eligible],
-            "modes": by_mode, "paired_top10": paired,
+            "modes": by_mode, "paired_top10": legacy_pairs,
+            "pairwise_topn": pairwise, "per_race": per_race,
             "warning": "Historical coverage only; not independently predeadline verified. No racing dynamics cause inferred."}
 
 

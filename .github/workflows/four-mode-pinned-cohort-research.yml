@@ -1,0 +1,98 @@
+name: Frozen historical four-mode cohort research
+on:
+  pull_request:
+    paths:
+      - pinned_four_mode_cohort_audit.py
+      - four_mode_latest_main_inventory.py
+      - nov05_four_mode_snapshot_audit.py
+      - nov05_hole_rank3_post_result_replay.py
+      - test_nov05_hole_rank3_post_result_replay.py
+      - test_nov05_four_mode_snapshot_audit.py
+      - forward_hole_saved_evidence_gate.py
+      - forward_hole_300_membership.py
+      - test_forward_hole_300_membership.py
+      - test_forward_hole_saved_evidence_gate.py
+      - test_four_mode_latest_main_inventory.py
+      - pinned_hole_rank3_research.py
+      - forward_hole_rank3_protocol.py
+      - forward_protocol_github_observation.py
+      - test_forward_protocol_github_observation.py
+      - test_forward_hole_rank3_protocol.py
+      - research/forward_hole_rank3_protocol_20261105.json
+      - test_pinned_hole_rank3_research.py
+      - hole_upper_rank_pair_protection.py
+      - test_pinned_four_mode_cohort_audit.py
+      - research/locked_four_mode_cohorts_20261105.json
+      - four_mode_research_batch.py
+      - four_mode_historical_cohort.py
+      - .github/workflows/four-mode-pinned-cohort-research.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  retrospective:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test manifest integrity and missing-evidence refusal
+        run: python -m unittest -v test_pinned_four_mode_cohort_audit test_four_mode_research_batch test_pinned_hole_rank3_research test_forward_hole_rank3_protocol test_four_mode_latest_main_inventory test_forward_hole_saved_evidence_gate test_forward_protocol_github_observation test_forward_hole_300_membership test_nov05_four_mode_snapshot_audit test_nov05_hole_rank3_post_result_replay
+      - name: Compare three exact frozen race cohorts
+        run: python pinned_four_mode_cohort_audit.py
+      - name: Reproduce predeclared outcome-blind hole rank3 on locked 240 races
+        run: python pinned_hole_rank3_research.py
+      - name: Verify fixed forward experiment protocol (no data scored)
+        run: python forward_hole_rank3_protocol.py > forward_hole_rank3_protocol_audit.json
+      - name: Observe pre-study protocol on GitHub with server Date and exact bytes
+        if: github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+          boundary=datetime(2026,11,4,22,0,0,tzinfo=timezone.utc)
+          output=Path("forward_protocol_github_observation.json")
+          if datetime.now(timezone.utc)>=boundary:
+              output.write_text(json.dumps({
+                  "status":"too_late_to_attest_study_protocol",
+                  "formal":False,"protocol_observed_early":False,
+                  "warning":"Never synthesize an early observation after the deadline."
+              },sort_keys=True)+"\\n")
+              print("STUDY_PROTOCOL_REMOTE_OBSERVATION_SKIPPED_LATE")
+          else:
+              from forward_protocol_github_observation import main
+              main()
+          PY
+      - name: Read-only fetch latest main (never check out over PR research files)
+        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+      - name: Inspect latest main tree for November 5+ files (no accuracy scored)
+        run: python four_mode_latest_main_inventory.py
+      - name: Inspect exact latest main Nov 5 archived modes and confirmed results (research only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          main_checkout="$RUNNER_TEMP/four-mode-nov05-main-$GITHUB_RUN_ID"
+          git worktree add --detach "$main_checkout" refs/remotes/origin/main
+          python nov05_four_mode_snapshot_audit.py --main-root "$main_checkout"
+          python nov05_hole_rank3_post_result_replay.py --main-root "$main_checkout"
+      - name: Retain evidence on both success and failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pinned-four-mode-historical-${{ github.run_id }}
+          path: |
+            pinned_four_mode_cohort_report.json
+            pinned_hole_rank3_research_report.json
+            forward_hole_rank3_protocol_audit.json
+            forward_protocol_github_observation.json
+            four_mode_latest_main_inventory.json
+            nov05_four_mode_snapshot_audit.json
+            nov05_hole_rank3_post_result_replay.json
+          if-no-files-found: warn
+          retention-days: 90

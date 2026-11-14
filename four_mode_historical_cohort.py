@@ -1,6 +1,7 @@
 """Run bounded, reproducible historical four-mode research on real archived files."""
 import json
 import re
+import hashlib
 from pathlib import Path
 from four_mode_research_batch import summarize, MODES
 from four_mode_frozen_diagnostic import compare_race
@@ -8,14 +9,43 @@ from four_mode_archive_api import archived_four_modes
 
 ROOT = Path(__file__).resolve().parent
 
-def summarize_group(codes, root):
+def summarize_group(codes, root, include_per_race=False):
     # summarize accepts max 30 codes; keep every subgroup bounded.
     chunks = [summarize(codes[i:i+30], root=root) for i in range(0, len(codes), 30)]
     comparable = sum(x["historical_comparable"] for x in chunks)
     hits = {m: {f"top{n}": sum(x["modes"][m]["topn_hits"][f"top{n}"] for x in chunks)
-                for n in (3,5,10)} for m in MODES}
-    return {"requested": len(codes), "historical_comparable": comparable,
-            "topn_hits": hits, "formal": False}
+                for n in (1,3,5,10)} for m in MODES}
+    report = {"requested": len(codes), "historical_comparable": comparable,
+              "topn_hits": hits, "formal": False}
+    if include_per_race:
+        report["per_race"] = [row for chunk in chunks for row in chunk["per_race"]]
+        if len(report["per_race"]) != comparable:
+            raise ValueError("per_race_denominator_mismatch")
+        # Aggregate the complete six-pair matrix from disjoint <=30-race
+        # chunks; reconcile all paired totals against the identical cohort.
+        pairs = {}
+        for name in chunks[0]["pairwise_topn"] if chunks else ():
+            left, right = name.split("_vs_")
+            topn = {}
+            for n in (1, 3, 5, 10):
+                key = f"top{n}"
+                counts = {tag: sum(chunk["pairwise_topn"][name]["topn"][key][tag]
+                                   for chunk in chunks)
+                          for tag in ("both", "left_only", "right_only", "neither")}
+                if (sum(counts.values()) != comparable
+                        or counts["both"] + counts["left_only"] != hits[left][key]
+                        or counts["both"] + counts["right_only"] != hits[right][key]):
+                    raise ValueError("pairwise_denominator_mismatch")
+                counts["evaluated"] = comparable
+                counts["net_additional_hits"] = counts["right_only"] - counts["left_only"]
+                counts["net_percentage_points"] = (
+                    round(100 * counts["net_additional_hits"] / comparable, 2)
+                    if comparable else None)
+                topn[key] = counts
+            pairs[name] = {"evaluated": comparable, "topn": topn,
+                           "formal": False}
+        report["pairwise_topn"] = pairs
+    return report
 
 
 def run(root=ROOT, limit=120):
@@ -105,11 +135,17 @@ def run(root=ROOT, limit=120):
                     "winner_third_absent": "third_absent"}.get(m["coverage_diagnostic"])
             if miss:
                 breakdown[mode][miss] += 1
-    overall = summarize_group(codes, root)
+    overall = summarize_group(codes, root, include_per_race=True)
     codes.sort()
     days = sorted(set(code[:8] for code in codes))
     venues = sorted(set(code[8:10] for code in codes))
+    # A content fingerprint binds all summary metrics to an exact, auditable
+    # membership roster. Dynamic archive sampling does NOT freeze that roster.
+    roster_sha256 = hashlib.sha256(("\n".join(codes) + "\n").encode("ascii")).hexdigest()
     return {"status": "historical_research_only", "cohort_codes": codes,
+            "cohort_sha256": roster_sha256,
+            "cohort_hash_scope": "sha256_ascii_newline_join_sorted_race_codes_trailing_newline",
+            "cohort_membership_frozen": False,
             **overall, "rank_and_miss_breakdown": breakdown,
             "hole_second_pair_review": hole_pair_review, "by_day": {day: summarize_group([c for c in codes if c[:8] == day], root) for day in days},
             "by_venue_code": {venue: summarize_group([c for c in codes if c[8:10] == venue], root) for venue in venues},
@@ -123,7 +159,10 @@ if __name__ == "__main__":
         "status": report["status"],
         "requested": report["requested"],
         "comparable": report.get("historical_comparable"),
+        "cohort_sha256": report.get("cohort_sha256"),
+        "cohort_membership_frozen": report.get("cohort_membership_frozen"),
         "topn": report.get("topn_hits", {}),
+        "pairwise_topn": report.get("pairwise_topn", {}),
         "rank_and_miss_breakdown": report.get("rank_and_miss_breakdown", {}),
         "hole_second_pair_review": report.get("hole_second_pair_review", {}),
         "by_day": report.get("by_day", {}),

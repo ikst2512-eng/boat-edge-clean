@@ -1,0 +1,70 @@
+name: November 5 saved hole-shadow evidence read-only audit
+on:
+  pull_request:
+    paths:
+      - nov05_saved_hole_shadow_audit.py
+      - nov05_cross_artifact_reconcile.py
+      - test_nov05_cross_artifact_reconcile.py
+      - nov05_four_mode_snapshot_audit.py
+      - test_nov05_saved_hole_shadow_audit.py
+      - forward_hole_saved_evidence_gate.py
+      - forward_hole_rank3_protocol.py
+      - .github/workflows/nov05-saved-hole-shadow-audit.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  original-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Negative tests for result-last saved shadow and run provenance
+        run: python -m unittest -v test_nov05_saved_hole_shadow_audit test_forward_hole_saved_evidence_gate test_forward_hole_rank3_protocol test_nov05_cross_artifact_reconcile
+      - name: Fetch original main without modifying it
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          git worktree add --detach "$RUNNER_TEMP/nov05-main-${{ github.run_id }}" refs/remotes/origin/main
+      - name: Fetch exact original scheduled capture evidence from GitHub Actions
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          artifacts="$RUNNER_TEMP/nov05-original-${{ github.run_id }}"
+          mkdir -p "$artifacts"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/41953950959" \
+            --jq '{id, name, event, head_branch, head_sha, status, conclusion}' \
+            > "$artifacts/capture-run-metadata.json"
+          gh run download 41953950959 --repo "$GITHUB_REPOSITORY" \
+            --name four-mode-capture-41953950959 --dir "$artifacts"
+          python nov05_saved_hole_shadow_audit.py \
+            --main-root "$RUNNER_TEMP/nov05-main-${{ github.run_id }}" \
+            --evidence-dir "$artifacts" \
+            --capture-run-metadata "$artifacts/capture-run-metadata.json"
+      - name: Reconcile original saved-shadow and independent four-mode result audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python nov05_four_mode_snapshot_audit.py --main-root "$RUNNER_TEMP/nov05-main-${{ github.run_id }}"
+          python nov05_cross_artifact_reconcile.py
+      - name: Retain full per-race evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nov05-original-saved-hole-shadow-${{ github.run_id }}
+          path: |
+            nov05_saved_hole_shadow_audit.json
+            nov05_four_mode_snapshot_audit.json
+            nov05_cross_artifact_reconcile.json
+          if-no-files-found: warn
+          retention-days: 90
