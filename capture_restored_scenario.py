@@ -20,6 +20,7 @@ def collect(root=ROOT, now=None, card_loader=None, max_races=8):
     if card_loader is None:
         from clean_racecard import racecard
         card_loader = racecard
+    injected_clock = now is not None
     now = datetime.now(JST) if now is None else now
     if not isinstance(now, datetime) or now.utcoffset() != timedelta(hours=9):
         raise ValueError("jst_clock_required")
@@ -64,7 +65,7 @@ def collect(root=ROOT, now=None, card_loader=None, max_races=8):
             before_audit = source_audit.get("beforeinfo")
             if type(before_audit) is not dict or before_audit.get("status") != "ok":
                 raise ValueError("verified_six_exhibition_required")
-            generated = datetime.now(JST) if now is None else now
+            generated = now if injected_clock else datetime.now(JST)
             # Fail closed if HTTP consumption takes the race past the safety
             # window. The caller clock is sampled AFTER the network fetch.
             if not 120 <= (deadline-generated).total_seconds():
