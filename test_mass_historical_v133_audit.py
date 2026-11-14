@@ -8,7 +8,8 @@ from pathlib import Path
 
 from scripts.audit_frozen_models_mass_history import (
     PINNED_OLD_RESULTS_COMMIT, audit_clean_versioned, audit_legacy,
-    blob_sha, checked_legacy_forecast, checked_result,
+    blob_sha, checked_legacy_forecast, checked_result, classify_saved_ticket_stage,
+    validate_rank_diagnostics, blank_rank_diagnostics,
 )
 
 ROOT = Path(__file__).resolve().parent
@@ -55,6 +56,29 @@ class HistoricalMassAuditTests(unittest.TestCase):
         self.assertEqual(report["overall"]["modes"]["hole"]["hits"], 1)
         self.assertEqual(len(report["race_audit"]), 1)
         self.assertEqual(report["race_audit"][0]["winning_ticket"], "5-6-4")
+        self.assertEqual(report["saved_ticket_rank_diagnostics"]["evaluated"], 1)
+        self.assertEqual(report["saved_ticket_rank_diagnostics"]["by_mode"]["hole"]["topn_stages"]["10"]["exact"], 1)
+        self.assertEqual(report["race_audit"][0]["saved_ticket_stage_diagnostics"]["hit"]["topn_stages"]["10"], "third_absent_given_head_second")
+
+    def test_frozen_ticket_stage_attribution_includes_only_ranked_selections(self):
+        tickets = ["2-4-5", "1-4-5", "1-2-6", "1-2-3"]
+        self.assertEqual(classify_saved_ticket_stage(tickets, "1-2-3", 1), "head_absent")
+        self.assertEqual(classify_saved_ticket_stage(tickets, "1-2-3", 2), "second_absent_given_head")
+        self.assertEqual(classify_saved_ticket_stage(tickets, "1-2-3", 3), "third_absent_given_head_second")
+        self.assertEqual(classify_saved_ticket_stage(tickets, "1-2-3", 10), "exact")
+        self.assertEqual(classify_saved_ticket_stage(["2-1-3"], "1-2-3", 10), "head_absent")
+
+    def test_diagnostics_refuse_mismatched_existing_topn(self):
+        diag = blank_rank_diagnostics()
+        from scripts.audit_frozen_models_mass_history import add_rank_diagnostics, add_record, blank_group
+        modes = {m: ["1-2-3"] for m in ("narrow", "hit", "balance", "hole")}
+        add_rank_diagnostics(diag, modes, "1-2-3")
+        group = blank_group()
+        add_record(group, modes, "1-2-3")
+        self.assertIs(validate_rank_diagnostics(diag, group), diag)
+        diag["by_mode"]["hit"]["topn_stages"]["10"]["exact"] = 0
+        with self.assertRaisesRegex(ValueError, "diagnostic_topn_mismatch"):
+            validate_rank_diagnostics(diag, group)
 
     def test_result_after_forecast_necessary_and_bad_source_rejected(self):
         deadline, _ = checked_legacy_forecast(
