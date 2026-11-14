@@ -1535,7 +1535,7 @@ jobs:
               assert response.status==200
               meta=json.loads(response.read(300000))
           raw=base64.b64decode(meta["content"])
-          assert hashlib.sha1(b"blob "+str(len(raw)).encode()+b"\\0"+raw).hexdigest()==meta["sha"]
+          assert hashlib.sha1(b"blob "+str(len(raw)).encode()+b"\0"+raw).hexdigest()==meta["sha"]
           assert meta["sha"]=="b7670d32ad4dd642101087f6e23e63abedb3e770"
           assert hashlib.sha256(raw).hexdigest()=="377bd543fbf0a95901728339ce2299cf921fb8d263261a8cc18bf2e5a96fee7d"
           bundle=json.loads(raw)
