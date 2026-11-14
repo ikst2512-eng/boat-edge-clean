@@ -40,7 +40,7 @@ def _frozen_protocol():
         raise ValueError("course_holder_frozen_1710_protocol_changed")
     protocol = json.loads(original)
     plans = protocol["scenario_hypotheses"]
-    weights = protocol["mode_scenario_weights"]
+    weights = protocol["mode_weights"]
     if (set(plans) != set(WORLDS)
             or set(weights) != set(BUDGETS)
             or any(set(row) != set(WORLDS) for row in weights.values())
