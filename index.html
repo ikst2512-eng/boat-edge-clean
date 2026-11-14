@@ -1411,7 +1411,9 @@ async function loadHeldVenues(force=false){
   const available=new Set(data.venues.filter(v=>Array.isArray(v.races)&&v.races.length>0&&/^\d{2}$/.test(v.jcd)).map(v=>Number(v.jcd)));
   [...vb.children].forEach((b,i)=>{const held=available.has(i+1);b.classList.toggle('held',held);if(held)b.dataset.held='true';else b.removeAttribute('data-held')});
   updateVenueNextLabels();
-  if(!venueSpecified&&!venueTouched){
+  if(!venueSpecified&&!venueTouched&&activeView==='home'){
+   // Auto-follow only while the user remains on Home. A late schedule response
+   // must not change the selected race after opening a detail tab.
    // Follow the earliest genuinely upcoming race, not an arbitrary venue 1R.
    // Never change an explicit choice or an archived date.
    const currentTime=Date.now();
