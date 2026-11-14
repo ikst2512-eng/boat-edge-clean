@@ -67,6 +67,122 @@ class OfficialForecastConsumptionTests(unittest.TestCase):
             "latest_original_received_jst": "2026-11-02T21:20:05+09:00",
         }
 
+
+    def test_official_six_lane_shadow_uses_raw_features_only_before_t12(self):
+        from scripts.audit_official_forecast_consumption import (
+            generate_official_research_shadow, verified_official_input_manifest,
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            card, before, odds = ThreeOriginalAuditTests().make(tmp)
+            with patch("scripts.audit_joint_official_receipts.parse_official_odds_table",
+                       return_value={"fixture": 1}), patch(
+                    "scripts.audit_joint_official_receipts.inspect_odds_receipt",
+                    return_value={"valid_120_combinations": True,
+                                  "complete_odds_observed_before_t12": True}):
+                official = audit_three_originals(card, before, odds)
+                m = verified_official_input_manifest((card, before, odds), official)
+                valid_time = "2026-11-02T21:20:40+09:00"
+                output = generate_official_research_shadow(m, valid_time)
+                self.assertTrue(output["generated"])
+                self.assertTrue(output["model_consumed_official_exhibition_fields"])
+                self.assertFalse(output["model_consumed_official_odds_prices"])
+                self.assertFalse(output["formal_t12_certified"])
+                self.assertFalse(output["purchase_approved"])
+                self.assertEqual(len(output["top_probability_order"]), 10)
+                self.assertEqual(set(output["predictions"]),
+                                 {"narrow", "hit", "balance", "hole"})
+                self.assertEqual(
+                    generate_official_research_shadow(m, valid_time)["top_probability_order"],
+                    output["top_probability_order"])
+                late = generate_official_research_shadow(
+                    m, "2026-11-02T21:39:00+09:00")
+                self.assertFalse(late["generated"])
+                self.assertEqual(late["status"], "t12_window_closed_no_shadow_generation")
+                too_early = generate_official_research_shadow(
+                    m, "2026-11-02T21:19:00+09:00")
+                self.assertFalse(too_early["generated"])
+                self.assertEqual(too_early["status"], "source_receipt_after_requested_generation")
+
+                from scripts.audit_official_forecast_consumption import (
+                    generate_timed_official_research_shadow,
+                )
+                early = "2026-11-02T21:20:40+09:00"
+                completed = "2026-11-02T21:20:45+09:00"
+                clock_iter = iter((early, completed))
+                timed = generate_timed_official_research_shadow(
+                    m, clock=lambda: jst(next(clock_iter)))
+                self.assertTrue(timed["generated"])
+                self.assertEqual(timed["generated_at_jst"], completed)
+                self.assertEqual(
+                    timed, generate_official_research_shadow(m, completed))
+                # Started with enough time, but completed at the cutoff.
+                # No forecast may be labeled as created before T-12.
+                close_iter = iter(("2026-11-02T21:38:59+09:00",
+                                   "2026-11-02T21:39:00+09:00"))
+                closed = generate_timed_official_research_shadow(
+                    m, clock=lambda: jst(next(close_iter)))
+                self.assertFalse(closed["generated"])
+                self.assertEqual(
+                    closed["status"], "t12_window_closed_during_shadow_generation")
+                self.assertNotIn("predictions", closed)
+                backwards = iter((completed, early))
+                with self.assertRaisesRegex(
+                        ValueError, "invalid_research_shadow_completion_clock"):
+                    generate_timed_official_research_shadow(
+                        m, clock=lambda: jst(next(backwards)))
+
+                forged = json.loads(json.dumps(m))
+                forged["six_boat_inputs"][0]["exhibition_time"] += 0.2
+                with self.assertRaisesRegex(ValueError, "unverified_official_shadow_manifest"):
+                    generate_official_research_shadow(forged, valid_time)
+
+
+    def test_official_exhibition_f_start_is_not_treated_as_unflagged_start(self):
+        """Real beforeinfo can contain F.01/F.05; do not reward those as .01/.05."""
+        from scripts.audit_official_forecast_consumption import generate_official_research_shadow
+
+        received = "2026-11-02T21:19:00+09:00"
+        sources = {kind: {"received_at_jst": received,
+                          "sha256": hashlib.sha256(kind.encode()).hexdigest()}
+                   for kind in ("racelist", "beforeinfo", "odds")}
+        boat_rows = [
+            {"lane": lane, "registration": str(4290 + lane),
+             "exhibition_time": 6.90 + lane * .01,
+             "tilt": 0.0, "exhibition_course": lane,
+             "exhibition_st": ".01"}
+            for lane in range(1, 7)
+        ]
+        def build(st_for_lane_three):
+            rows = json.loads(json.dumps(boat_rows))
+            rows[2]["exhibition_st"] = st_for_lane_three
+            fields = {
+                "race_code": "202611022010",
+                "cutoff_jst": "2026-11-02T21:39:00+09:00",
+                "official_sources": sources, "six_boat_inputs": rows,
+            }
+            digest = hashlib.sha256(json.dumps(
+                fields, ensure_ascii=False, sort_keys=True,
+                separators=(",", ":")).encode("utf-8")).hexdigest()
+            return {"schema": "OFFICIAL_REAUDITED_INPUT_MANIFEST_V1",
+                    **fields, "input_sha256": digest,
+                    "official_source_fields_reconstructed": True,
+                    "formal_t12_certified": False}
+        generated = "2026-11-02T21:20:40+09:00"
+        ordinary = generate_official_research_shadow(build(".01"), generated)
+        flagged = generate_official_research_shadow(build("F.01"), generated)
+        self.assertTrue(ordinary["generated"])
+        self.assertTrue(flagged["generated"])
+        self.assertFalse(flagged["model_consumed_official_odds_prices"])
+        self.assertFalse(flagged["formal_t12_certified"])
+        self.assertNotEqual(flagged["predictions"], ordinary["predictions"])
+        self.assertTrue(all(flagged["predictions"][key]["tickets"]
+                            for key in ("narrow", "hit", "balance", "hole")))
+        for invalid in ("F0.01", "F.001", "F-0.01"):
+            with self.subTest(st=invalid):
+                with self.assertRaisesRegex(
+                        ValueError, "unverified_official_shadow_exhibition"):
+                    generate_official_research_shadow(build(invalid), generated)
+
     def test_snapshot_rejects_unproven_consumption_both_clock_directions(self):
         with tempfile.TemporaryDirectory() as tmp:
             original = self.write_forecast(tmp)
@@ -111,6 +227,17 @@ class OfficialForecastConsumptionTests(unittest.TestCase):
                 row = result["rows"][0]
                 self.assertEqual(row["official_original_status"],
                                  "three_originals_reaudited_research_only")
+
+                manifest = row["official_input_manifest"]
+                self.assertTrue(manifest["official_source_fields_reconstructed"])
+                self.assertEqual(len(manifest["six_boat_inputs"]), 6)
+                self.assertEqual(set(manifest["official_sources"]), {"racelist","beforeinfo","odds"})
+                self.assertEqual(len(manifest["input_sha256"]), 64)
+                self.assertEqual(manifest["six_boat_inputs"][0]["registration"], "4180")
+                self.assertEqual(manifest["six_boat_inputs"][0]["exhibition_course"], 6)
+                self.assertFalse(manifest["model_actually_consumed_fields"])
+                self.assertFalse(manifest["formal_t12_certified"])
+
                 self.assertEqual(row["forecast_statuses"]["prospective_predictions"]["status"],
                                  "official_model_input_consumption_unverified")
                 self.assertEqual(row["forecast_statuses"]["four_mode_forecasts"]["status"],
@@ -122,6 +249,7 @@ class OfficialForecastConsumptionTests(unittest.TestCase):
                 before_file.write_bytes(before_file.read_bytes() + b"\n")
                 changed = audit_batch(batch, tmp)
                 self.assertEqual(changed["research_three_originals_reaudited"], 0)
+                self.assertNotIn("official_input_manifest", changed["rows"][0])
                 self.assertEqual(changed["rows"][0]["official_original_status"],
                                  "official_original_reaudit_failed")
                 self.assertEqual(changed["official_consumed_forecasts"], 0)

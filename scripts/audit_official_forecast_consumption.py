@@ -93,6 +93,231 @@ def snapshot_timing(directory, race, official):
         return {"status": "forecast_record_unverified", "generated_at_jst": None}
 
 
+
+def verified_official_input_manifest(dirs, audited):
+    """Read-only six-lane input reconstruction from verified official bytes.
+
+    This does NOT prove that any predictor consumed the fields. No new forecast
+    is generated and no retrospective first Git receipt is attested.
+    """
+    import hashlib
+    import math
+    cutoff = jst(audited["cutoff_jst"])
+    if (audited.get("all_research_components_observed_by_t12") is not True
+            or audited.get("three_originals_hash_verified") is not True
+            or audited.get("missing_components") != []
+            or audited.get("final_race_entry_verified") is not False
+            or jst(audited["latest_original_received_jst"]) >= cutoff):
+        raise ValueError("official_input_not_prospectively_complete")
+    race = audited["race_code"]
+    source_map = {}
+    raw_before = None
+    for kind, directory, filename in zip(
+            ("racelist", "beforeinfo", "odds"), dirs,
+            ("racelist.html", "beforeinfo.json", "original.html")):
+        path = Path(directory) / filename
+        meta = read_json(Path(directory) / "manifest.json")
+        if path.is_symlink() or not path.is_file():
+            raise ValueError("official_input_source_invalid")
+        raw = path.read_bytes()
+        digest = hashlib.sha256(raw).hexdigest()
+        received = jst(meta["received_at_jst"])
+        if (meta.get("race_code") != race or meta.get("sha256") != digest
+                or meta.get("bytes") != len(raw) or not raw or received > cutoff):
+            raise ValueError("official_input_raw_or_clock_mismatch")
+        source_map[kind] = {"sha256": digest, "bytes": len(raw),
+                            "received_at_jst": received.isoformat()}
+        if kind == "beforeinfo":
+            raw_before = raw
+    before = json.loads(raw_before)["maindata"]
+    if (not isinstance(before, dict) or str(before.get("hd")) != race[:8]
+            or str(before.get("jcd")).zfill(2) != race[8:10]
+            or str(before.get("rno")) != str(int(race[10:]))):
+        raise ValueError("official_input_race_identity_invalid")
+
+    def six_by_lane(rows):
+        if not isinstance(rows, list) or len(rows) != 6:
+            raise ValueError("official_input_six_rows_missing")
+        found = {}
+        for r in rows:
+            if not isinstance(r, dict) or str(r.get("teino")) not in ("1","2","3","4","5","6"):
+                raise ValueError("official_input_lane_invalid")
+            lane = str(r["teino"])
+            if lane in found:
+                raise ValueError("official_input_lane_duplicate")
+            found[lane] = r
+        return found
+
+    boats = six_by_lane(before.get("teiinfolist"))
+    starts = six_by_lane(before.get("sttenjiinfolist"))
+    rows, courses = [], {}
+    for lane in range(1, 7):
+        key = str(lane)
+        b, s = boats[key], starts[key]
+        registration, st = str(b.get("racerno")), s.get("st")
+        if registration != audited["registrations_by_lane"].get(key):
+            raise ValueError("official_input_registration_mismatch")
+        try:
+            time, tilt, course = float(b["extime"]), float(b["tilt"]), int(s["cs"])
+        except (KeyError, ValueError, TypeError, OverflowError):
+            raise ValueError("official_input_measurement_invalid") from None
+        if (not math.isfinite(time) or not 5 <= time <= 9
+                or not math.isfinite(tilt) or not -1 <= tilt <= 3
+                or type(st) is not str
+                or not re.fullmatch(r"(?:[FL])?\.\d{1,2}|\d?\.\d{1,2}", st.strip())
+                or course not in range(1, 7) or str(course) in courses):
+            raise ValueError("official_input_measurement_invalid")
+        courses[str(course)] = key
+        rows.append({"lane": lane, "registration": registration,
+                     "exhibition_time": time, "tilt": tilt,
+                     "exhibition_st": st.strip(), "exhibition_course": course})
+    if courses != audited["exhibition_course_to_boat"]:
+        raise ValueError("official_input_course_mismatch")
+    inputs = {"race_code": race, "cutoff_jst": cutoff.isoformat(),
+              "official_sources": source_map, "six_boat_inputs": rows}
+    input_digest = hashlib.sha256(json.dumps(
+        inputs, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")).hexdigest()
+    return {"schema": "OFFICIAL_REAUDITED_INPUT_MANIFEST_V1",
+            **inputs, "input_sha256": input_digest,
+            "official_source_fields_reconstructed": True,
+            "model_actually_consumed_fields": False,
+            "independent_remote_first_seen_verified": False,
+            "final_race_entry_verified": False,
+            "formal_t12_certified": False, "research_only": True,
+            "purchase_approved": False}
+
+
+
+def generate_official_research_shadow(manifest, generated_at_jst):
+    """Run an explicitly *uncalibrated* shadow model on verified six-lane inputs.
+
+    This output is ephemeral Action research evidence, not a Git forecast or
+    purchase signal. No synthetic receipt clocks and no backdated prediction.
+    Official 120-combination odds establish source completeness only and never
+    reorder prediction probabilities by payout.
+    """
+    import hashlib
+    import math
+    from research_model import COUNTS, TICKETS
+    from clean_four_modes import rank_modes
+
+    generated = jst(generated_at_jst)
+    cutoff = jst(manifest["cutoff_jst"])
+    latest = max(jst(v["received_at_jst"]) for v in manifest["official_sources"].values())
+    base_fields = {key: manifest[key] for key in
+                   ("race_code", "cutoff_jst", "official_sources", "six_boat_inputs")}
+    digest = hashlib.sha256(json.dumps(base_fields, ensure_ascii=False, sort_keys=True,
+                                       separators=(",", ":")).encode("utf-8")).hexdigest()
+    if (manifest.get("schema") != "OFFICIAL_REAUDITED_INPUT_MANIFEST_V1"
+            or manifest.get("official_source_fields_reconstructed") is not True
+            or manifest.get("formal_t12_certified") is not False
+            or digest != manifest.get("input_sha256")
+            or len(manifest["six_boat_inputs"]) != 6
+            or set(manifest["official_sources"]) != {"racelist", "beforeinfo", "odds"}):
+        raise ValueError("unverified_official_shadow_manifest")
+    if latest > generated:
+        return {"status": "source_receipt_after_requested_generation",
+                "generated": False, "formal_t12_certified": False}
+    if generated >= cutoff:
+        return {"status": "t12_window_closed_no_shadow_generation",
+                "generated": False, "formal_t12_certified": False}
+    # All four numeric exhibition measurements come from the verified
+    # beforeinfo original. Registration is identity, not a rank feature.
+    # ST F/L flags are never silently interpreted as an ordinary fast start.
+    strengths = {}
+    for lane in manifest["six_boat_inputs"]:
+        number, st = lane["lane"], lane["exhibition_st"]
+        if (type(number) is not int or number not in range(1, 7)
+                or number in strengths or type(st) is not str
+                or not re.fullmatch(r"(?:[FL])?\.\d{1,2}|\d?\.\d{1,2}", st)):
+            raise ValueError("unverified_official_shadow_exhibition")
+        time = lane["exhibition_time"]
+        tilt = lane["tilt"]
+        course = lane["exhibition_course"]
+        if (type(time) not in (int, float) or type(tilt) not in (int, float)
+                or type(course) is not int or not math.isfinite(time)
+                or not math.isfinite(tilt) or not 5 <= time <= 9
+                or not -1 <= tilt <= 3 or course not in range(1, 7)):
+            raise ValueError("unverified_official_shadow_reading")
+        st_flagged = st.startswith(("F", "L"))
+        st_seconds = float(st.lstrip("FL"))
+        if not 0 <= st_seconds <= 0.99:
+            raise ValueError("unverified_official_shadow_st")
+        strengths[number] = (
+            -4.0 * (time - 6.8)
+            -1.5 * st_seconds
+            +0.12 * (3.5 - course)
+            -0.05 * abs(tilt)
+            -(0.15 if st_flagged else 0.0)
+        )
+    if len(strengths) != 6 or len({x["exhibition_course"] for x in manifest["six_boat_inputs"]}) != 6:
+        raise ValueError("unverified_official_shadow_six_courses")
+    log_weights = [math.log(c + 0.5)
+                   +0.85 * strengths[ticket[0]]
+                   +0.35 * strengths[ticket[1]]
+                   +0.15 * strengths[ticket[2]]
+                   for ticket, c in zip(TICKETS, COUNTS)]
+    peak = max(log_weights)
+    weights = [math.exp(x - peak) for x in log_weights]
+    denominator = sum(weights)
+    if not math.isfinite(denominator) or denominator <= 0:
+        raise ValueError("official_shadow_probability_not_finite")
+    board = [(ticket, weight / denominator) for ticket, weight in zip(TICKETS, weights)]
+    modes = rank_modes(board)
+    ranked = sorted(board, key=lambda x: (-x[1], x[0]))
+    return {
+        "schema": "OFFICIAL_SIX_LANE_RESEARCH_SHADOW_V1",
+        "status": "research_shadow_generated_pre_t12",
+        "generated": True, "generated_at_jst": generated.isoformat(),
+        "t12_cutoff_jst": cutoff.isoformat(),
+        "latest_official_source_received_jst": latest.isoformat(),
+        "race_code": manifest["race_code"],
+        "official_input_sha256": digest,
+        "source_sha256_by_kind": {k: v["sha256"] for k, v in manifest["official_sources"].items()},
+        "model_version": "official_exhibition_heuristic_shadow_v1_uncalibrated",
+        "model_consumed_official_exhibition_fields": True,
+        "model_consumed_official_odds_prices": False,
+        "full_official_source_completeness_audited": True,
+        "predictions": modes,
+        "top_probability_order": ["-".join(map(str, ticket)) for ticket, _ in ranked[:10]],
+        "formal_t12_certified": False,
+        "independent_remote_first_seen_verified": False,
+        "model_accuracy_verified": False,
+        "purchase_approved": False,
+        "research_only": True,
+    }
+
+
+def generate_timed_official_research_shadow(manifest, *, clock=None):
+    """Attest *completion*, not merely start, before the research T-12 cutoff.
+
+    Live audit uses an actual JST clock twice. A model that starts before T-12
+    but finishes at/after T-12 must never be labeled pre-cutoff, even if it
+    produced plausible tickets. No clock is synthesized or backdated.
+    """
+    from research_model import JST
+    if clock is None:
+        clock = lambda: datetime.now(JST)
+    started = clock()
+    if not isinstance(started, datetime) or started.utcoffset() != timedelta(hours=9):
+        raise ValueError("invalid_research_shadow_start_clock")
+    shadow = generate_official_research_shadow(manifest, started.isoformat())
+    completed = clock()
+    if (not isinstance(completed, datetime)
+            or completed.utcoffset() != timedelta(hours=9) or completed < started):
+        raise ValueError("invalid_research_shadow_completion_clock")
+    if shadow.get("generated") is True:
+        if completed >= jst(manifest["cutoff_jst"]):
+            return {"status": "t12_window_closed_during_shadow_generation",
+                    "generated": False, "formal_t12_certified": False,
+                    "research_only": True, "purchase_approved": False}
+        # Preserve one truthful completion timestamp; the privileged writer
+        # independently replays and matches the same deterministic prediction.
+        shadow["generated_at_jst"] = completed.isoformat()
+    return shadow
+
+
 def locate_sources(batch_dir, race, *, parts=("racelist_", "before_", "odds_")):
     observation_root = batch_dir / "observations"
     if observation_root.is_symlink() or not observation_root.is_dir():
@@ -164,6 +389,9 @@ def audit_batch(batch_dir, forecast_root, *, official_auditor=audit_three_origin
                             "latest_original_received_jst", "t12_receipt_margin_seconds",
                             "component_checks", "missing_components"))):
                     raise ValueError("official_three_source_reaudit_mismatch")
+                row["official_input_manifest"] = verified_official_input_manifest(dirs, audited)
+                row["official_research_shadow"] = generate_timed_official_research_shadow(
+                    row["official_input_manifest"])
                 row["official_original_status"] = "three_originals_reaudited_research_only"
                 row["latest_official_received_jst"] = audited["latest_original_received_jst"]
                 row["forecast_statuses"] = {
