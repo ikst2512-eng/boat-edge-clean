@@ -717,6 +717,79 @@ jobs:
               "forecast_generated":False,"future_forecast_first_remote_receipt":False,
               "actual_final_entry_verified":False,"formal":False,
               "production_changed":False},sort_keys=True))
+          # Same archived genuine three-source input and actual original-K
+          # history, read-only after race. Compare pure probability mathematics
+          # WITHOUT reading the result, inventing a first Git receipt, or
+          # generating an eligible prospective candidate.
+          import sys
+          sys.path.insert(0,str(Path(os.environ["RUNNER_TEMP"])/"position1698"))
+          from scenario_flagged_st_feature_study import encode_archived_triple
+          from scenario_official_racelist_rates import extract_six_official_racelist_rates
+          from scenario_escape_prior_first_head_sensitivity import sensitivity_only
+          from test_scenario_mode_specific_exhibition_end_to_end import hypotheses
+          from position_sensitive_conditioned_lab import experimental_conditional_board
+          racelist_original=(groups[0]/"racelist.html").read_bytes()
+          parsed=extract_six_official_racelist_rates(racelist_original)
+          assert [x["registration_id"] for x in parsed["boats"]]==[
+              ids[str(i)] for i in range(1,7)]
+          signed=encode_archived_triple(*groups)
+          assert signed["race_code"]==race
+          assert signed["source_complete_12_of_12"] is True
+          assert signed["eligible_for_existing_300_plus_300"] is False
+          assert signed["model_executed"] is False
+          raw_before=json.loads((groups[1]/"beforeinfo.json").read_bytes())["maindata"]
+          old_boats=raw_before["teiinfolist"]
+          assert len(old_boats)==6
+          lane_map={int(x["teino"]):x for x in old_boats}
+          assert set(lane_map)==set(range(1,7))
+          assert all(str(lane_map[i]["racerno"])==ids[str(i)]
+                     for i in range(1,7))
+          times=[float(lane_map[i]["extime"]) for i in range(1,7)]
+          if signed["flag_L_count"]:
+              print("REAL_ARCHIVED_FOUR_MODE_ABLATION_BLOCKED_L_DISPLAY "+json.dumps({
+                  "race_code":race,"L_count":signed["flag_L_count"],
+                  "reason":"L_start_offset_unknown_numeric_input_forbidden",
+                  "candidate_created":False,"formal":False},sort_keys=True))
+          else:
+              board=sensitivity_only(history,signed,parsed["national_rates"],
+                                     times,hypotheses(),experimental_conditional_board)
+              assert board["race_code"]==race
+              assert board["candidate_created"] is False
+              assert board["first_remote_receipt_verified"] is False
+              assert board["outcomes_read"] is False
+              assert board["formal"] is False
+              assert board["production_changed"] is False
+              assert board["accuracy_improvement_proven"] is False
+              controls=board["control_four_mode_tickets"]
+              tests=board["hypothesis_four_mode_tickets"]
+              mode_summary={}
+              for mode,budget in board["same_mode_budgets"].items():
+                  normal=[row["combo"] for row in controls[mode]["tickets"]]
+                  adjusted=[row["combo"] for row in tests[mode]["tickets"]]
+                  assert len(normal)==len(adjusted)==budget
+                  assert len(set(normal))==len(set(adjusted))==budget
+                  mode_summary[mode]={
+                      "selection_budget":budget,
+                      "top1_changed":normal[0]!=adjusted[0],
+                      "selected_ticket_set_overlap":len(set(normal)&set(adjusted)),
+                      "ticket_rank_positions_changed":sum(
+                          x!=y for x,y in zip(normal,adjusted)),
+                      "full120_board_sha_changed":(
+                          controls[mode]["full_120_mixture_sha256"]!=
+                          tests[mode]["full_120_mixture_sha256"])}
+              print("REAL_ARCHIVED_K92_FOUR_MODE_NUMERIC_SENSITIVITY_ONLY "+json.dumps({
+                  "race_code":race,"official_3_original_source_audit":True,
+                  "original_K_training_n":9241,
+                  "athlete_1course_training_starts":history["C1_athlete_training_race_count"],
+                  "official_exhibition_F_count":signed["flag_F_count"],
+                  "pinned_reviewed_1698_math":True,
+                  "existing_scenario_coefficients_unchanged":True,
+                  "mode_math_contrast":mode_summary,
+                  "target_result_or_payout_read":False,
+                  "retroactive_candidate_created":False,
+                  "eligible_for_future_600":False,"formal":False,
+                  "production_changed":False,"accuracy_improvement_proven":False,
+              },sort_keys=True))
           PY
       - name: Confirm all-mode scenario composition uses actual reviewed #1698 conditional math
         env:
