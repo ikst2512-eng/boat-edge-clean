@@ -740,6 +740,26 @@ jobs:
           parsed=extract_six_official_racelist_rates(racelist_original)
           assert [x["registration_id"] for x in parsed["boats"]]==[
               ids[str(i)] for i in range(1,7)]
+          # Added unregistered research adapter. Recheck genuine archived
+          # Nov14 pre-T12 racelist bytes and 6 registered identities. A
+          # displayed motor 2-ren rate is NOT a verified starts denominator.
+          from scenario_official_motor_display_research import extract_motor_display_unqualified
+          motor=extract_motor_display_unqualified(racelist_original)
+          assert motor["source_sha256"]==hashlib.sha256(racelist_original).hexdigest()
+          assert [x["registration_id"] for x in motor["rows"]]==[
+              ids[str(i)] for i in range(1,7)]
+          assert [x["motor_number"] for x in motor["rows"]]
+          assert all(x["motor_starts"] is None and x["motor_2ren_successes"] is None
+                     for x in motor["rows"])
+          assert motor["sample_denominator_verified"] is False
+          assert motor["input_to_matrix_allowed"] is False
+          print("REAL_NOV14_MOTOR_DISPLAY_ORIGINAL_INPUT_ONLY_PASS "+json.dumps({
+              "race_code":race,"motor_numbers":[x["motor_number"] for x in motor["rows"]],
+              "displayed_2ren_pct":[x["displayed_motor_2ren_pct"] for x in motor["rows"]],
+              "raw_sha256":motor["source_sha256"],"six_registrations_match":True,
+              "pre_T12_source_audited":True,"motor_denominators_verified":False,
+              "model_consumed_motor":False,"candidate_created":False,"formal":False
+          },sort_keys=True))
           signed=encode_archived_triple(*groups)
           assert signed["race_code"]==race
           assert signed["source_complete_12_of_12"] is True
