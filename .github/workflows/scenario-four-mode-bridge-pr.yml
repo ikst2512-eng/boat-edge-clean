@@ -1034,6 +1034,86 @@ jobs:
               "accuracy_improvement_proven":False,
           },sort_keys=True))
           PY
+      - name: Check #1746 official input schema and retroactive cutoff guard on real Nov14 originals
+        run: |
+          set -euo pipefail
+          # Pin the separate writer PR's source exactly; no import from
+          # mutable main or the unreviewed moving #1746 branch.
+          git fetch --no-tags --depth=1 origin 19ba22303cd01fc61f4efe23583b97f79b4492b2
+          mkdir -p "$RUNNER_TEMP/official1746"
+          git show 19ba22303cd01fc61f4efe23583b97f79b4492b2:scripts/audit_official_forecast_consumption.py > "$RUNNER_TEMP/official1746/audit_official_forecast_consumption.py"
+          test "$(git hash-object "$RUNNER_TEMP/official1746/audit_official_forecast_consumption.py")" = "3b42632188572708dc7a62bef9ca4519c4610297"
+          python - <<'PY'
+          import importlib.util,json,os
+          from datetime import datetime,timedelta
+          from pathlib import Path
+          from scripts.audit_three_official_t12_originals import audit_three_originals
+          from research_model import JST
+          file=Path(os.environ["RUNNER_TEMP"])/"official1746"/"audit_official_forecast_consumption.py"
+          spec=importlib.util.spec_from_file_location("read_only_pinned_1746",file)
+          writer_source=importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(writer_source)
+          # Four independently frozen archive originals; preceding step has
+          # already checked their ZIP bytes, CRC, path isolation and 12/12.
+          tmp=Path(os.environ["RUNNER_TEMP"])
+          batches=(("A",("202611140211","202611140701")),
+                   ("B",("202611140411","202611141311")))
+          ready=[]
+          for batch,races in batches:
+              base=tmp/("nov14-multi-"+batch)/"official_joint_evidence"/"observations"
+              assert base.is_dir()
+              for race in races:
+                  folders=[]
+                  for prefix in ("racelist_","before_","odds_"):
+                      found=sorted(base.glob(prefix+"*/"+race[:8]+"/"+race))
+                      assert len(found)==1,(race,prefix,len(found))
+                      folders.append(found[0])
+                  audit=audit_three_originals(*folders)
+                  assert len(audit["component_checks"])==12
+                  assert all(audit["component_checks"].values())
+                  assert audit["all_research_components_observed_by_t12"] is True
+                  # This is a read-only manifest preflight. Reconstructed
+                  # original identities must be identical to the auditor's
+                  # race/course/registration maps and source clock receipts.
+                  manifest=writer_source.verified_official_input_manifest(folders,audit)
+                  assert manifest["race_code"]==race
+                  assert manifest["formal_t12_certified"] is False
+                  assert manifest["model_actually_consumed_fields"] is False
+                  assert manifest["independent_remote_first_seen_verified"] is False
+                  assert manifest["final_race_entry_verified"] is False
+                  assert len(manifest["six_boat_inputs"])==6
+                  assert {str(v["lane"]):v["registration"]
+                          for v in manifest["six_boat_inputs"]}==audit["registrations_by_lane"]
+                  assert {str(v["exhibition_course"]):str(v["lane"])
+                          for v in manifest["six_boat_inputs"]}==audit["exhibition_course_to_boat"]
+                  assert set(manifest["official_sources"])=={"racelist","beforeinfo","odds"}
+                  assert all(v["sha256"] and v["bytes"]>0
+                             for v in manifest["official_sources"].values())
+                  cutoff=writer_source.jst(manifest["cutoff_jst"])
+                  actual_now=datetime.now(JST)
+                  assert actual_now>=cutoff, "historical-target-must-have-ended"
+                  # No simulated clocks; no generation timestamp made up
+                  # to turn a historical race into a prospective candidate.
+                  timed=writer_source.generate_timed_official_research_shadow(manifest)
+                  assert timed=={
+                      "status":"t12_window_closed_no_shadow_generation",
+                      "generated":False,"formal_t12_certified":False,
+                  }
+                  ready.append(race)
+                  print("REAL_OFFICIAL_1746_1710_INPUT_COMPATIBILITY_AND_RETRO_CUTOFF_PASS "+json.dumps({
+                      "race_code":race,"source_original_checks":12,
+                      "manifest_input_sha256":manifest["input_sha256"],
+                      "course1_exhibition_boat":audit["exhibition_course_to_boat"]["1"],
+                      "historical_actual_clock_after_T12":True,
+                      "method_future_prediction_executed":False,
+                      "historical_backfill_candidate_created":False,
+                      "originals_or_commit_written":False,
+                      "official_first_remote_receipt_verified":False,
+                      "formal":False,"production_changed":False},sort_keys=True))
+          assert len(ready)==4 and len(set(ready))==4
+          print("READ_ONLY_CROSS_PR_1746_SOURCE_INTAKE_VALID_4_OF_4 "
+                "HISTORICAL_RETROACTIVE_FORECAST_BLOCKED_4_OF_4")
+          PY
       - name: Confirm all-mode scenario composition uses actual reviewed #1698 conditional math
         env:
           RESEARCH_1698_PIN_REQUIRED: '1'
