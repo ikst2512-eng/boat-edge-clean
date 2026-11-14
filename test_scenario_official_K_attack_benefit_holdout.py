@@ -29,6 +29,23 @@ class HistoricalOutcomeRules(unittest.TestCase):
         self.assertEqual(s["rates"]["course5_third"]["count"], 1)
         self.assertEqual(s["rates"]["course5_second"]["count"], 0)
         self.assertEqual(s["rates"]["four_and_five_both_top3"]["count"], 1)
+        joint = s["joint_second_third_by_actual_course"]
+        self.assertEqual(len(joint), 20)
+        self.assertEqual(joint["4-5"]["count"], 1)
+        self.assertEqual(joint["5-4"]["count"], 0)
+        self.assertEqual(sum(v["count"] for v in joint.values()), 1)
+        self.assertTrue(s["joint_position_not_product_of_independent_marginals"])
+
+    def test_joint_tail_does_not_equal_product_of_marginals(self):
+        # Two events: 4 second and 5 third always occur together.
+        a = _record(race(second=4, third=5))
+        b = _record(race(second=2, third=1))
+        summary = summarize([a, b])["three_makuri"]
+        self.assertEqual(summary["joint_second_third_by_actual_course"]["4-5"]["count"], 1)
+        self.assertEqual(summary["rates"]["course4_second"]["percent"], 50.0)
+        self.assertEqual(summary["rates"]["course5_third"]["percent"], 50.0)
+        # Product of independent marginals would give 25%, not actual 50%.
+        self.assertEqual(summary["joint_second_third_by_actual_course"]["4-5"]["percent"], 50.0)
 
     def test_method_changes_label_not_finishing_order(self):
         a = _record(race(method="まくり"))
