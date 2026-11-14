@@ -1159,6 +1159,62 @@ jobs:
           path: test-results/render-edge-*.log
           if-no-files-found: warn
           retention-days: 30
+      # This runs AFTER Pages is deployed. A green historical 24-venue test
+      # is not evidence that the newly restored forecast API is responsive.
+      # Keep the site release red while V133 returns 502/invalid JSON, even if
+      # /healthz and archived racecard routes return HTTP 200.
+      - name: Verify live V133 JSON contract before accepting published release
+        timeout-minutes: 4
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import time
+          from urllib.error import HTTPError, URLError
+          from urllib.request import Request, urlopen
+
+          url = 'https://boat-edge-clean.onrender.com/api/v133-reference-preview?hd=invalid&jcd=01&rno=1'
+          req = Request(url, headers={
+              'User-Agent': 'BOAT-EDGE-CLEAN-release-contract/1',
+              'Origin': 'https://ikst2512-eng.github.io',
+          })
+          last = 'not_started'
+          # Render and Pages auto-deploy independently. Wait a bounded time
+          # for the LIVE backend; never silently accept 502 or a prior revision.
+          for attempt in range(1, 9):
+              started = time.monotonic()
+              try:
+                  with urlopen(req, timeout=12) as response:
+                      status, headers, body = response.status, response.headers, response.read(8192)
+              except HTTPError as error:
+                  status, headers, body = error.code, error.headers, error.read(8192)
+              except (URLError, TimeoutError, OSError) as error:
+                  last = type(error).__name__
+                  print(f'PUBLIC_V133_CONTRACT_UNVERIFIED attempt={attempt}/8 transport={last}', flush=True)
+                  if attempt < 8:
+                      time.sleep(10)
+                  continue
+              try:
+                  payload = json.loads(body)
+              except (UnicodeError, ValueError):
+                  payload = None
+              valid = (
+                  status == 400
+                  and payload == {'ok': False, 'status': 'invalid_race'}
+                  and headers.get('Content-Type', '').startswith('application/json')
+                  and headers.get('Access-Control-Allow-Origin') == 'https://ikst2512-eng.github.io'
+              )
+              elapsed = round(time.monotonic() - started, 3)
+              if valid:
+                  print(f'PUBLIC_V133_JSON_CONTRACT_PASS attempt={attempt}/8 http=400 latency_s={elapsed}', flush=True)
+                  break
+              last = f'http={status} content_type={headers.get("Content-Type", "missing")} cors={headers.get("Access-Control-Allow-Origin", "missing")} json_valid={payload is not None}'
+              print(f'PUBLIC_V133_CONTRACT_UNVERIFIED attempt={attempt}/8 {last} latency_s={elapsed}', flush=True)
+              if attempt < 8:
+                  time.sleep(10)
+          else:
+              raise SystemExit('PUBLIC_V133_JSON_CONTRACT_FAILED: ' + last)
+          PY
       - name: Browser-check deployed page
         timeout-minutes: 2
         env:
