@@ -1856,12 +1856,112 @@ function updateFourModeHitPreview(key){
  total.textContent='参考一致：4モード中 '+matchedModes+'モード';
  summary.append(title,total,row,note);root.prepend(summary);
 }
+// The original V127/V133 reference is preferred to the later uncalibrated
+// 120-board extension. Only CLEAN-owned saved samples or the guarded CLEAN API
+// may be used here; never fetch the retired repository at runtime.
+async function loadOriginalV133Frozen(key,token,status,root){
+ const live=()=>token===window.predictionRequestId&&key===sameRaceKey()&&activeView==='forecast';
+ const code=key.replaceAll('-','');
+ const validRows=(rows,n)=>Array.isArray(rows)&&rows.length===n&&
+   rows.every(t=>t&&validTicket(t.combo)&&Number.isFinite(t.p)&&t.p>=0&&t.p<=100)&&
+   new Set(rows.map(t=>t.combo)).size===n;
+ const validModes=m=>m&&validRows(m.narrow?.tickets,3)&&
+   validRows(m.hit?.tickets,10)&&validRows(m.balance?.tickets,10)&&
+   [12,15,18].some(n=>validRows(m.hole?.tickets,n))&&
+   (m.tail===undefined||validRows(m.tail?.tickets,10));
+ const appendModes=(m,oldSaved)=>{
+  root.replaceChildren();
+  const intro=document.createElement('p');intro.className='muted';
+  intro.textContent=oldSaved
+    ?'旧V127/V133の当時の保存原本。買い目の順序は原本どおりで、後付け生成はしていません。正式的中率・独立初回保存認定ではありません。'
+    :'旧V127スコアとV133の4モードをCLEANの直前入力から計算（参考・未校正・未保存）。旧サイトの3か月コース集計など一部情報は未接続。正式的中率ではありません。';
+  root.append(intro);
+  for(const [mode,label] of [['narrow','激絞り'],['hit','的中重視'],['balance','バランス'],['hole','波乱展開']]){
+   const article=document.createElement('article');article.className='four-mode-forecast-item';
+   const title=document.createElement('strong');
+   title.textContent=label+'（'+m[mode].tickets.length+'点）';article.append(title);
+   for(const ticket of m[mode].tickets){
+    const line=document.createElement('div');line.className='four-mode-forecast-ticket';
+    const combo=document.createElement('strong');combo.className='four-mode-combo';combo.textContent=ticket.combo;
+    const rate=document.createElement('span');rate.className='four-mode-prob';rate.textContent=ticket.p.toFixed(2)+'%';
+    line.append(combo,rate);article.append(line);
+   }
+   root.append(article);
+  }
+  if(m.tail?.tickets){
+   const extra=document.createElement('details');
+   const heading=document.createElement('summary');
+   heading.textContent='当時のV254・3着候補調整10点（別研究・統計的優位は未証明）';extra.append(heading);
+   const box=document.createElement('div');box.className='four-mode-forecast-item';
+   for(const t of m.tail.tickets){
+    const item=document.createElement('div');item.className='four-mode-forecast-ticket';
+    const combo=document.createElement('strong');combo.className='four-mode-combo';combo.textContent=t.combo;
+    const rate=document.createElement('span');rate.className='four-mode-prob';rate.textContent=t.p.toFixed(2)+'%';
+    item.append(combo,rate);box.append(item);
+   }
+   extra.append(box);root.append(extra);
+  }
+ };
+ // Already protected in CLEAN: genuine old FINAL_15M archives, not re-generated.
+ const frozenUrl='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/legacy_preservation/samples/'+key+'.json';
+ try{
+  const response=await fetchTimed(frozenUrl,{cache:'no-store'});
+  if(!live())return true;
+  if(response.ok){
+   const d=await response.json();
+   const deadline=key.slice(0,4)+'-'+key.slice(4,6)+'-'+key.slice(6,8)+'T'+d.deadline+':00+09:00';
+   const cutoff=Date.parse(deadline),first=Date.parse(d.first_saved_at),saved=Date.parse(d.saved_at);
+   const ok=d.schema_version==='boat-edge-server-site-final-v123'&&
+     d.race_key===key&&d.snapshot_window==='FINAL_15M'&&
+     d.prediction_kind==='SITE_REFERENCE_V122'&&
+     d.selection_policy==='V122_SCENARIO_AWARE_PROBABILITY_FIRST'&&
+     ['BALANCE10_WAVE12_15_18_V133_FIXED','PROVISIONAL_V254_THIRD_TAIL10_FIXED_TOP7'].includes(d.mode_policy)&&
+     d.guards?.results_seen===false&&d.guards?.unlock===false&&d.guards?.scoring===false&&
+     Number.isFinite(cutoff)&&Number.isFinite(first)&&Number.isFinite(saved)&&
+     first<=saved&&saved<cutoff&&0<(cutoff-first)&&cutoff-first<=15*60*1000&&
+     /^[a-f0-9]{64}$/.test(d.race_sha256||'')&&
+     /^[a-f0-9]{64}$/.test(d.odds_sha256||'')&&
+     validModes(d.modes)&&(d.modes.tail===undefined||validRows(d.modes.tail.tickets,10));
+   if(!ok){root.replaceChildren();status.textContent='旧V127/V133の保存原本・時刻・モードを検証できません。推測の買い目は表示しません。';return true;}
+   appendModes(d.modes,true);
+   const link=document.createElement('a');link.href=frozenUrl;link.target='_blank';link.rel='noopener noreferrer';link.textContent='保護した旧予想原本を確認';root.append(link);
+   status.textContent='V127/V133保存原本を優先表示。V2は比較欄・正式購入推奨ではありません。';
+   return true;
+  }
+ }catch(_){/* The current race may never have had a saved original. */}
+ if(!live())return true;
+ // Only the CLEAN service and its existing racecard/beforeinfo provenance.
+ const url='https://boat-edge-clean.onrender.com/api/v133-reference-preview?hd='+key.slice(0,8)+
+   '&jcd='+key.slice(9,11)+'&rno='+Number(key.slice(12,14));
+ try{
+  const response=await fetchTimed(url,{cache:'no-store'});
+  if(!live())return true;
+  if(!response.ok)return false;
+  const d=await response.json();
+  if(!(d.ok===true&&d.status==='live_old_v127_v133_reference_not_formal'&&
+       d.model_version==='V127_V133_SOURCE_PORT_INPUT_GUARDED_REFERENCE_V1'&&
+       d.race_code===code&&d.formal===false&&d.calibrated===false&&
+       d.production_buy_approved===false&&d.first_remote_add_verified===false&&
+       d.source_audit?.race_card?.status==='ok'&&d.source_audit?.beforeinfo?.status==='ok'&&
+       validModes(d.modes))){
+    root.replaceChildren();status.textContent='V127/V133のCLEAN直前情報検証に失敗。正式予想として表示しません。';return true;
+  }
+  appendModes(d.modes,false);
+  const evidence=document.createElement('p');evidence.className='muted';
+  evidence.textContent='使用 '+(d.used_features||[]).join('・')+' ／ 未接続 '+(d.missing_or_unverified||[]).join('・');
+  root.append(evidence);
+  status.textContent='V127/V133の元ロジックによる直前参考予想（未校正・未保存）。V2は比較欄。';
+  return true;
+ }catch(_){return false;}
+}
+
 async function loadRestoredScenarioPreview(key,token){
  const status=document.getElementById('restoredScenarioStatus');
  const root=document.getElementById('restoredScenarioRows');
  if(!status||!root)return;
  root.replaceChildren();
  status.textContent='旧展開エンジンの締切前入力を照合中…';
+ if(await loadOriginalV133Frozen(key,token,status,root))return;
  const stillCurrent=()=>token===window.predictionRequestId&&key===sameRaceKey()&&activeView==='forecast';
  try{
   const url='https://boat-edge-clean.onrender.com/api/legacy-scenario-preview?hd='+key.slice(0,8)+'&jcd='+key.slice(9,11)+'&rno='+Number(key.slice(12,14));
