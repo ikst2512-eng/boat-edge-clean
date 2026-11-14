@@ -50,12 +50,23 @@ const { chromium } = require('playwright');
    return {open:card?.open,saved:card?.querySelector('.candidate-tickets')?.textContent,
     links:[...card.querySelectorAll('.candidate-links a')].map(x=>x.href)};
   });
-  // Four frozen modes must load from the same-origin bundled archive;
-  // a temporary GitHub Raw outage cannot erase recorded picks.
+  // The first saved candidate (202611080501) has no historical four-mode
+  // file; it must remain visible without inventing four new mode records.
+  const absent=page.locator('#candidateCards > details[data-race-code="202611080501"]');
+  if(await absent.count()!==1)throw Error('candidate_with_missing_modes_disappeared');
   await page.waitForFunction(()=>
-    document.querySelectorAll('#candidateCards > details:first-child .candidate-modes .candidate-mode').length===4,
-    null,{timeout:15000});
-  const modeCount=await page.locator('#candidateCards > details:first-child .candidate-modes .candidate-mode').count();
+    document.querySelector('#candidateCards > details[data-race-code="202611080501"] .candidate-modes')?.textContent?.includes('4モードの保存予想はありません。'),
+    null,{timeout:12000});
+  // A different genuinely archived race has all 4 modes. It must load
+  // from the same-origin Pages copy even when GitHub Raw is blocked.
+  const archivedCode='202611080101';
+  const archived=page.locator('#candidateCards > details[data-race-code="'+archivedCode+'"]');
+  if(await archived.count()!==1)throw Error('archived_four_mode_candidate_missing_'+archivedCode);
+  await archived.locator('summary').click();
+  await page.waitForFunction(code=>
+    document.querySelectorAll('#candidateCards > details[data-race-code="'+code+'"] .candidate-modes .candidate-mode').length===4,
+    archivedCode,{timeout:15000});
+  const modeCount=await archived.locator('.candidate-modes .candidate-mode').count();
   if(modeCount!==4)throw Error('saved_four_modes_not_rendered_'+modeCount);
   const review=await page.locator('#candidateCards > details').first().locator('.candidate-detail').innerText();
   if(!review.includes('研究入力の紐付け：'))throw Error('research_source_link_not_displayed');
