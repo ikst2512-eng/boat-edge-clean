@@ -693,6 +693,10 @@ jobs:
           assert result["prospective_accuracy_established"] is False
           assert result["production_changed"] is False
           assert result["promotion_allowed"] is False
+          assert result["frozen_adoption_gate"]["all_checks_passed"] is False
+          assert result["frozen_adoption_gate"]["model_switch_allowed"] is False
+          assert result["frozen_adoption_gate"]["checks"]["top10_nonregression"] is False
+          assert result["frozen_adoption_gate"]["checks"]["paired_logloss_upper95_below_zero"] is False
           focus={
               name: result["by_actual_winner_method_stratum_for_diagnostics_only"][name]
               for name in ("three_makuri","three_makuri_sashi","four_makuri")
@@ -705,6 +709,7 @@ jobs:
               "paired_logloss_delta_candidate_minus_baseline":result["paired_logloss_delta_candidate_minus_baseline"],
               "paired_day_bootstrap95":result["paired_day_bootstrap_logloss_delta95"],
               "historical_candidate_better":result["candidate_better_on_historical_oct_logloss"],
+              "adoption_gate":result["frozen_adoption_gate"],
               "topk_gained_lost":result["head_to_head_topk"],
               "focus_result_strata_only":focus,
               "only_venue_used_for_historical_predictions":True,
