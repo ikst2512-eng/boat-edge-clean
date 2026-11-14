@@ -1856,12 +1856,98 @@ function updateFourModeHitPreview(key){
  total.textContent='参考一致：4モード中 '+matchedModes+'モード';
  summary.append(title,total,row,note);root.prepend(summary);
 }
+// The former V127/V133 engine remains the canonical race-specific reference.
+// READ ONLY: display exact first-frozen old-site tickets; never regenerate past races.
+// The V254 ten-ticket variant is shown separately, never secretly substituted.
+async function loadOriginalV133Frozen(key,token,status,root){
+ const live=()=>token===window.predictionRequestId&&key===sameRaceKey()&&activeView==='forecast';
+ const url='https://raw.githubusercontent.com/ikst2512-eng/boat-edge/main/data/site_prediction_snapshots/'+key+'.json';
+ let response;
+ try{response=await fetchTimed(url,{cache:'no-store'});}
+ catch(_){return false;} // A disconnected old archive is not proof of no archived prediction.
+ if(!live())return true;
+ if(response.status===404)return false;
+ if(!response.ok)return false;
+ let data;
+ try{data=await response.json();}
+ catch(_){status.textContent='旧V127/V133の保存原本が不正です。推測で過去の予想を生成しません。';return true;}
+ const deadline=key.slice(0,4)+'-'+key.slice(4,6)+'-'+key.slice(6,8)+'T'+data?.deadline+':00+09:00';
+ const cutoff=Date.parse(deadline),first=Date.parse(data?.first_saved_at),saved=Date.parse(data?.saved_at);
+ const counts={narrow:3,hit:10,balance:10};
+ const modes=data?.modes;
+ const validRows=(rows,count)=>Array.isArray(rows)&&rows.length===count&&
+   rows.every(t=>t&&validTicket(t.combo)&&Number.isFinite(t.p)&&t.p>=0&&t.p<=100)&&
+   new Set(rows.map(t=>t.combo)).size===count;
+ const validCore=modes&&Object.entries(counts).every(([k,n])=>validRows(modes[k]?.tickets,n))&&
+   [12,15,18].some(n=>validRows(modes.hole?.tickets,n));
+ const allowedPolicy=['BALANCE10_WAVE12_15_18_V133_FIXED','PROVISIONAL_V254_THIRD_TAIL10_FIXED_TOP7'];
+ const valid=data?.schema_version==='boat-edge-server-site-final-v123'&&
+   data.race_key===key&&data.snapshot_window==='FINAL_15M'&&
+   data.prediction_kind==='SITE_REFERENCE_V122'&&
+   data.selection_policy==='V122_SCENARIO_AWARE_PROBABILITY_FIRST'&&
+   allowedPolicy.includes(data.mode_policy)&&
+   data.guards?.results_seen===false&&data.guards?.unlock===false&&
+   data.guards?.scoring===false&&Number.isFinite(cutoff)&&
+   Number.isFinite(first)&&Number.isFinite(saved)&&first<=saved&&saved<cutoff&&
+   (cutoff-first)<=15*60*1000&&(cutoff-first)>0&&
+   /^[a-f0-9]{64}$/.test(data.race_sha256||'')&&
+   /^[a-f0-9]{64}$/.test(data.odds_sha256||'')&&
+   Array.isArray(data.used_inputs)&&validCore&&
+   (modes.tail===undefined||validRows(modes.tail.tickets,10));
+ if(!valid){
+  root.replaceChildren();
+  status.textContent='旧V127/V133の保存原本・時刻・モードを検証できません。推測の買い目には切り替えません。';
+  return true;
+ }
+ root.replaceChildren();
+ const intro=document.createElement('p');intro.className='muted';
+ intro.textContent='旧BOAT EDGEの最終保存原本（V127展開スコア＋V133モード）。'+
+   '保存 '+new Date(saved).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})+
+   ' JST。元の買い目順を保持。初回Git保存の独立受領・正式的中率は未認定。';
+ root.append(intro);
+ const source=document.createElement('p');source.className='muted';
+ source.textContent='原本の使用申告：'+(data.used_inputs.join('・')||'個別特徴量の申告なし')+
+   '／未申告の壁・風波潮・オリ展を使用済みとは扱いません。';
+ root.append(source);
+ for(const [mode,label] of [['narrow','激絞り'],['hit','的中重視'],['balance','バランス'],['hole','波乱展開']]){
+  const article=document.createElement('article');article.className='four-mode-forecast-item';
+  const title=document.createElement('strong');title.textContent=label+'（旧保存 '+modes[mode].tickets.length+'点）';article.append(title);
+  for(const ticket of modes[mode].tickets){
+   const line=document.createElement('div');line.className='four-mode-forecast-ticket';
+   const combo=document.createElement('strong');combo.className='four-mode-combo';combo.textContent=ticket.combo;
+   const rate=document.createElement('span');rate.className='four-mode-prob';rate.textContent=ticket.p.toFixed(2)+'%';
+   line.append(combo,rate);article.append(line);
+  }
+  root.append(article);
+ }
+ if(data.mode_policy==='PROVISIONAL_V254_THIRD_TAIL10_FIXED_TOP7'&&modes.tail){
+  const note=document.createElement('p');note.className='muted';
+  note.textContent='当時の暫定選択：V254・3着候補調整10点（89件の比較で37件対34件、統計的優位は未証明）。';
+  root.append(note);
+  const details=document.createElement('details');
+  const summary=document.createElement('summary');summary.textContent='V254当時の選択10点を確認';details.append(summary);
+  const box=document.createElement('div');box.className='four-mode-forecast-item';
+  for(const ticket of modes.tail.tickets){
+   const line=document.createElement('div');line.className='four-mode-forecast-ticket';
+   const combo=document.createElement('strong');combo.className='four-mode-combo';combo.textContent=ticket.combo;
+   const rate=document.createElement('span');rate.className='four-mode-prob';rate.textContent=ticket.p.toFixed(2)+'%';
+   line.append(combo,rate);box.append(line);
+  }
+  details.append(box);root.append(details);
+ }
+ const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener noreferrer';
+ link.textContent='旧BOAT EDGEの保存原本を確認';root.append(link);
+ status.textContent='元のV127/V133予想を優先表示中（旧Git保存原本の参照・正式認定ではありません）。V2は比較欄に保存。';
+ return true;
+}
+
 async function loadRestoredScenarioPreview(key,token){
  const status=document.getElementById('restoredScenarioStatus');
  const root=document.getElementById('restoredScenarioRows');
  if(!status||!root)return;
  root.replaceChildren();
  status.textContent='旧展開エンジンの締切前入力を照合中…';
+ if(await loadOriginalV133Frozen(key,token,status,root))return;
  const stillCurrent=()=>token===window.predictionRequestId&&key===sameRaceKey()&&activeView==='forecast';
  try{
   const url='https://boat-edge-clean.onrender.com/api/legacy-scenario-preview?hd='+key.slice(0,8)+'&jcd='+key.slice(9,11)+'&rno='+Number(key.slice(12,14));
