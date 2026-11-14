@@ -10,6 +10,8 @@ The K original is POSTRACE: roster is retrospectively identified and cannot
 certify actual predeadline roster receipt. Only research, no model promotion.
 """
 from collections import Counter, defaultdict
+
+from scenario_official_K_attack_benefit_holdout import GROUPS
 from datetime import date
 from hashlib import sha256
 from itertools import permutations
@@ -202,6 +204,8 @@ def score_october_holdout(fit, records, *, expected_oct_n=None):
         raise ValueError("october_holdout_size_mismatch")
     modelnames = ("global_boat_baseline", "racer_prior_head_only")
     totals = {name: _stats() for name in modelnames}
+    by_observed_winner_method = {g:{name:_stats() for name in modelnames} for g in GROUPS}
+    by_venue = {f'{v:02d}':{name:_stats() for name in modelnames} for v in range(1,25)}
     gainloss = {k: Counter() for k in TOPS}
     coverage = Counter()
     days = defaultdict(lambda: {"n": 0, "delta_log": 0.})
@@ -213,6 +217,10 @@ def score_october_holdout(fit, records, *, expected_oct_n=None):
         before_result = predict_from_boat_roster(
             fit, record.get("historical_boat_to_registration"))
         day, _, ticket = _validate_record(record, training=False)
+        group = record.get('group')
+        venue = record['venue']
+        if group not in GROUPS:
+            raise ValueError('unregistered_historical_deciding_method_group')
         coverage[before_result["racer_coverage"]] += 1
         candidate_hit = {}
         individual_losses = {}
@@ -225,17 +233,19 @@ def score_october_holdout(fit, records, *, expected_oct_n=None):
             headloss = -math.log(hvec[ticket[0]])
             hbrier = 1 - 2*hvec[ticket[0]] + math.fsum(x*x for x in hvec.values())
             top = sorted(TICKETS, key=lambda t: (-board[t], t))
-            bucket = totals[name]
-            bucket["n"] += 1
-            bucket["log"] += log
-            bucket["brier"] += brier
-            bucket["head_log"] += headloss
-            bucket["head_brier"] += hbrier
             candidate_hit[name] = {}
+            for bucket in (totals[name],
+                           by_observed_winner_method[group][name],
+                           by_venue[venue][name]):
+                bucket["n"] += 1
+                bucket["log"] += log
+                bucket["brier"] += brier
+                bucket["head_log"] += headloss
+                bucket["head_brier"] += hbrier
+                for k in TOPS:
+                    bucket[f"top{k}"] += int(ticket in top[:k])
             for k in TOPS:
-                flag = ticket in top[:k]
-                bucket[f"top{k}"] += int(flag)
-                candidate_hit[name][k] = flag
+                candidate_hit[name][k] = ticket in top[:k]
             individual_losses[name] = log
         for k in TOPS:
             a = candidate_hit[modelnames[0]][k]
@@ -282,6 +292,15 @@ def score_october_holdout(fit, records, *, expected_oct_n=None):
         "postrace_source_receipt_not_predeadline_certified": True,
         "racer_training_coverage_histogram": dict(sorted(coverage.items())),
         "models": summaries,
+        "by_actual_winner_method_postrace_diagnostic": {
+            g: {name: _final_stats(v) for name,v in models.items()}
+            for g, models in by_observed_winner_method.items()
+        },
+        "by_venue_postrace_diagnostic": {
+            venue: {name:_final_stats(v) for name,v in models.items()}
+            for venue, models in by_venue.items()
+        },
+        "winner_method_not_a_prediction_feature": True,
         "topk_gained_lost": {k: dict(gainloss[k]) for k in TOPS},
         "logloss_delta_racer_minus_baseline": round(delta, 7),
         "paired_day_bootstrap_logloss_delta95": confidence,
