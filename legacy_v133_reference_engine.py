@@ -499,7 +499,7 @@ def v133_reference_preview(card, now=None):
         raise ValueError("no_scenario_candidates")
     adjusted = scenario_adjust(card, base)
     expanded = scenario_adjust(card, wave)
-    modes = modes_from_tickets(adjusted["tickets"], {}, expanded["tickets"], adopt_tail=False)
+    modes = modes_from_tickets(adjusted["tickets"], {}, expanded["tickets"], adopt_tail=True)
     sizes = {name: len(rows) for name, rows in modes.items()}
     if (sizes.get("narrow") != 3 or sizes.get("hit") != 10 or
             sizes.get("balance") != 10 or sizes.get("hole") not in (12, 15, 18)):
@@ -522,6 +522,7 @@ def v133_reference_preview(card, now=None):
         "grade": base.get("grade"),
         "worlds": base.get("worlds"),
         "modes": out,
+        "v254_tail_is_optional_unproven_reference": "tail" in out,
         "used_features": sorted(set((guard.get("used_features") or []) +
                                     (adjusted.get("used") or []) +
                                     (expanded.get("used") or []))),
