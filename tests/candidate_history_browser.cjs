@@ -18,13 +18,23 @@ const { chromium } = require('playwright');
   const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:20000});
   if(response?.status()!==200)throw Error('candidate_static_page_http_'+response?.status());
   await page.waitForFunction(()=>document.querySelector('#candidateStatus')?.textContent?.startsWith('保存候補 '));
-  const shortlist=await page.evaluate(()=>({
+  const initial=await page.evaluate(()=>({
     count:document.querySelectorAll('#candidateCards > details.candidate-history-card').length,
-    selected:document.querySelector('#candidateHistoryFilters [data-candidate-filter="priority"]')?.getAttribute('aria-pressed'),
+    selected:document.querySelector('#candidateHistoryFilters [data-candidate-filter="all"]')?.getAttribute('aria-pressed'),
     text:document.querySelector('#candidateStatus')?.textContent||''
   }));
-  if(shortlist.selected!=='true'||shortlist.count>10||!shortlist.text.includes('研究優先 '))
-   throw Error('research_shortlist_not_default_'+JSON.stringify(shortlist));
+  if(initial.selected!=='true'||initial.count<=6||
+     !initial.text.includes('保存候補 '+initial.count+'件')||
+     !initial.text.includes('表示 '+initial.count+'件'))
+   throw Error('saved_history_not_default_'+JSON.stringify(initial));
+  // The research top-10 remains an explicit optional filter.
+  await page.locator('#candidateHistoryFilters [data-candidate-filter="priority"]').click();
+  const shortlist=await page.evaluate(()=>({
+    count:document.querySelectorAll('#candidateCards > details.candidate-history-card').length,
+    selected:document.querySelector('#candidateHistoryFilters [data-candidate-filter="priority"]')?.getAttribute('aria-pressed')
+  }));
+  if(shortlist.selected!=='true'||shortlist.count>10||shortlist.count>initial.count)
+   throw Error('opt_in_research_shortlist_invalid_'+JSON.stringify(shortlist));
   await page.locator('#candidateHistoryFilters [data-candidate-filter="all"]').click();
   const first=await page.evaluate(()=>{
    const cards=[...document.querySelectorAll('#candidateCards > details.candidate-history-card')];
@@ -56,7 +66,8 @@ const { chromium } = require('playwright');
   await dateInput.dispatchEvent('change');
   await page.waitForFunction(()=>new URL(location.href).searchParams.get('date')==='2026-11-07'&&
     document.querySelector('#candidateStatus')?.textContent?.startsWith('保存候補 '));
-  await page.locator('#candidateHistoryFilters [data-candidate-filter="all"]').click();
+  if(await page.locator('#candidateHistoryFilters [data-candidate-filter="all"]').getAttribute('aria-pressed')!=='true')
+    throw Error('previous_day_restricted_history_filter');
   const yesterday=await page.locator('#candidateCards > details.candidate-history-card').count();
   if(yesterday<=6)throw Error('historical_day_candidate_rows_missing_'+yesterday);
   if(errors.length||renderCalls.length)throw Error('browser_error_or_render_dependency_'+JSON.stringify({errors,renderCalls}));

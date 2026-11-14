@@ -598,10 +598,9 @@ jobs:
                 const value=document.querySelector('#candidateStatus')?.textContent||'';
                 return value.startsWith('保存候補 ')||value.includes('読み込めません')||value.includes('公開されていません');
               },null,{timeout:30000});
-              if(await page.locator('#candidateHistoryFilters [data-candidate-filter="priority"]').getAttribute('aria-pressed')!=='true')
-                throw Error('published_research_shortlist_not_default');
-              // Full-history assertions must explicitly select all rows.
-              await page.locator('#candidateHistoryFilters [data-candidate-filter="all"]').click();
+              if(await page.locator('#candidateHistoryFilters [data-candidate-filter="all"]').getAttribute('aria-pressed')!=='true')
+                throw Error('published_full_history_not_default');
+              // Only an explicit user action may restrict the full archive to a shortlist.
               const evidence=await page.evaluate(()=>{
                 const status=document.querySelector('#candidateStatus')?.textContent?.trim()||'';
                 const cards=[...document.querySelectorAll('#candidateCards > details.candidate-history-card')];

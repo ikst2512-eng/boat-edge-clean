@@ -5,6 +5,12 @@ on:
       - candidate_history.py
       - candidate_history.js
       - candidates.html
+      - 'prospective_predictions/**'
+      - 'four_mode_forecasts/**'
+      - 'scenario_forecasts/**'
+      - 'v133_policy_forecasts/**'
+      - 'confirmed_results/**'
+      - 'payout_evidence/**'
       - tests/candidate_history_browser.cjs
       - tests/test_candidate_research_selection.py
       - navigation.js
@@ -28,6 +34,24 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Protect saved forecast, outcome and payout originals from PR deletion/overwrite
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -eu
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          # New race records are permitted. Deletions, edits and renames of
+          # existing original records fail closed, including after result day.
+          changed="$(git diff --name-status --diff-filter=DMR "$BASE_SHA" HEAD -- \
+            prospective_predictions/ four_mode_forecasts/ scenario_forecasts/ \
+            v133_policy_forecasts/ confirmed_results/ payout_evidence/)"
+          if [ -n "$changed" ]; then
+            printf '%s\n' "$changed"
+            echo 'ERROR: immutable saved predictions/results cannot be replaced or deleted' >&2
+            exit 1
+          fi
+          echo SAVED_ORIGINALS_APPEND_ONLY_PR_PASS
       - name: Compile Python and check candidate browser script syntax
         run: |
           python -m compileall -q candidate_history.py server.py

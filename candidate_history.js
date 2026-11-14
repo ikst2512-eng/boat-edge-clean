@@ -16,10 +16,10 @@ const today=()=>{
 const validDay=x=>typeof x==='string'&&/^20\d{2}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(x+'T12:00:00+09:00'));
 let selectedDay=validDay(new URLSearchParams(location.search).get('date'))?new URLSearchParams(location.search).get('date'):today();
 let requestId=0;
-let activeFilter="priority";
+let activeFilter="all";
 let savedRaces=[];
 let selectionAvailable=false;
-document.getElementById('todayCandidateHeading').textContent='候補レース｜研究優先10件（暫定）';
+document.getElementById('todayCandidateHeading').textContent='候補レース｜全保存履歴';
 const toolbar=document.createElement('div');toolbar.className='candidate-history-toolbar';
 const label=document.createElement('label');label.textContent='表示日（日本時間） ';
 const dateInput=document.createElement('input');dateInput.type='date';dateInput.id='candidateHistoryDate';dateInput.value=selectedDay;dateInput.max=today();label.append(dateInput);
@@ -257,7 +257,7 @@ async function loadDay(){
       counts.unassessed!==d.research_unassessed_count)throw Error('研究分類の件数不一致');
   }else for(const race of d.races){race.selection_status='unassessed';race.head_top2_model_pct=null;}
   savedRaces=d.races;
-  activeFilter=selectionAvailable?'priority':'all';
+  activeFilter='all'; // The complete saved record is the default; top-10 is opt-in.
   renderSavedRaces(d);
  }catch(err){
   if(token!==requestId)return;
