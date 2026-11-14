@@ -110,6 +110,13 @@ class HistoricalRacerRosterHoldout(unittest.TestCase):
         self.assertFalse(a["adoption_guard"]["model_switch_allowed"])
         self.assertFalse(a["promotion_allowed"])
         self.assertTrue(a["source_is_historical_postrace_K_not_independent_T12"])
+        self.assertTrue(a["winner_method_not_a_prediction_feature"])
+        self.assertEqual(sum(
+            row["global_boat_baseline"]["n"]
+            for row in a["by_actual_winner_method_postrace_diagnostic"].values()
+            if row["global_boat_baseline"] is not None), 3)
+        self.assertEqual(a["by_venue_postrace_diagnostic"]["12"]["global_boat_baseline"]["n"], 3)
+        self.assertIsNone(a["by_venue_postrace_diagnostic"]["24"]["global_boat_baseline"])
 
     def test_wrong_october_period_fails(self):
         f = fit_aug_sep(train())
