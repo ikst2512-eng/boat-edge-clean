@@ -483,6 +483,40 @@ class BundleTests(unittest.TestCase):
                 self.assertEqual(denial['error_code'], reason)
                 self.assertEqual(denial['newly_stored'], 0)
 
+        # The source batch and independent audit must agree on the ENTIRE
+        # complete-triple race set before the first privileged Git PUT. One
+        # absent, duplicated or relabeled audit row fails closed.
+        batch_report_path.write_text(json.dumps(clean_batch), encoding='utf-8')
+        report_path = batch / 'forecast_temporal_link_report.json'
+        for label, bad_rows in (
+            ('missing', []),
+            ('duplicate', [self.row, self.row]),
+            ('downgraded', [{**self.row, 'official_original_status': 'not_complete'}]),
+        ):
+            with self.subTest(official_handoff=label):
+                report_path.write_text(json.dumps({**report, 'rows': bad_rows}),
+                                       encoding='utf-8')
+                rejection = self.root / (
+                    'official-source-git-receipt/bad-official-set-' + label + '.json')
+                rejected_cli = cli[:]
+                rejected_cli[-1] = str(rejection)
+                with (
+                    patch.dict(os.environ, env),
+                    patch.object(sys, 'argv', rejected_cli),
+                    patch.object(writer, 'verify_independent_source_and_shadow_replay',
+                                 side_effect=AssertionError('replay forbidden')),
+                    patch.object(writer, 'store_once',
+                                 side_effect=AssertionError('write forbidden')),
+                ):
+                    with self.assertRaisesRegex(
+                            ValueError, 'source_audit_complete_set_mismatch'):
+                        writer.main()
+                denied = json.loads(rejection.read_text(encoding='utf-8'))
+                self.assertEqual(denied['status'], 'failed')
+                self.assertEqual(denied['newly_stored'], 0)
+                self.assertEqual(denied['error_code'], 'source_audit_complete_set_mismatch')
+        report_path.write_text(json.dumps(report), encoding='utf-8')
+
         # Non-main, including PR code, must fail before ANY write or replay.
         rejected = self.root / 'official-source-git-receipt' / 'rejected.json'
         bad_cli = cli[:]

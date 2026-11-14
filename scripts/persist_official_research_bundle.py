@@ -411,11 +411,23 @@ def main():
                 or report.get("formal_t12_certified") != 0
                 or report.get("official_consumed_forecasts") != 0):
             raise ValueError("source_audit_unverified")
-        for row in report.get("rows", []):
-            if row.get("official_original_status") != "three_originals_reaudited_research_only":
-                continue
-            if row.get("race_code") not in complete_codes:
-                raise ValueError("source_audit_race_not_in_batch")
+        # Check the *entire* same-run official triple cohort before the first
+        # Git PUT. A dropped, duplicated or downgraded audited race must never
+        # permit a partial research bundle commit from a corrupted handoff.
+        rows = report.get("rows")
+        if not isinstance(rows, list):
+            raise ValueError("source_audit_rows_invalid")
+        reaudited_rows = [
+            row for row in rows if isinstance(row, dict)
+            and row.get("official_original_status") == "three_originals_reaudited_research_only"
+        ]
+        reaudited_codes = [row.get("race_code") for row in reaudited_rows]
+        if any(code not in complete_codes for code in reaudited_codes):
+            raise ValueError("source_audit_race_not_in_batch")
+        if (len(reaudited_codes) != len(complete_codes)
+                or set(reaudited_codes) != set(complete_codes)):
+            raise ValueError("source_audit_complete_set_mismatch")
+        for row in reaudited_rows:
             shadow = row.get("official_research_shadow")
             if not isinstance(shadow, dict) or shadow.get("generated") is not True:
                 outcomes.append({"race_code": row.get("race_code"), "status": "shadow_not_generated"})
