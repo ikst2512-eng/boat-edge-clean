@@ -1140,7 +1140,8 @@ jobs:
               file=files[0]
               assert not file.filename.startswith("/") and ".." not in Path(file.filename).parts
               assert not stat.S_ISLNK(file.external_attr >> 16)
-              assert 0<file.file_size<=200000
+              assert 0<file.file_size<=5_000_000  # bounded 1319-row JSON, compressed 11.65 KB
+              print('FROZEN_LOCAL_AUDIT_JSON_UNCOMPRESSED_BYTES',file.file_size)
               report=json.loads(z.read(file).decode("utf-8"))
           assert report["status"]=="post_fix_evidence_rejected"
           assert report["post_fix_start"]=="20261105"
