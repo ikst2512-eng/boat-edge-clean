@@ -1,0 +1,53 @@
+{
+  "schema": "BOAT_EDGE_CLEAN_ACTIVE_FORECAST_IMMUTABLE_LOCK_V1",
+  "locked_at_jst": "2026-11-14T20:25:00+09:00",
+  "owner_instruction": "Keep the present V127/V133 scenario-first forecast unchanged until a superior forecast has independent forward proof and explicit new user approval. Other chats may research and maintain site, source capture and result auditing without changing the current model.",
+  "requirements_issue": "https://github.com/ikst2512-eng/boat-edge-clean/issues/1708",
+  "active_user_selected_forecast": {
+    "model_version": "V127_V133_BALANCE12_HOLE15_18_20_REFERENCE_V2",
+    "selection_policy": "BALANCE12_WAVE15_18_20_V133_REFERENCE_V2",
+    "status": "user_strategy_locked_provisional_not_calibrated_not_betting_approved",
+    "ticket_counts": {
+      "narrow": 3,
+      "hit": 10,
+      "balance": 12,
+      "hole_allowed": [
+        15,
+        18,
+        20
+      ]
+    },
+    "source_model": "legacy_v133_reference_engine.py",
+    "data_capture": "capture_v133_policy.py",
+    "odds_may_rerank": false
+  },
+  "separate_comparators": {
+    "national_only_v2": "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED",
+    "historical_v133": "V127/V133 preserved original 3/10/10 and wave 12/15/18",
+    "v254": "third-tail fixed 10 comparison only"
+  },
+  "source_git_blobs": {
+    "legacy_v133_reference_engine.py": "3eae88e079f4803351324620d69b5a1c266626a8",
+    "legacy_scenario_engine.py": "873ecced0e5792b0fdd12367b25e3c9168373225",
+    "boat_edge_v254_third_tail.py": "0263ccdd7963b95a13ac759ec72011c321a892eb",
+    "capture_v133_policy.py": "86b0c172021ed7ff804adac693d1e8dac162ffa5",
+    "clean_four_modes.py": "c143b836e6e833ff1ff6ee0d8f13dca6a8408c7d",
+    "research_model.py": "a8d508cb956a37f1e23133db5c15f2fe4270ba5e",
+    "clean_four_mode_capture.py": "233fac24e9caf10681b34c32fe17112faa93e9b4"
+  },
+  "unlock_only_after": {
+    "new_independent_challenger_id_and_preregistered_source": true,
+    "independently_authenticated_predeadline_first_remote_preservation": true,
+    "future_pilot_300_and_separate_confirmation_300": true,
+    "paired_top1_top3_top5_top10_and_brier_logloss": true,
+    "no_top5_or_top10_regression": true,
+    "source_audit_and_full_reproducibility": true,
+    "user_explicit_approval_to_switch": true,
+    "human_review_and_live_pages_render_e2e": true
+  },
+  "frozen_files_must_not_change_in_parallel_research": true,
+  "separate_research_candidate_changes_permitted": true,
+  "first_remote_add_verified": false,
+  "formal_accuracy_proven": false,
+  "production_purchase_approved": false
+}
