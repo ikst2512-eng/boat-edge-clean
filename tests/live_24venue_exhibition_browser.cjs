@@ -4,6 +4,7 @@
 // This is historical display coverage, NOT independent live official 24/24 data
 // or a formal predeadline source/forecast certification.
 const fs=require('node:fs');
+const crypto=require('node:crypto');
 const assert=require('node:assert/strict');
 const {chromium,webkit,request}=require('playwright');
 const PAGE='https://ikst2512-eng.github.io/boat-edge-clean/';
@@ -18,15 +19,53 @@ for(const {day,record} of sources){
 }
 const fixtures=Array.from({length:24},(_,i)=>{
  const venue=i+1;
- const source=sources.find(({record})=>record.venues.some(v=>Number(v.jcd)===venue&&v.races?.some(r=>Number(r.race_no)===1)));
- assert.ok(source,'No recorded 1R for venue '+venue+' in the 3-day source window');
- return {day:source.day,venue,race:1};
+ // Prefer actual original-exhibition source rows instead of treating one
+ // missing 1R as if the entire venue did not supply original measurements.
+ const preferred=venue===8?{day:'20261113',race:1}:venue===21?{day:'20261101',race:2}:null;
+ const race=preferred?.race||1;
+ const source=sources.find(({day,record})=>(!preferred||day===preferred.day)&&
+  record.venues.some(v=>Number(v.jcd)===venue&&v.races?.some(r=>Number(r.race_no)===race)));
+ assert.ok(source,'No recorded real race for venue '+venue+' in the 3-day source window');
+ return {day:source.day,venue,race};
 });
 assert.equal(new Set(fixtures.map(f=>f.venue)).size,24);
 const pad=n=>String(n).padStart(2,'0');
 const raceKey=f=>f.day+'-'+pad(f.venue)+'-'+pad(f.race);
 const report=[];
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+// Independently retrieve the real upstream CSV, rather than interpreting
+// Render's own original-exhibition status as proof of its numerical values.
+const sourceCache=new Map();
+function parseCsv(line){
+ const fields=[];let value='',quoted=false;
+ for(let i=0;i<line.length;i++){
+  const ch=line[i];
+  if(ch==='"'){
+   if(quoted&&line[i+1]==='"'){value+='"';i++;}
+   else quoted=!quoted;
+  }else if(ch===','&&!quoted){fields.push(value);value='';}
+  else value+=ch;
+ }
+ fields.push(value);return fields;
+}
+async function originalCsv(ctx,day){
+ if(!sourceCache.has(day)){
+  const promise=(async()=>{
+   const url='https://boatracecsv.github.io/data/previews/original_exhibition/'+
+    day.slice(0,4)+'/'+day.slice(4,6)+'/'+day.slice(6,8)+'.csv';
+   const response=await ctx.get(url,{timeout:35000});
+   assert.equal(response.status(),200,'Original source CSV unavailable '+day);
+   const bytes=await response.body();
+   const lines=bytes.toString('utf8').replace(/^\uFEFF/,'').split(/\r?\n/).filter(Boolean);
+   const header=parseCsv(lines.shift()||'');
+   assert.ok(header.length===34&&new Set(header).size===34,'Original CSV column schema changed '+day);
+   return {columns:Object.fromEntries(header.map((x,i)=>[x,i])),
+    rows:lines.map(parseCsv),sha256:crypto.createHash('sha256').update(bytes).digest('hex')};
+  })();
+  sourceCache.set(day,promise);
+ }
+ return sourceCache.get(day);
+}
 async function getCard(ctx,f){
  const url=API+'?hd='+f.day+'&jcd='+f.venue+'&rno='+f.race;
  let res;
@@ -51,7 +90,7 @@ async function inspect(browser,ctx,engine,f){
  page.on('pageerror',error=>errors.push(String(error).slice(0,200)));
  try{
   const url=new URL(PAGE);
-  for(const [k,v] of [['date',f.day.slice(0,4)+'-'+f.day.slice(4,6)+'-'+f.day.slice(6)],['venue',pad(f.venue)],['race','1'],['view','exhibit']])url.searchParams.set(k,v);
+  for(const [k,v] of [['date',f.day.slice(0,4)+'-'+f.day.slice(4,6)+'-'+f.day.slice(6)],['venue',pad(f.venue)],['race',String(f.race)],['view','exhibit']])url.searchParams.set(k,v);
   const response=await page.goto(url.href,{waitUntil:'domcontentloaded',timeout:45000});
   assert.equal(response?.status(),200,'Published Pages HTTP '+expected);
   await page.evaluate(()=>{datePinned=true;venueTouched=true;venueSpecified=true;setView('exhibit');render();});
@@ -76,6 +115,7 @@ async function inspect(browser,ctx,engine,f){
      x.querySelector('span')?.textContent||'',x.querySelector('strong')?.textContent||''
     ])),
     originals:[...c.querySelectorAll('.exhibition-original-metric')].map(x=>({
+     label:x.querySelector('span')?.textContent||'',
      state:x.dataset.sourceValueState,
      value:x.querySelector('strong')?.textContent||''
     })),
@@ -86,6 +126,7 @@ async function inspect(browser,ctx,engine,f){
   assert.equal(shown.race,expected);
   assert.equal(shown.view,'exhibit');
   assert.ok(shown.overflow<=1,'390px horizontal overflow '+expected+' '+shown.overflow);
+  let originalCompared=0,originalSha=null;
   if(http===200&&card?.source_audit?.race_card?.status==='ok'){
    assert.equal(shown.cards.length,6,'Valid Render racecard not displayed as six boats '+expected);
    for(let i=0;i<6;i++){
@@ -100,9 +141,40 @@ async function inspect(browser,ctx,engine,f){
     }
    }
    assert.ok(shown.original,'Original-source status not classified '+expected);
+   const original=await originalCsv(ctx,f.day);
+   originalSha=original.sha256;
+   const c=original.columns;
+   const code=f.day+pad(f.venue)+pad(f.race);
+   const matched=original.rows.filter(row=>row[c['レースコード']]===code);
    if(f.venue===3){
+    assert.equal(matched.length,0,'Edogawa unexpectedly has upstream originals');
     assert.equal(shown.original,'non_provided','Edogawa structurally non-provided mislabelled');
     assert.ok(shown.cards.every(x=>x.missing==='オリ展：非提供'));
+   }else{
+    assert.equal(matched.length,1,'Original source race absent/duplicated '+code);
+    const row=matched[0],count=Number(row[c['計測数']]);
+    assert.ok(Number.isInteger(count)&&count>=1&&count<=3,'Invalid original measurement count '+code);
+    assert.equal(row[c['レース日']],f.day.slice(0,4)+'-'+f.day.slice(4,6)+'-'+f.day.slice(6,8));
+    assert.equal(Number(row[c['レース場']]),f.venue);
+    assert.equal(Number(String(row[c['レース回']]).replace(/R$/i,'')),f.race);
+    let anyMissing=false;
+    for(let lane=1;lane<=6;lane++){
+     const shownBoat=shown.cards[lane-1];
+     assert.equal(shownBoat.originals.length,count,'Missing original columns '+code+' boat '+lane);
+     for(let k=1;k<=count;k++){
+      const label=String(row[c['計測項目'+k]]||'').trim();
+      const raw=String(row[c['艇'+lane+'_値'+k]]??'').trim();
+      const displayed=shownBoat.originals[k-1];
+      assert.ok(label,'Empty original column label '+code);
+      assert.equal(displayed.label,label,'Original label mismatch '+code+' boat '+lane+' metric '+k);
+      assert.equal(displayed.value,raw||'—','Original value mismatch '+code+' boat '+lane+' metric '+k);
+      assert.equal(displayed.state,raw?'present':'missing','Original missingness mismatch '+code+' boat '+lane+' metric '+k);
+      if(!raw)anyMissing=true;
+      originalCompared++;
+     }
+    }
+    assert.ok(anyMissing?shown.original.startsWith('partial_'):['verified','deadline_mismatch'].includes(shown.original),
+     'Original source status inconsistent '+code+' '+shown.original);
    }
   }else{
    assert.equal(shown.cards.length,0,'Unverified/failed source fabricated six boats '+expected);
@@ -110,8 +182,8 @@ async function inspect(browser,ctx,engine,f){
   assert.deepEqual(errors,[],'Browser JS errors '+expected);
   const result={
    engine,venue:pad(f.venue),race:expected,renderHttp:http,boats:shown.cards.length,
-   original:shown.original||'unavailable',missing:shown.cards.length===0,
-   mobileOverflowPx:shown.overflow,noMocks:true
+   original:shown.original||'unavailable',originalCompared,originalSha,
+   missing:shown.cards.length===0,mobileOverflowPx:shown.overflow,noMocks:true
   };
   report.push(result);
   console.log('PUBLIC_P2_24VENUE_CASE '+JSON.stringify(result));
@@ -138,11 +210,15 @@ async function inspect(browser,ctx,engine,f){
   }
   const good=report.filter(x=>x.boats===6);
   const missing=report.filter(x=>x.boats!==6);
+  const originalCases=report.filter(x=>x.originalCompared>0);
   const summary={venues:24,cases:report.length,browsers:['chromium','webkit'],
-   sixBoatCases:good.length,unavailableCases:missing.length,
+   sixBoatCases:good.length,originalCsvCases:originalCases.length,
+   originalCsvFieldComparisons:originalCases.reduce((n,x)=>n+x.originalCompared,0),
+   unavailableCases:missing.length,
    uncovered:missing.map(x=>({engine:x.engine,race:x.race,http:x.renderHttp||null,error:x.error||null})),
    noMocks:true,formalT12:false,liveOfficial24Certified:false};
   assert.equal(report.length,48,'Not all 24 venues inspected in both browsers');
+  assert.equal(originalCases.length,46,'23 providing venues were not independently checked in both browsers');
   console.log('PUBLIC_P2_24VENUE_DIAGNOSTIC '+JSON.stringify(summary));
   // Keep the P2 gate red until EVERY held historical race has real source
   // and six-boat display. No fake racer, exhibition, or result backfill.
