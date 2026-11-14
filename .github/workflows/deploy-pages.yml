@@ -1180,7 +1180,7 @@ jobs:
           })
           last = 'not_started'
           # Render and Pages auto-deploy independently. Wait a bounded time
-          # for the LIVE backend; never silently accept 502 or a prior revision.
+          # for the LIVE backend; never silently accept 502 or a malformed response.
           for attempt in range(1, 9):
               started = time.monotonic()
               try:
