@@ -615,6 +615,8 @@ class Handler(BaseHTTPRequestHandler):
             kind = "application/json; charset=utf-8"
         elif path == "/api/v133-reference-preview":
             status, data = get_v133_reference_preview(parse_qs(parsed.query))
+            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            kind = "application/json; charset=utf-8"
         elif path == "/api/legacy-scenario-preview":
             status, data = get_restored_scenario_preview(parse_qs(parsed.query))
             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
