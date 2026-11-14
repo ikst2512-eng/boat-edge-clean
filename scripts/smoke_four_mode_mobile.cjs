@@ -5,7 +5,15 @@ const {chromium, webkit} = require('playwright');
   try {
     const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:3});
     await page.goto('https://boat-edge-clean.onrender.com/forecast?date=2026-11-02&venue=2&race=11', {waitUntil:'domcontentloaded',timeout:90000});
-    await page.locator('#fourModeForecastRows .four-mode-forecast-item').first().waitFor({timeout:60000});
+    // Scenario-first is the default presentation. The immutable V2 baseline
+    // is a comparison that the user explicitly opens, not the primary model.
+    const primary=page.locator('#restoredScenarioPanel');
+    await primary.waitFor({state:'visible',timeout:60000});
+    const comparator=page.locator('#v2Comparator');
+    await comparator.waitFor({state:'visible',timeout:60000});
+    if(await comparator.evaluate(el=>el.open))throw Error('V2 baseline must be collapsed by default');
+    await comparator.locator('summary').click();
+    await page.locator('#fourModeForecastRows .four-mode-forecast-item').first().waitFor({state:'visible',timeout:60000});
     const info=await page.evaluate(()=>{
       const root=document.querySelector('#fourModeForecastRows');
       const cards=[...root.querySelectorAll('.four-mode-forecast-item')];
