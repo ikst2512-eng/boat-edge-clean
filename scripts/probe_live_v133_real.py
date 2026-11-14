@@ -14,7 +14,7 @@ import re
 JST = timezone(timedelta(hours=9))
 ROOT = Path(__file__).resolve().parents[1]
 BASE = "https://boat-edge-clean.onrender.com"
-MODEL = "V127_V133_SOURCE_PORT_INPUT_GUARDED_REFERENCE_V1"
+MODEL = "V127_V133_BALANCE12_HOLE15_18_20_REFERENCE_V2"
 
 
 def upcoming(schedule, now):
@@ -86,13 +86,14 @@ def main():
             "beforeinfo_verified": (payload.get("source_audit") or {}).get("beforeinfo", {}).get("status") == "ok",
         }
         if status == 200:
-            expected = {"narrow": 3, "hit": 10, "balance": 10}
+            expected = {"narrow": 3, "hit": 10, "balance": 12}
             assert payload.get("ok") is True and payload.get("model_version") == MODEL
+            assert payload.get("selection_policy") == "BALANCE12_WAVE15_18_20_V133_REFERENCE_V2"
             assert payload.get("formal") is False and payload.get("calibrated") is False
             assert payload.get("production_buy_approved") is False
             assert evidence["racecard_verified"] and evidence["beforeinfo_verified"]
             assert all(evidence["modes"].get(k) == count for k, count in expected.items())
-            assert evidence["modes"].get("hole") in (12, 15, 18)
+            assert evidence["modes"].get("hole") in (15, 18, 20)
             verified += 1
             evidence["outcome"] = "actual_same_race_v133_reference_http_200_verified"
         elif status in (404, 422, 503):
