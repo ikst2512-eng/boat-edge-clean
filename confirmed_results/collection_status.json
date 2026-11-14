@@ -1,5 +1,5 @@
 {
-  "checked_at_jst": "2026-11-14T19:18:54.436702+09:00",
+  "checked_at_jst": "2026-11-14T21:12:13.456797+09:00",
   "days": [
     {
       "day": "20261113",
@@ -12,8 +12,8 @@
     {
       "day": "20261114",
       "http_status": null,
-      "newly_saved": 1,
-      "source_races": 157,
+      "newly_saved": 11,
+      "source_races": 168,
       "source_url": null,
       "status": "available"
     }
@@ -46,10 +46,8 @@
     "202611060810",
     "202611060811",
     "202611060812",
-    "202611070302",
-    "202611140709",
-    "202611142409"
+    "202611070302"
   ],
-  "overdue_result_count": 26,
+  "overdue_result_count": 24,
   "schema": "CLEAN_RESULT_COLLECTION_STATUS_V1"
 }
