@@ -108,6 +108,36 @@ class RestoredEngineRegression(unittest.TestCase):
         self.assertNotEqual(entry_result["modes"], baseline["modes"],
                             "a real exhibition course change must affect the board")
 
+    def test_changed_course_one_exhibition_does_not_fake_boat_one_escape(self):
+        # Main legacy A/B head formula explicitly pins the escape world to
+        # boat 1. Exhibition-course swaps must not produce misleading picks.
+        # This does not claim the exhibition entry is the final race entry.
+        for new_course in range(2, 7):
+            card = current_card()
+            rows = card["beforeinfo"]["start_exhibition"]
+            rows[0]["course"], rows[new_course-1]["course"] = (
+                rows[new_course-1]["course"], rows[0]["course"])
+            with self.subTest(new_course=new_course):
+                with self.assertRaisesRegex(
+                        ValueError,
+                        "legacy_escape_world_requires_boat1_exhibition_course1"):
+                    restored_scenario_preview(card, NOW)
+                status, response = get_restored_scenario_preview(
+                    {"hd": ["20261112"], "jcd": ["05"], "rno": ["1"]},
+                    card_loader=lambda hd, jcd, rno: card, now=NOW)
+                self.assertEqual(status, 422)
+                self.assertFalse(response["ok"])
+                self.assertEqual(response["status"], "unverified_source")
+                self.assertEqual(
+                    response["reason"],
+                    "legacy_escape_world_requires_boat1_exhibition_course1")
+        # The original immutable V2 archive must still be retrievable.
+        status, archive = archived_four_modes("202611111001")
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            archive["model_version"],
+            "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED")
+
     def test_missing_preview_is_reported_not_fabricated(self):
         output = restored_scenario_preview(current_card(False), NOW)
         self.assertFalse(output["observed_exhibition_only"])
