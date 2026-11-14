@@ -728,3 +728,45 @@ Added full exact-ticket equality regression: the optimized 4-call path is compar
 **#1710の状態**：研究Ledger `scenario-four-mode-triple-source-evidence-ledger/scenario_four_mode_research/`はAPI404、実4モード研究候補0。今日Git追加したのは別研究のCSV基準10票で、公式beforeinfo6艇+原本odds120・モデルコードの固定受領・独立GitHub first-seenを満たしていない。新モデルの事前登録manifest・頭3.5・研究10コードSHAを変えず、#1710はDraft、最新main/Render/Pages、既存schedule/Cron、保存候補と結果は不変更。
 
 **次の調査依存は③**：08:09〜08:47 JSTにT−12 scheduleが不在だった原因（GitHub scheduler delay/失効/外部源のどれか未特定）、欠落3Rの当時のsource受領可能性、PUT201/GET200のreadback観測bytes/digestと競合を区別できるログ。②は**明日以降の新しい真の公式3原本/ST6/120オッズがT−12前に揃ったレース**だけを別研究`--publish`へ渡し、過去11/11朝候補を後付け生成しない。
+
+## 2026-11-14 — separate exhibition-course holder sensitivity (NOT registered / NOT production)
+
+- New **unregistered** adapter: `scenario_exhibition_course_head_research.py`. Frozen
+  `research/four_mode_triple_source_forward_protocol_20261110.json` (Git blob
+  `bf60d2879065d1f9ecbd6b442db17fcb8fbcb8b7`) and its head coefficients
+  remain unchanged. Main legacy scenario code and the V2 archive remain untouched.
+- For each of six exhibition entries, test an alternate, explicitly **different**
+  research world: assign the frozen course-index hypothesis to the *boat
+  exhibited in that course*, not automatically boat 1. In particular, when
+  boat 1 exhibits course 2–6, the "course-1 escape" head shift belongs to
+  the observed *exhibition* course-1 boat. It is **not** a validated estimate
+  of which boat will actually take course 1 at the start.
+- Source gate: cross-check the same-race original racelist, beforeinfo,
+  odds120 source reports/cutoff, their 6 registrations and 6 distinct
+  exhibition courses. Read six national rates directly from source HTML and
+  verify bytes SHA rather than pass the old V2 CSV as observed official input.
+  These checks establish **internal consistency**, not independently
+  authenticated HTTP provenance/first-Git-ADD.
+- Historical training: ensure claimed frozen #1692 August–September K summary
+  names **exactly the exhibited course-1 athlete**, venue and date, and matches
+  all six official registration IDs. Lookahead, wrong athlete, forged proof,
+  invalid denominators, duplicate roster are rejected. Critically, the
+  K original bytes are **NOT replayed here** and caller-claimed K residuals
+  **cannot affect** any head coefficients or scenario weights.
+- The runner calls the already-pinned and unchanged #1698 conditional-second/
+  third implementation, preserving first-head mass, then the existing
+  `compose_scenario_research` and four mode counts 5/10/16/22. It recomputes
+  the first-place 120-ticket boards at handoff to reject forged/mutated heads.
+  Any 4-mode change is a numerical *hypothesis sensitivity*, not an outcome
+  or accuracy claim.
+- Synthetic regression includes all five boat-1-to-exhibition-course-2..6 swaps,
+  six-boat/registration, clocks/source SHA, history join, tampered board, same
+  input determinism and four-mode budgets. The exact #1698 source is loaded
+  by CI by its separately pinned blob. Historical genuine official triple
+  archives are checked by the **existing** PR CI as *input only* and may be
+  excluded for flagged exhibition F-ST. No retrospective forecast is written.
+- Blocked from formal/publish: new model study was **not preregistered**;
+  genuinely authenticated source-to-candidate remote first-add, independent
+  future 300+300 holdout, calibration, Top1/3/5/10 and ROI/Brier/logloss are
+  still required. `formal=false`, new eligible race count 0, no main merge
+  or site/Render change. Separate live safety fix remains Draft PR #1756.
