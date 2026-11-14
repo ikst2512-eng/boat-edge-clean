@@ -17,6 +17,8 @@ on:
       - 'test_scenario_boat_athlete_october_holdout.py'
       - 'scenario_racer_roster_october_holdout.py'
       - 'test_scenario_racer_roster_october_holdout.py'
+      - 'scenario_athlete_tail_world_holdout.py'
+      - 'test_scenario_athlete_tail_world_holdout.py'
       - 'scenario_attack_benefit_feature_matrix.py'
       - 'test_scenario_attack_benefit_feature_matrix.py'
       - 'scenario_first_head_research.py'
@@ -118,7 +120,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Check scenario bridge safety and all four mode contracts
-        run: python -m unittest -v test_scenario_racer_roster_october_holdout test_scenario_course_scenario_october_holdout test_scenario_boat_athlete_october_holdout test_scenario_official_K_attack_benefit_holdout test_scenario_official_K_athlete_attack_rates test_scenario_full_pathway_catalog test_scenario_attack_benefit_feature_matrix test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway test_scenario_official_racelist_rates test_scenario_official_motor_display_research test_scenario_official_meeting_form_research test_scenario_prior_day_meeting_matrix_replay test_scenario_official_local_zero_research_adapter test_scenario_future_protocol_freeze test_scenario_future_local_candidate_handoff test_scenario_future_github_research_adapter test_scenario_future_archived_receipts_to_candidate test_scenario_official_st_intake_diagnostic test_scenario_flagged_st_feature_study test_scenario_signed_st_four_mode_shadow test_scenario_signed_st_registered_shadow test_scenario_signed_st_future_pre_t12_handoff test_scenario_signed_st_future_pre_t12_cli test_scenario_signed_st_cross_ledger_audit test_scenario_signed_st_source_remote_witness test_scenario_signed_st_F_remote_candidate_witness test_scenario_escape_prior_first_head_sensitivity test_scenario_exhibition_course_head_research test_scenario_official_K_training_roster_bridge
+        run: python -m unittest -v test_scenario_athlete_tail_world_holdout test_scenario_racer_roster_october_holdout test_scenario_course_scenario_october_holdout test_scenario_boat_athlete_october_holdout test_scenario_official_K_attack_benefit_holdout test_scenario_official_K_athlete_attack_rates test_scenario_full_pathway_catalog test_scenario_attack_benefit_feature_matrix test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway test_scenario_official_racelist_rates test_scenario_official_motor_display_research test_scenario_official_meeting_form_research test_scenario_prior_day_meeting_matrix_replay test_scenario_official_local_zero_research_adapter test_scenario_future_protocol_freeze test_scenario_future_local_candidate_handoff test_scenario_future_github_research_adapter test_scenario_future_archived_receipts_to_candidate test_scenario_official_st_intake_diagnostic test_scenario_flagged_st_feature_study test_scenario_signed_st_four_mode_shadow test_scenario_signed_st_registered_shadow test_scenario_signed_st_future_pre_t12_handoff test_scenario_signed_st_future_pre_t12_cli test_scenario_signed_st_cross_ledger_audit test_scenario_signed_st_source_remote_witness test_scenario_signed_st_F_remote_candidate_witness test_scenario_escape_prior_first_head_sensitivity test_scenario_exhibition_course_head_research test_scenario_official_K_training_roster_bridge
       - name: Materialize pinned existing #1698 conditional lab for integration (read-only)
         run: |
           set -euo pipefail
@@ -778,6 +780,58 @@ jobs:
           assert report["new_historical_prediction_originals_written"] is False
           assert report["formal"] is False
           print("OFFICIAL_K92_BOAT_ATHLETE_OCTOBER_EMPIRICAL_HOLDOUT "+json.dumps(report,ensure_ascii=False,sort_keys=True))
+          PY
+      - name: Run single Aug training to Sep pilot to Oct historical 2nd/3rd conditional selection
+        run: |
+          set -euo pipefail
+          # Source and parser were SHA-frozen earlier by #1692 reuse.
+          # Read a previous result as TRAIN only; never write a forecast.
+          echo "c668f545bae54f8148616315e307ed2a2b04a77a0cb8abf88bf3ea078749ce8e  $RUNNER_TEMP/official-K-92day-original.zip" | sha256sum --check --status
+          OFFICIAL_K_ZIP="$RUNNER_TEMP/official-K-92day-original.zip" \
+          PYTHONPATH="$RUNNER_TEMP/K1692:$PWD" python - <<'PY'
+          import json,os
+          from scenario_athlete_tail_world_holdout import run_official_K92_study, ALTERNATIVES
+          a=run_official_K92_study(os.environ["OFFICIAL_K_ZIP"])
+          assert a["official_zip_sha256"]=="c668f545bae54f8148616315e307ed2a2b04a77a0cb8abf88bf3ea078749ce8e"
+          assert a["verified_days"]==92 and a["raw_races"]==14249 and a["six_clean"]==13301
+          assert a["aug_sep_training_n"]==8919 and a["october_historical_confirmation_n"]==4382
+          assert a["august_training_n"]+a["september_pilot_n"]==8919
+          assert a["selection"]["chosen_from_october"] is False
+          assert a["target_winning_method_in_predictor"] is False
+          assert a["same_race_legacy_V127_V133_head_to_head"] is False
+          assert a["prospective_300_plus_300_validated"] is False
+          assert a["automatic_model_switch_authorized"] is False
+          assert a["production_changed"] is False
+          p=a["september_pilot"];o=a["october_historical_confirmation"]
+          def summary(report):
+              return {"n":report["n"],"models":report["models"],
+                      "paired":report["paired_vs_head_only"],
+                      "racer_coverage":report["racer_coverage"]}
+          focus={
+              method:{k:out[k] for k in ("head_only","head_athlete_tail",
+                                          "head_latent_style",
+                                          "head_style_and_athlete_tail")}
+              for method,out in (o["winner_method_postrace_diagnostic_only"] or {}).items()
+          }
+          report={
+              "study_id":a["study_id"],
+              "source_zip_sha256":a["official_zip_sha256"],
+              "august_n":a["august_training_n"],"sept_n":a["september_pilot_n"],
+              "oct_n":a["october_historical_confirmation_n"],
+              "august_fit_sha256":a["august_fit_sha256"],
+              "aug_sep_fit_sha256":a["aug_sep_fit_sha256"],
+              "sept_pilot":summary(p),
+              "sept_selection":a["selection"],
+              "oct_confirmation":summary(o),
+              "oct_posthoc_method_strata":focus,
+              "selected_oct_paired":a["selected_october_paired"],
+              "historical_decision":a["historical_decision"],
+              "not_untouched_october_from_prior_research":True,
+              "target_method_not_an_input":True,
+              "attacks_not_directly_observed":True,
+              "formal":False,"production_changed":False
+          }
+          print("OFFICIAL_K92_AUG_SEP_OCT_TAIL_WORLD_DECISION "+json.dumps(report,ensure_ascii=False,sort_keys=True))
           PY
       - name: Replay REAL Nov14 pre-T12 triple and original K 92-day roster (input-only)
         env:
