@@ -607,6 +607,91 @@ jobs:
               "candidate_created":False,"formal":False,
           },sort_keys=True))
           PY
+      - name: Replay REAL Nov14 pre-T12 triple and original K 92-day roster (input-only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Reuse the exact official-K original and #1692 blob-pinned parsers
+          # from the previous CI step. No historical target result reads.
+          test -f "$RUNNER_TEMP/official-K-92day-original.zip"
+          echo "c668f545bae54f8148616315e307ed2a2b04a77a0cb8abf88bf3ea078749ce8e  $RUNNER_TEMP/official-K-92day-original.zip" | sha256sum --check --status
+          curl --fail --location --silent --show-error --retry 2 \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/14099149990/zip" \
+            --output "$RUNNER_TEMP/nov14-three-originals.zip"
+          echo "a7f76599b28d585eccecd274dff8196b4a629ac149a67bd6ac72b94f06ddc025  $RUNNER_TEMP/nov14-three-originals.zip" | sha256sum --check --status
+          OFFICIAL_K_ZIP="$RUNNER_TEMP/official-K-92day-original.zip" \
+          NOV14_RAW_ZIP="$RUNNER_TEMP/nov14-three-originals.zip" \
+          PYTHONPATH="$RUNNER_TEMP/K1692:$PWD" python - <<'PY'
+          import hashlib,json,os,stat
+          from pathlib import Path
+          from zipfile import ZipFile
+          from scripts.audit_three_official_t12_originals import audit_three_originals
+          from research_official_k_c2_athlete_chronological_holdout import official_rows
+          from scenario_official_K_training_roster_bridge import _training_history, K92_ZIP_SHA256
+
+          race="202611141309"  # already ended: input-only, no candidate generation
+          unpack=Path(os.environ["RUNNER_TEMP"])/"nov14-source-identity-only"
+          unpack.mkdir(exist_ok=False)
+          with ZipFile(os.environ["NOV14_RAW_ZIP"]) as z:
+              assert z.testzip() is None
+              infos=z.infolist(); names=[i.filename for i in infos]
+              assert len(names)==len(set(names)) and 3<=len(names)<100
+              assert all(not n.startswith("/") and ".." not in Path(n).parts
+                         and not stat.S_ISLNK(i.external_attr>>16)
+                         for i,n in zip(infos,names))
+              z.extractall(unpack)
+          base=unpack/"official_joint_evidence"/"observations"
+          groups=[]
+          for prefix in ("racelist_","before_","odds_"):
+              found=sorted(base.glob(prefix+"*/"+race[:8]+"/"+race))
+              assert len(found)==1,(prefix,len(found))
+              groups.append(found[0])
+          audit=audit_three_originals(*groups)
+          assert audit["race_code"]==race
+          assert audit["three_originals_hash_verified"] is True
+          assert audit["all_research_components_observed_by_t12"] is True
+          assert len(audit["component_checks"])==12
+          assert all(v is True for v in audit["component_checks"].values())
+          assert audit["t12_receipt_margin_seconds"]>0
+          assert audit["final_race_entry_verified"] is False
+          assert audit["full_t12_source_certified"] is False
+          assert audit["forecast_usable"] is False
+          ids=audit["registrations_by_lane"]
+          courses=audit["exhibition_course_to_boat"]
+          assert set(ids)==set(courses)=={str(i) for i in range(1,7)}
+          by_boat={int(boat):int(course) for course,boat in courses.items()}
+          assert set(by_boat)==set(range(1,7))
+          assert len(set(ids.values()))==6
+          projection={"race_code":race,"exhibition_features_by_boat":[
+              {"boat":i,"registration_id":ids[str(i)],
+               "exhibition_course_only":by_boat[i]}
+              for i in range(1,7)]}
+          path=Path(os.environ["OFFICIAL_K_ZIP"])
+          assert hashlib.sha256(path.read_bytes()).hexdigest()==K92_ZIP_SHA256
+          rows,zipsha,daily=official_rows(path)
+          assert zipsha==K92_ZIP_SHA256 and len(daily)==92
+          history=_training_history(rows,daily,race,projection)
+          holder=int(courses["1"])
+          assert history["C1_athlete_registration"]==ids[str(holder)]
+          assert history["historic_training_end_date_jst"]=="2026-09-30"
+          assert history["national_training_race_count"]==9241
+          assert history["training_used_outcomes_after_target"] is False
+          assert history["exhibition_is_final_race_entry"] is False
+          print("REAL_NOV14_TRIPLE_TO_K92_INPUT_ONLY_JOIN_PASS "+json.dumps({
+              "race_code":race,"source_12_checks":12,
+              "T12_receipt_margin_seconds":audit["t12_receipt_margin_seconds"],
+              "K_zip_sha256":zipsha,"K_train_n":9241,
+              "K_october_training_leak":False,
+              "exhibition_course1_boat":holder,
+              "athlete_historical_course1_starts":
+                  history["C1_athlete_training_race_count"],
+              "forecast_generated":False,"future_forecast_first_remote_receipt":False,
+              "actual_final_entry_verified":False,"formal":False,
+              "production_changed":False},sort_keys=True))
+          PY
       - name: Confirm all-mode scenario composition uses actual reviewed #1698 conditional math
         env:
           RESEARCH_1698_PIN_REQUIRED: '1'
