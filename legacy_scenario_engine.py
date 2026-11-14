@@ -160,6 +160,12 @@ def restored_scenario_preview(card, now=None):
                 and len(set(courses)) == 6):
             entry = {i: int(courses[i-1]) for i in range(1, 7)}
         # Preview course is NOT confirmed actual race entry.
+    # The restored A/B world assumes BOAT 1 is the inside escape boat.
+    # When exhibition places a different boat in course 1, the historical
+    # coefficient/heads cannot be safely mapped to that new course holder.
+    # Fail closed instead of describing an invented boat-1 escape scenario.
+    if entry and entry[1] != 1:
+        raise ValueError("legacy_escape_world_requires_boat1_exhibition_course1")
     ex_times = {lane: _field(r, "exhibition_time") for lane, r in br.items()}
     times = [t for t in ex_times.values() if t is not None]
     ex_norm = {}
