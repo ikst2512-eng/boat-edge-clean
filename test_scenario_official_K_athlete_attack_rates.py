@@ -76,6 +76,9 @@ class RateTests(unittest.TestCase):
         self.assertIsNone(a["まくり"]["rate_pct"])
         self.assertEqual(a["まくり"]["wins"],0)
         self.assertEqual(a["まくり差し"]["wins"],0)
+        self.assertIsNone(a["まくり"]["wilson_95_pct"])
+        self.assertTrue(a["まくり"]["small_sample_n_below_30"])
+        self.assertFalse(a["まくり"]["forecast_rate_allowed"])
 
     def test_invalid_target_roster_rejected_before_historical_file(self):
         candidates=[
@@ -118,11 +121,18 @@ class RateTests(unittest.TestCase):
             "aug_sep_training"]["eligible_C2_pair_starts"],61)
         self.assertEqual(s["joined_real_exhibition_course2"][
             "october_historical_holdout"]["eligible_C2_pair_starts"],31)
+        self.assertFalse(s["joined_real_exhibition_course2"][
+            "october_historical_holdout"]["small_sample_n_below_30"])
+        self.assertFalse(s["joined_real_exhibition_course2"][
+            "aug_sep_training"]["forecast_rate_allowed"])
         c3=s["joined_real_exhibition_course3_4"]["3"]["aug_sep_training"]
         c4=s["joined_real_exhibition_course3_4"]["4"]["aug_sep_training"]
         self.assertEqual(c3["eligible_starts"],61)
         self.assertEqual(c4["eligible_starts"],61)
         self.assertEqual(c3["まくり"]["wins"],21)
+        self.assertFalse(c3["まくり"]["small_sample_n_below_30"])
+        self.assertEqual(len(c3["まくり"]["wilson_95_pct"]),2)
+        self.assertTrue(c3["not_all_course_starts"])
         self.assertEqual(c3["まくり差し"]["wins"],0)
         self.assertEqual(c4["まくり"]["wins"],0)
         self.assertEqual(c4["まくり差し"]["wins"],20)
