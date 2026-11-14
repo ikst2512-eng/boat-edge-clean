@@ -479,6 +479,8 @@ def v133_reference_preview(card, now=None):
     by_lane = {s.get("lane"): s.get("course") for s in starts
                if isinstance(s, dict) and type(s.get("lane")) is int}
     if (set(by_lane) != set(range(1, 7)) or
+            any(type(v) not in (int, float) or not math.isfinite(v) or v != int(v)
+                for v in by_lane.values()) or
             sorted(by_lane.values()) != list(range(1, 7))):
         raise ValueError("verified_six_exhibition_courses_required")
     if by_lane[1] != 1:
