@@ -159,11 +159,19 @@ def build_attack_benefit_matrix(record):
         head_sig = head["signals"]
         vals = {
             "head_motor_2ren": _rate(by_course, head["course"], "motor_2ren_pct"),
+            "second_motor_2ren": _rate(by_course, by_boat[s]["course"], "motor_2ren_pct"),
+            "third_motor_2ren": _rate(by_course, by_boat[t]["course"], "motor_2ren_pct"),
             "head_meeting_2ren": _rate(by_course, head["course"], "meeting_2ren_pct"),
+            "second_meeting_2ren": _rate(by_course, by_boat[s]["course"], "meeting_2ren_pct"),
+            "third_meeting_2ren": _rate(by_course, by_boat[t]["course"], "meeting_2ren_pct"),
             "head_average_st_s": _rate(by_course, head["course"], "average_st_s"),
             "head_meeting_st_s": _rate(by_course, head["course"], "meeting_st_s"),
             "head_comment_turn": _comment_direction(head, "turn"),
+            "second_comment_turn": _comment_direction(by_boat[s], "turn"),
+            "third_comment_turn": _comment_direction(by_boat[t], "turn"),
             "head_comment_straight": _comment_direction(head, "straight"),
+            "second_comment_straight": _comment_direction(by_boat[s], "straight"),
+            "third_comment_straight": _comment_direction(by_boat[t], "straight"),
             "head_comment_start": _comment_direction(head, "start"),
             "escape_two_escape_assist_proxy": _interaction(
                 h == c[1], _rate(by_course, 2, "two_escape_assist_pct")),
@@ -171,6 +179,12 @@ def build_attack_benefit_matrix(record):
             "third_makuri_head": _interaction(h == c[3], _rate(by_course, 3, "makuri_pct")),
             "third_makuri_sashi_head": _interaction(
                 h == c[3], _rate(by_course, 3, "makuri_sashi_pct")),
+            "third_attack_four_sashi_head": _interaction(
+                h == c[4] and s == c[3],
+                _rate(by_course, 3, "makuri_pct"), _rate(by_course, 4, "sashi_pct")),
+            "third_attack_five_makuri_sashi_head": _interaction(
+                h == c[5] and s == c[3],
+                _rate(by_course, 3, "makuri_pct"), _rate(by_course, 5, "makuri_sashi_pct")),
             "third_attack_four_sashi_second": _interaction(
                 h == c[3] and s == c[4],
                 _rate(by_course, 3, "makuri_pct"), _rate(by_course, 4, "sashi_pct")),
