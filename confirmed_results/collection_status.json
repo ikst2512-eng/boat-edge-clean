@@ -1,5 +1,5 @@
 {
-  "checked_at_jst": "2026-11-14T11:04:51.438758+09:00",
+  "checked_at_jst": "2026-11-14T11:14:55.178882+09:00",
   "days": [
     {
       "day": "20261113",
@@ -12,31 +12,15 @@
     {
       "day": "20261114",
       "http_status": null,
-      "newly_saved": 15,
-      "source_races": 15,
+      "newly_saved": 5,
+      "source_races": 20,
       "source_url": null,
       "status": "available"
     }
   ],
   "historical_retries": {
-    "days": [
-      {
-        "day": "20261028",
-        "saved": 0,
-        "source_races": 124
-      },
-      {
-        "day": "20261031",
-        "saved": 0,
-        "source_races": 155
-      },
-      {
-        "day": "20261102",
-        "saved": 0,
-        "source_races": 155
-      }
-    ],
-    "status": "checked"
+    "days": [],
+    "status": "not_hourly_window"
   },
   "overdue_race_codes": [
     "202610280112",
@@ -63,12 +47,12 @@
     "202611060811",
     "202611060812",
     "202611070302",
-    "202611140201",
+    "202611140202",
     "202611140301",
-    "202611140401",
+    "202611140803",
     "202611140902",
-    "202611141006",
-    "202611141601",
+    "202611141102",
+    "202611141302",
     "202611142306"
   ],
   "overdue_result_count": 31,
