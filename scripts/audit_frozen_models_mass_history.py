@@ -199,7 +199,7 @@ def validate_rank_diagnostics(diagnostics, overall):
         for n in TOP:
             stages = d["topn_stages"][str(n)]
             if (sum(stages.values()) != diagnostics["evaluated"]
-                    or stages["exact"] != overall["modes"][mode]["topn_hits"][str(n)]):
+                    or stages["exact"] != overall["modes"].get(mode, {}).get("topn_hits", {}).get(str(n), 0)):
                 raise ValueError("diagnostic_topn_mismatch")
     return diagnostics
 
