@@ -1,0 +1,16 @@
+{
+  "schema": "BOAT_EDGE_LEGACY_VENUE_COURSE_STATS_IMPORT_V1",
+  "original_repo": "ikst2512-eng/boat-edge",
+  "source_commit": "7dd4ce6127d7e71298605015873030ff1168a8d3",
+  "original_path": "data/site_course_stats",
+  "original_index_blob_sha": "3a82b6a6e43aeb9bde743c37b0a42882d779d0c2",
+  "scope": "24 venue 1-6 course rates, winning-method share; official stadium-page derived historical dataset",
+  "period_start": "2026-07-01",
+  "period_end": "2026-09-30",
+  "observed_source_updated_at": "2026-10-08T03:36:21+09:00",
+  "prediction_logic_uses_course_stats_in_original": false,
+  "active_forecast_unchanged": true,
+  "reference_only": true,
+  "not_a_two_course_wall_or_personal_escape_rate": true,
+  "notes": "This is a faithful byte-identical transfer of 24 official-venue derived historical files. Must not silently change locked V127/V133 forecast or imply refreshed current values. Future research may validate/evaluate a separately identified challenger."
+}
