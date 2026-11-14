@@ -95,10 +95,14 @@ def extract_six_official_racelist_rates(raw):
         nation = [float(x) for x in national.groups()]
         venue = [float(x) for x in local.groups()]
         avg_st = float(st.group(1))
+        # A genuine official 当地 (venue) win rate of 0.00 is valid
+        # (e.g. no recorded local wins/starts). Do NOT confuse it with
+        # missing national ability or silently impute it. Nationwide rates
+        # remain strictly positive for the frozen V2 math input contract.
         if (not 0 <= avg_st < 1
-                or not all(0 < values[0] <= 10 and
-                           all(0 <= pct <= 100 for pct in values[1:])
-                           for values in (nation, venue))):
+                or not 0 < nation[0] <= 10
+                or not 0 <= venue[0] <= 10
+                or any(not 0 <= pct <= 100 for pct in nation[1:] + venue[1:])):
             raise ValueError("official_rate_or_start_out_of_bounds")
         by_boat[boat] = {
             "boat":boat,
