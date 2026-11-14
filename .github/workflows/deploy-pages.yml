@@ -91,6 +91,19 @@ jobs:
               total += record['candidate_count']
           print(f'CLEAN_CANDIDATE_PAGES_MANIFEST days={len(days)} candidates={total}')
           PY
+          # Copy all frozen 4-mode originals to same-origin Pages.
+          cp -R four_mode_forecasts public/four_mode_forecasts
+          python3 - <<'PY'
+          from pathlib import Path
+          originals=sorted(Path('four_mode_forecasts').glob('*.json'))
+          copied=sorted(Path('public/four_mode_forecasts').glob('*.json'))
+          if not originals or len(originals)!=len(copied):
+              raise SystemExit('Four-mode Pages original count mismatch')
+          for a,b in zip(originals,copied):
+              if a.name!=b.name or a.read_bytes()!=b.read_bytes():
+                  raise SystemExit('Four-mode Pages original bytes mismatch: '+a.name)
+          print('CLEAN_FOUR_MODE_SAME_ORIGIN_ARCHIVE_PASS',len(originals))
+          PY
           cp -R confirmed_results public/confirmed_results
           cp -R schedule_snapshots public/schedule_snapshots
           test -s public/schedule_snapshots/20261030.json
@@ -102,6 +115,8 @@ jobs:
           test -s public/navigation.js
           test -s public/candidates.html
           test -s public/candidate_history.js
+          test -s public/four_mode_forecasts/202611080101.json
+          test -s public/four_mode_forecasts/202611142412.json
           test -s public/candidate_history/20261108.json
       # Pages is already configured to deploy from GitHub Actions.
       # Do not query the Pages settings API on every publish: its installation
@@ -183,6 +198,29 @@ jobs:
           echo "Public HTML/JS/results: **FAIL / UNCONFIRMED** after retries" >> "$GITHUB_STEP_SUMMARY"
           echo "Public page verification FAIL: HTML, navigation.js or confirmed result bytes unavailable/mismatched after retries: $PAGE_URL" >&2
           exit 1
+      - name: Verify archived four-mode originals on deployed same-origin Pages
+        timeout-minutes: 3
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          set -eu
+          for code in 202611080101 202611142412; do
+            path="four_mode_forecasts/${code}.json"
+            good=0
+            for attempt in 1 2 3 4 5 6 7 8; do
+              if curl --fail --silent --show-error --location --max-time 20 "${PAGE_URL%/}/$path" -o "/tmp/public-four-mode-$code.json" &&
+                 cmp -s "public/$path" "/tmp/public-four-mode-$code.json"; then
+                good=1
+                break
+              fi
+              sleep 3
+            done
+            if [ "$good" -ne 1 ]; then
+              echo "Same-origin archived four-mode source missing or changed: $code" >&2
+              exit 1
+            fi
+          done
+          echo 'PUBLIC_SAME_ORIGIN_FOUR_MODE_ORIGINALS_PASS'
       - name: Browser interaction smoke test
         timeout-minutes: 5
         run: |

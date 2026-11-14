@@ -43,7 +43,7 @@ function localRaceLink(race,screen){
  return url.pathname+url.search;
 }
 async function loadFourModes(code,target){
- const url=onPages?'https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/four_mode_forecasts/'+code+'.json':
+ const url=onPages?'four_mode_forecasts/'+code+'.json':
   '/api/four-mode-archive?code='+encodeURIComponent(code);
  try{
   const response=await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(14000)});
