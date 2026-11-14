@@ -622,34 +622,6 @@ jobs:
               "athlete_training_sample_count":history["C1_athlete_training_race_count"],
               "candidate_created":False,"formal":False,
           },sort_keys=True))
-          # Run the actual #1710 feature matrix over the same genuine
-          # archived pre-T12 official racelist, without calibrating odds or
-          # ever writing a new candidate after the event.
-          from scenario_prior_day_meeting_matrix_replay import replay_prior_day_form_into_unfitted_matrix
-          replay=replay_prior_day_form_into_unfitted_matrix(
-              meeting,manifest,bundle["official_research_shadow"],bundle["cutoff_jst"])
-          assert replay["matrix"]["count"]==120
-          assert replay["counted_meeting_form_actually_consumed_by_feature_matrix"] is True
-          assert replay["new_forecast_generated"] is False
-          assert replay["model_coefficients_fitted"] is False
-          assert replay["formal"] is False
-          by_ticket={x["ticket"]:x["features"] for x in replay["matrix"]["rows"]}
-          assert by_ticket["1-2-3"]["head_meeting_2ren"]==0.7
-          assert abs(by_ticket["1-2-3"]["second_meeting_2ren"]-6/9)<1e-6
-          assert by_ticket["1-2-3"]["third_meeting_2ren"]==0.6
-          assert by_ticket["1-2-3"]["head_meeting_st_s"]==0.142
-          assert by_ticket["1-2-3"]["head_motor_2ren"] is None
-          assert by_ticket["1-2-3"]["escape_two_escape_assist_proxy"] is None
-          print("REAL_ARCHIVED_PRIOR_DAY_FORM_TO_120_SCENARIO_FEATURES_PASS "+json.dumps({
-              "race_code":race,
-              "meeting_original_sha256":replay["source_sha256"],
-              "feature_matrix_sha256":replay["feature_matrix_sha256"],
-              "complete_120_features":replay["matrix"]["count"],
-              "meeting_form_actual_input":True,"model_probability_fitted":False,
-              "motor_missing_denominator":True,"2c_wall_unknown":True,
-              "decision_method_unknown":True,"comments_unknown":True,
-              "forecast_or_archive_written":False,"formal":False,
-          },sort_keys=True))
           PY
       - name: Measure historical K92 winner-method companion finishes (postrace research ONLY)
         run: |
@@ -1472,5 +1444,33 @@ jobs:
               "previous_day_only":True,"model_consumed_meeting_form":False,
               "winning_method_inferred":False,"comment_source_verified":False,
               "candidate_created":False,"formal":False,
+          },sort_keys=True))
+          # Run the actual #1710 feature matrix over the same genuine
+          # archived pre-T12 official racelist, without calibrating odds or
+          # ever writing a new candidate after the event.
+          from scenario_prior_day_meeting_matrix_replay import replay_prior_day_form_into_unfitted_matrix
+          replay=replay_prior_day_form_into_unfitted_matrix(
+              meeting,manifest,bundle["official_research_shadow"],bundle["cutoff_jst"])
+          assert replay["matrix"]["count"]==120
+          assert replay["counted_meeting_form_actually_consumed_by_feature_matrix"] is True
+          assert replay["new_forecast_generated"] is False
+          assert replay["model_coefficients_fitted"] is False
+          assert replay["formal"] is False
+          by_ticket={x["ticket"]:x["features"] for x in replay["matrix"]["rows"]}
+          assert by_ticket["1-2-3"]["head_meeting_2ren"]==0.7
+          assert abs(by_ticket["1-2-3"]["second_meeting_2ren"]-6/9)<1e-6
+          assert by_ticket["1-2-3"]["third_meeting_2ren"]==0.6
+          assert by_ticket["1-2-3"]["head_meeting_st_s"]==0.142
+          assert by_ticket["1-2-3"]["head_motor_2ren"] is None
+          assert by_ticket["1-2-3"]["escape_two_escape_assist_proxy"] is None
+          print("REAL_ARCHIVED_PRIOR_DAY_FORM_TO_120_SCENARIO_FEATURES_PASS "+json.dumps({
+              "race_code":race,
+              "meeting_original_sha256":replay["source_sha256"],
+              "feature_matrix_sha256":replay["feature_matrix_sha256"],
+              "complete_120_features":replay["matrix"]["count"],
+              "meeting_form_actual_input":True,"model_probability_fitted":False,
+              "motor_missing_denominator":True,"2c_wall_unknown":True,
+              "decision_method_unknown":True,"comments_unknown":True,
+              "forecast_or_archive_written":False,"formal":False,
           },sort_keys=True))
           PY
