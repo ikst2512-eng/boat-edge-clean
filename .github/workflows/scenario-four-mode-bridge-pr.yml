@@ -999,7 +999,31 @@ jobs:
                   print("REAL_MULTIRACE_K92_ABLATION_INPUT_ONLY "+json.dumps(
                       report,sort_keys=True))
           assert len(reports)==4
+          # Regression oracle for four frozen, SHA-pinned, outcome-BLIND real
+          # input archives. This validates method determinism / completeness,
+          # not which alternative won the actual race.
+          expected={
+              "202611140211":([5],{"narrow":5,"hit":10,"balance":15,"hole":22},True),
+              "202611140701":([4],{"narrow":5,"hit":10,"balance":15,"hole":21},True),
+              "202611140411":([3],{"narrow":5,"hit":9,"balance":16,"hole":19},True),
+              "202611141311":([],{"narrow":5,"hit":10,"balance":16,"hole":21},False),
+          }
+          assert set(r["race_code"] for r in reports)==set(expected)
+          for report in reports:
+              zero_boats,overlaps,hole_top1=expected[report["race_code"]]
+              assert report["status"]=="math_ablation_completed"
+              assert report["official_local_zero_boats"]==zero_boats
+              assert set(report["mode_diffs"])==set(overlaps)
+              for mode,expected_overlap in overlaps.items():
+                  comparison=report["mode_diffs"][mode]
+                  assert comparison["set_overlap"]==expected_overlap
+                  assert comparison["budget"]=={
+                      "narrow":5,"hit":10,"balance":16,"hole":22}[mode]
+                  assert comparison["top1_changed"] is (
+                      hole_top1 if mode=="hole" else False)
           statuses=Counter(x["status"] for x in reports)
+          assert statuses=={"math_ablation_completed":4}
+          print("REAL_MULTIRACE_K92_ABLATION_RESULT_BLIND_REGRESSION_PASS")
           print("REAL_MULTIRACE_K92_ABLATION_COVERAGE "+json.dumps({
               "pinned_actual_archives":2,"actual_races_with_complete_3_originals":4,
               "pre_t12_source_checks_per_race":12,"statuses":dict(statuses),
