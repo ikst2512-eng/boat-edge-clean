@@ -953,6 +953,41 @@ jobs:
                           report["status"]="strict_original_input_math_blocked"
                           report["error_type"]=type(exc).__name__
                           report["error_code"]=str(exc)[:90]
+                          # Inspection ONLY of previously SHA-audited raw HTML,
+                          # no guessing/filling invalid official numeric inputs.
+                          if str(exc)=="official_rate_or_start_out_of_bounds":
+                              from html import unescape
+                              from scenario_official_racelist_rates import (
+                                  ROW,_CellText,THREE,ST)
+                              suspect=[]
+                              for match in ROW.finditer(unescape(
+                                      raw_card.decode("utf-8","replace"))):
+                                  cells=_CellText()
+                                  cells.feed("<tr>"+match.group("cells")+"</tr>")
+                                  cells.close()
+                                  if len(cells.cells)<5:
+                                      continue
+                                  national=THREE.fullmatch(cells.cells[3]["text"])
+                                  venue=THREE.fullmatch(cells.cells[4]["text"])
+                                  start=ST.fullmatch(cells.cells[2]["text"])
+                                  if not national or not venue or not start:
+                                      continue
+                                  nvals=[float(x) for x in national.groups()]
+                                  lvals=[float(x) for x in venue.groups()]
+                                  stval=float(start.group(1))
+                                  failures=(
+                                      ["national_0"] if nvals[0]==0 else [])+(
+                                      ["local_0"] if lvals[0]==0 else [])+(
+                                      ["national_over10"] if nvals[0]>10 else [])+(
+                                      ["local_over10"] if lvals[0]>10 else [])+(
+                                      ["avgST_outside_0_1"] if not 0<=stval<1 else [])
+                                  if failures:
+                                      suspect.append({"boat":int(match.group(1)),
+                                                      "fields":failures,
+                                                      "national_rate":nvals[0],
+                                                      "local_rate":lvals[0],
+                                                      "avgST":stval})
+                              report["official_raw_out_of_bound_rows"]=suspect
                   reports.append(report)
                   print("REAL_MULTIRACE_K92_ABLATION_INPUT_ONLY "+json.dumps(
                       report,sort_keys=True))
