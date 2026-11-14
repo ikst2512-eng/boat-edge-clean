@@ -467,6 +467,22 @@ def v133_reference_preview(card, now=None):
     guard = restored_scenario_preview(card, now=now)
     if guard.get("formal") is not False or guard.get("production_buy_approved") is not False:
         raise ValueError("unsafe_reference_source")
+    # Do not imply boat 1 escaped from course 1 when verified exhibition
+    # puts it elsewhere. Actual final entry is not authenticated here.
+    audit = card.get("source_audit") if isinstance(card, dict) else None
+    before_audit = audit.get("beforeinfo") if isinstance(audit, dict) else None
+    before = card.get("beforeinfo") if isinstance(card, dict) else None
+    starts = before.get("start_exhibition") if isinstance(before, dict) else None
+    if (not isinstance(before_audit, dict) or before_audit.get("status") != "ok"
+            or not isinstance(starts, list) or len(starts) != 6):
+        raise ValueError("verified_six_exhibition_required")
+    by_lane = {s.get("lane"): s.get("course") for s in starts
+               if isinstance(s, dict) and type(s.get("lane")) is int}
+    if (set(by_lane) != set(range(1, 7)) or
+            sorted(by_lane.values()) != list(range(1, 7))):
+        raise ValueError("verified_six_exhibition_courses_required")
+    if by_lane[1] != 1:
+        raise ValueError("legacy_escape_world_requires_boat1_exhibition_course1")
     racers = card.get("racers") if type(card) is dict else None
     if not isinstance(racers, list) or len(racers) != 6:
         raise ValueError("six_racers_unavailable")
