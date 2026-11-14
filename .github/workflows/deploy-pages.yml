@@ -189,6 +189,8 @@ jobs:
         run: |
           npm install --no-save --no-package-lock playwright@1.56.1
           npx playwright install chromium
+          # Reuse the existing no-mock full-history acceptance script in WebKit too.
+          npx playwright install --with-deps webkit
           node - <<'JS'
           const { chromium }=require('playwright');
           (async()=>{
@@ -241,6 +243,20 @@ jobs:
             } finally {await browser.close();}
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
+      - name: Verify every published candidate day, archived tickets, results and payouts in Chromium and WebKit
+        timeout-minutes: 9
+        shell: bash
+        run: |
+          set -o pipefail
+          node tests/live_candidate_history_full_postdeploy.cjs 2>&1 | tee full-candidate-history.log
+      - name: Preserve full candidate-history public acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clean-published-history-${{ github.run_id }}-${{ github.run_attempt }}
+          path: full-candidate-history.log
+          if-no-files-found: warn
+          retention-days: 30
       - name: Verify Oct 31 archived forecast and visible receipt warning
         timeout-minutes: 3
         env:
