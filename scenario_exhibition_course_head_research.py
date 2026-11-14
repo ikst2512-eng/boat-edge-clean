@@ -135,8 +135,14 @@ def _joined_history(history, lineage, rows, by_course):
         "exhibition_course1_boat": holder["boat"],
         "exhibition_course1_athlete": holder["registration_id"],
         "history_training_end_jst": last.isoformat(),
+        # Bind the ENTIRE caller-reported K summary (including both win
+        # numerators, training window and the six registration/course rows)
+        # to the research handoff. This is NOT authentication of K raw bytes.
+        "history_claimed_input_sha256": _handoff_digest(history),
         "history_claimed_national_denominator": n,
+        "history_claimed_national_escape_count": k,
         "history_claimed_venue_denominator": vn,
+        "history_claimed_venue_escape_count": vk,
         "history_claimed_athlete_denominator": athlete_n,
         "history_claimed_residual": residual,
         "history_used_in_numeric_head_scores": False,
