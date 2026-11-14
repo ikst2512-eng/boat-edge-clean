@@ -28,7 +28,7 @@ jobs:
       - name: Audit all preserved V133 predictions against pinned official-result archive, plus all CLEAN V1/V2 frozen cohorts
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python scripts/audit_frozen_models_mass_history.py
+        run: PYTHONPATH=. python scripts/audit_frozen_models_mass_history.py
       - name: Preserve full race-by-race evidence as an artifact
         if: always()
         uses: actions/upload-artifact@v4
