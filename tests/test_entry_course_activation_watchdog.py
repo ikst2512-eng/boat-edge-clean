@@ -191,6 +191,49 @@ class ActivationTests(unittest.TestCase):
         self.assertFalse(result["trigger_is_schedule"])
         self.assertFalse(result["formal_t12_certified"])
 
+    def test_independent_official_odds_schedule_wakes_only_evening_rescue(self):
+        # An already scheduled odds probe launched late at 19:43 JST on
+        # 2026-11-14. Its successful same-repo/main/schedule completion may
+        # wake the EXISTING 19:40-19:59 watchdog, never certify native 19:35.
+        from pathlib import Path
+        root=Path(__file__).resolve().parent.parent
+        parent=(root/".github/workflows/live-official-odds-probe.yml").read_text()
+        watchdog=(root/".github/workflows/entry-course-activation-watchdog.yml").read_text()
+        self.assertIn("name: CLEAN live official trifecta odds probe",parent)
+        self.assertIn('- "CLEAN live official trifecta odds probe"',watchdog)
+        self.assertIn("github.event.workflow_run.event == 'schedule'",watchdog)
+        self.assertIn("github.event.workflow_run.head_branch == 'main'",watchdog)
+        self.assertIn("github.event.workflow_run.head_repository.full_name == github.repository",watchdog)
+        self.assertIn(
+            "github.event.workflow_run.name != 'CLEAN live official trifecta odds probe'",
+            watchdog)
+        self.assertIn("github.event.workflow_run.conclusion == 'success'",watchdog)
+        self.assertIn("contains(github.event.workflow_run.created_at, 'T10:4')",watchdog)
+        self.assertIn("contains(github.event.workflow_run.created_at, 'T10:5')",watchdog)
+        self.assertEqual(watchdog.count("- cron:"),1)
+        self.assertNotIn('- "Entry course missed-cron activation watchdog"',parent)
+
+        now=datetime(2026,11,14,19,45,tzinfo=JST)
+        called=[]
+        result=official_live_probe_fallback(
+            now,lambda file,event:[],lambda file:called.append(file))
+        self.assertEqual(called,[OFFICIAL_PROBE_WORKFLOW])
+        self.assertEqual(result["decision"],"requested_missing_official_probe")
+        self.assertFalse(result["trigger_is_schedule"])
+        self.assertFalse(result["live_24_values_verified"])
+        self.assertFalse(result["formal_t12_certified"])
+
+        # Even a previously FAILED 19:35 job is not blindly doubled at 19:45.
+        existing={"event":"schedule","head_branch":"main","status":"completed",
+                  "conclusion":"failure","created_at":
+                  datetime(2026,11,14,19,35,tzinfo=JST).isoformat()}
+        called.clear()
+        blocked=official_live_probe_fallback(
+            now,lambda file,event:[existing] if event=="schedule" else [],
+            lambda file:called.append(file))
+        self.assertEqual(called,[])
+        self.assertEqual(blocked["decision"],"official_probe_started_already")
+
     def test_existing_readonly_audit_completions_can_opportunistically_wake_t12(self):
         # 11/11 real GitHub schedules: AI audit completed ~08:31 JST,
         # cross-model audit completed ~08:36 JST despite 03 JST cron times.

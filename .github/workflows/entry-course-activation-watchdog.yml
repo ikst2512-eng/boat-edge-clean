@@ -27,6 +27,10 @@ on:
       # An independently scheduled result collector also has live evening
       # ticks. Only its 19:40-19:59 JST native completion may wake the
       # existing missing-official watchdog; no new Cron/collector/forecast.
+      # Observed 11/14: this independent odds-probe native schedule launched
+      # delayed at 19:43 JST. Its successful completion can wake the same
+      # existing 19:40-19:59 rescue, but is not the 19:35 official Cron.
+      - "CLEAN live official trifecta odds probe"
       - "CLEAN independent confirmed result collection"
       # Existing unrelated read-only schedules give independent wakeups if
       # the T12/watchdog own cron does not fire; dispatch remains cooldown-
@@ -59,6 +63,10 @@ jobs:
           (github.event.workflow_run.name != 'Four-mode capture schedule watchdog' ||
            contains(github.event.workflow_run.created_at, 'T23:') ||
            contains(github.event.workflow_run.created_at, 'T10:')) &&
+          (github.event.workflow_run.name != 'CLEAN live official trifecta odds probe' ||
+           (github.event.workflow_run.conclusion == 'success' &&
+            (contains(github.event.workflow_run.created_at, 'T10:4') ||
+             contains(github.event.workflow_run.created_at, 'T10:5')))) &&
           (github.event.workflow_run.name != 'CLEAN independent confirmed result collection' ||
            contains(github.event.workflow_run.created_at, 'T10:4') ||
            contains(github.event.workflow_run.created_at, 'T10:5'))))))
