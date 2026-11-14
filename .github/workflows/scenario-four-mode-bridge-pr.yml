@@ -1102,7 +1102,7 @@ jobs:
                   remote_path=("official_source_forecast_bundles/"
                                +race[:8]+"/"+race+".json")
                   encoded=base64.b64encode(raw).decode("ascii")
-                  folded="\\n".join(encoded[k:k+76] for k in range(0,len(encoded),76))
+                  folded="\n".join(encoded[k:k+76] for k in range(0,len(encoded),76))
                   def mock_getter(method,path,token,data=None):
                       assert method=="GET" and data is None and path==remote_path
                       return 200,{"encoding":"base64","content":folded,
