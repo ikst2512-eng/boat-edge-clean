@@ -12,6 +12,7 @@ on:
       - test_capture_restored_scenario.py
       - legacy_scenario_engine.py
       - legacy_v133_reference_engine.py
+      - boat_edge_v254_third_tail.py
       - test_legacy_v133_reference_engine.py
       - test_original_v133_primary_contract.py
       - clean_four_modes.py
