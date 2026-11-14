@@ -14,6 +14,12 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
 ROOT = Path(__file__).resolve().parent
+
+def deployed_commit():
+    """Expose only a genuine Render commit SHA; never infer deployment from main."""
+    value = os.environ.get("RENDER_GIT_COMMIT", "")
+    return value.lower() if re.fullmatch(r"[0-9a-fA-F]{40}", value) else None
+
 LOCK = threading.Lock()
 CACHE = {}
 INFLIGHT = set()
@@ -234,6 +240,93 @@ def get_predictions(params):
         logging.warning("prediction_feed_invalid %s", type(exc).__name__)
         return 503, {"ok": False, "status": "error", "predictions": [], "message": "予想データを検証できません。予想の掲載を停止しています。"}
 
+
+def get_restored_scenario_preview(params, *, card_loader=None, now=None):
+    """Read-only OLD scenario engine, never post-result, never saved/formal.
+
+    The old scorer and current CLEAN V2 archives are deliberately independent.
+    History/results/odds are not opened; a past race cannot be recomputed.
+    """
+    hd = params.get("hd", [""])[0]
+    jcd = params.get("jcd", [""])[0]
+    rno = params.get("rno", [""])[0]
+    if (not re.fullmatch(r"20[0-9]{6}", hd)
+            or not re.fullmatch(r"0[1-9]|1[0-9]|2[0-4]", jcd)
+            or not re.fullmatch(r"[1-9]|1[0-2]", rno)):
+        return 400, {"ok": False, "status": "invalid_race"}
+    try:
+        datetime.strptime(hd, "%Y%m%d")
+    except ValueError:
+        return 400, {"ok": False, "status": "invalid_race"}
+    if card_loader is None:
+        from clean_racecard import racecard
+        card_loader = racecard
+    from legacy_scenario_engine import restored_scenario_preview
+    try:
+        card = card_loader(hd, jcd, rno)
+        output = restored_scenario_preview(card, now=now)
+        if (output.get("model_version") !=
+                "LEGACY_SCENARIO_SCORE_RESTORED_FOUR_MODE_REFERENCE_V1"
+                or output.get("formal") is not False or
+                output.get("production_buy_approved") is not False):
+            raise ValueError("unsafe_research_preview")
+        return 200, output
+    except ValueError as exc:
+        reason = str(exc)
+        # No retrospective generation. Return an explicit unavailable state.
+        if reason in ("race_deadline_already_passed", "not_a_live_pre_result_race",
+                      "race_already_closed"):
+            return 422, {"ok": False, "status": "past_race_not_recomputed"}
+        if reason in ("race_card_not_available", "deadline_not_available",
+                      "six_racers_unavailable"):
+            return 404, {"ok": False, "status": "source_not_published"}
+        logging.info("scenario_preview_rejected reason=%s", reason[:100])
+        return 422, {"ok": False, "status": "unverified_source", "reason": reason[:100]}
+    except (OSError, TimeoutError, KeyError, TypeError, AttributeError) as exc:
+        logging.warning("scenario_preview_unavailable reason=%s", type(exc).__name__)
+        return 503, {"ok": False, "status": "source_temporarily_unavailable"}
+
+
+
+def get_v133_reference_preview(params, *, card_loader=None, now=None):
+    """Original V127/V133 calculation on verified live inputs, never post-result."""
+    hd = params.get("hd", [""])[0]
+    jcd = params.get("jcd", [""])[0]
+    rno = params.get("rno", [""])[0]
+    if (not re.fullmatch(r"20[0-9]{6}", hd)
+            or not re.fullmatch(r"0[1-9]|1[0-9]|2[0-4]", jcd)
+            or not re.fullmatch(r"[1-9]|1[0-2]", rno)):
+        return 400, {"ok": False, "status": "invalid_race"}
+    try:
+        datetime.strptime(hd, "%Y%m%d")
+    except ValueError:
+        return 400, {"ok": False, "status": "invalid_race"}
+    if card_loader is None:
+        from clean_racecard import racecard
+        card_loader = racecard
+    from legacy_v133_reference_engine import v133_reference_preview
+    try:
+        output = v133_reference_preview(card_loader(hd, jcd, rno), now=now)
+        if (output.get("race_code") != hd+jcd+str(int(rno)).zfill(2)
+                or output.get("formal") is not False
+                or output.get("production_buy_approved") is not False):
+            raise ValueError("unsafe_v133_reference")
+        return 200, output
+    except ValueError as exc:
+        reason = str(exc)
+        if reason in ("race_deadline_already_passed", "not_a_live_pre_result_race",
+                      "race_already_closed"):
+            return 422, {"ok": False, "status": "past_race_not_recomputed"}
+        if reason in ("race_card_not_available", "deadline_not_available",
+                      "six_racers_unavailable"):
+            return 404, {"ok": False, "status": "source_not_published"}
+        logging.info("v133_reference_rejected reason=%s", reason[:100])
+        return 422, {"ok": False, "status": "unverified_source", "reason": reason[:100]}
+    except (OSError, TimeoutError, KeyError, TypeError, AttributeError) as exc:
+        logging.warning("v133_reference_unavailable reason=%s", type(exc).__name__)
+        return 503, {"ok": False, "status": "source_temporarily_unavailable"}
+
+
 # The historical holdout evaluator reads and validates many saved races.
 # Never perform that computation inside a public request handler.
 _HOLDOUT_LOCK = threading.Lock()
@@ -266,7 +359,8 @@ def _compute_holdout_status():
                     late = str(exc) == "first Git commit not before prospective cutoff"
                     first_add_probes[code] = {"ok": False,
                         "reason": type(exc).__name__,
-                        "cutoff_rejected": late}
+                        "cutoff_rejected": late,
+                        "reason_detail": str(exc)[:160]}
                     if late:
                         # Diagnostic only: preserve inspect() rejection while
                         # identifying the *actual* first-add commit used by Render.
@@ -388,6 +482,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Content-Type', 'text/plain; charset=utf-8')
         self.send_header('Content-Length', '0')
         self.send_header('Cache-Control', 'no-store')
+        if path == '/healthz':
+            revision = deployed_commit()
+            if revision:
+                self.send_header("X-Boat-Edge-Deploy-Commit", revision)
         self.end_headers()
 
     def do_GET(self):
@@ -398,6 +496,9 @@ class Handler(BaseHTTPRequestHandler):
             status, kind = 200, "text/html; charset=utf-8"
         elif path == "/navigation.js":
             body = (ROOT / "navigation.js").read_bytes()
+            status, kind = 200, "application/javascript; charset=utf-8"
+        elif path == "/candidate_history.js":
+            body = (ROOT / "candidate_history.js").read_bytes()
             status, kind = 200, "application/javascript; charset=utf-8"
         elif path == "/entry_scenario.js":
             body = (ROOT / "entry_scenario.js").read_bytes()
@@ -424,6 +525,12 @@ class Handler(BaseHTTPRequestHandler):
             status, response = holdout_status()
             body=json.dumps(response,ensure_ascii=False).encode("utf-8")
             kind="application/json; charset=utf-8"
+        elif path == "/api/candidate-history":
+            from candidate_history import daily_candidate_history
+            params = parse_qs(parsed.query)
+            status, data = daily_candidate_history(params.get("date", [""])[0])
+            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            kind = "application/json; charset=utf-8"
         elif path == "/api/four-mode-archive":
             from four_mode_archive_api import archived_four_modes
             params = parse_qs(parsed.query)
@@ -506,6 +613,14 @@ class Handler(BaseHTTPRequestHandler):
                 data = {"ok": False, "status": "unavailable", "reason": reason[:100]}
             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
             kind = "application/json; charset=utf-8"
+        elif path == "/api/v133-reference-preview":
+            status, data = get_v133_reference_preview(parse_qs(parsed.query))
+            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            kind = "application/json; charset=utf-8"
+        elif path == "/api/legacy-scenario-preview":
+            status, data = get_restored_scenario_preview(parse_qs(parsed.query))
+            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            kind = "application/json; charset=utf-8"
         elif path == "/api/predictions":
             status, data = get_predictions(parse_qs(parsed.query))
             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
@@ -521,7 +636,11 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
-        if path in ("/api/clean-schedule", "/api/predictions", "/api/clean-result", "/api/clean-racecard", "/api/prospective-topn", "/api/odds"):
+        if path == "/healthz":
+            revision = deployed_commit()
+            if revision:
+                self.send_header("X-Boat-Edge-Deploy-Commit", revision)
+        if path in ("/api/clean-schedule", "/api/predictions", "/api/clean-result", "/api/clean-racecard", "/api/prospective-topn", "/api/odds", "/api/four-mode-archive", "/api/candidate-history", "/api/legacy-scenario-preview", "/api/v133-reference-preview"):
             # Read-only CLEAN data is consumed by the GitHub Pages origin.
             self.send_header("Access-Control-Allow-Origin", "https://ikst2512-eng.github.io")
         self.end_headers()

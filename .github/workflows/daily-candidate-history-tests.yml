@@ -1,0 +1,82 @@
+name: CLEAN daily candidate history regression
+on:
+  pull_request:
+    paths:
+      - candidate_history.py
+      - candidate_history.js
+      - candidates.html
+      - tests/candidate_history_browser.cjs
+      - tests/test_candidate_research_selection.py
+      - navigation.js
+      - .github/workflows/deploy-pages.yml
+      - selection.html
+      - server.py
+      - test_candidate_history.py
+      - .github/workflows/daily-candidate-history-tests.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  candidate-history:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Compile Python and check candidate browser script syntax
+        run: |
+          python -m compileall -q candidate_history.py server.py
+          node --check candidate_history.js
+      - name: Preserve all saved candidates and original predictions
+        run: |
+          python -m unittest -v test_candidate_history test_selection_dual test_four_mode_archive_api
+          python -m unittest discover -s tests -p test_candidate_research_selection.py -v
+      - name: Stage the actual GitHub Pages candidate manifests offline
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          lines = Path('.github/workflows/deploy-pages.yml').read_text().splitlines()
+          start = lines.index('      - name: Stage only public files')
+          run = lines.index('        run: |', start)
+          body = []
+          for line in lines[run + 1:]:
+              if line and not line.startswith('          '):
+                  break
+              body.append(line[10:] if line else '')
+          if not body or not any('CLEAN_CANDIDATE_PAGES_MANIFEST' in s for s in body):
+              raise SystemExit('candidate Pages staging script not found')
+          Path('/tmp/clean-candidate-pages-stage.sh').write_text('\n'.join(body) + '\n')
+          PY
+          bash /tmp/clean-candidate-pages-stage.sh
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          obj = json.loads(Path('public/candidate_history/20261108.json').read_text())
+          if obj['candidate_count'] <= 6 or obj['candidate_count'] != len(obj['races']):
+              raise SystemExit('incomplete Pages candidate archive')
+          if not Path('public/candidates.html').is_file():
+              raise SystemExit('standalone candidate tab not staged')
+          print('CANDIDATE_PAGES_DRY_RUN_PASS', obj['candidate_count'],
+                obj['research_forecast_count'], obj['confirmed_result_count'])
+          PY
+      - name: Install isolated Chromium test browser
+        timeout-minutes: 6
+        run: |
+          npm install --no-save playwright@1.58.2
+          npx playwright install --with-deps --only-shell chromium
+      - name: Verify iPhone-width Pages candidate history without Render
+        shell: bash
+        timeout-minutes: 3
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 --directory public >/tmp/clean-candidate-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          node tests/candidate_history_browser.cjs
+      - name: Check existing navigation invariants
+        run: python -m unittest discover -s tests -p test_navigation_contract.py -v

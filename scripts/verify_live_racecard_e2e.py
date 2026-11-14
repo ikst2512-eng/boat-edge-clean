@@ -10,7 +10,8 @@ import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from clean_direct_sources import holding_rows
 from scripts.live_racecard_candidate_priority import (rank_candidates, t12_window_open,
-    live_sampling_window_open, preview_codes_at_receipt, fresh_candidates_at_selection)
+    live_sampling_window_open, preview_codes_at_receipt, fresh_candidates_at_selection,
+    verified_csv_pair_receipts)
 JST=ZoneInfo("Asia/Tokyo")
 now=datetime.now(JST)
 hd=now.strftime("%Y%m%d")
@@ -137,34 +138,33 @@ for source_deadline,code in candidates[:3]:
             deadline=_datetime.strptime(hd+data["meta"]["deadline"],"%Y%m%d%H:%M").replace(tzinfo=JST)
             if fetched.tzinfo is None or fetched>=deadline or fetched>datetime.now(JST):
                 raise ValueError("verified exhibition not predeadline")
-            # Both essential source snapshots must independently predate the cutoff.
-            # A valid max timestamp alone does not establish their provenance.
-            for kind in ("tkz","stt"):
-                receipt=audit["beforeinfo"].get("sources",{}).get(kind,{})
-                observed=_datetime.fromisoformat(receipt.get("observed_at",""))
-                sha=receipt.get("sha256","")
-                if observed.tzinfo is None or observed>datetime.now(JST) or observed>=deadline:
-                    raise ValueError("preview source is not independently predeadline: "+kind)
-                if not isinstance(sha,str) or len(sha)!=64 or any(c not in "0123456789abcdef" for c in sha.lower()):
-                    raise ValueError("preview source SHA256 missing: "+kind)
-            t12_limit=deadline-timedelta(minutes=12)
-            # Source timestamps alone do not show the full pair was available
-            # to CLEAN by T-12; the live API must return it by that moment.
-            source_times={kind:_datetime.fromisoformat(audit["beforeinfo"]["sources"][kind]["observed_at"])
-                          for kind in ("tkz","stt")}
-            t12_checks={"api_received_by_t12":response_received_at<=t12_limit,
-                        "tkz_observed_by_t12":source_times["tkz"]<=t12_limit,
-                        "stt_observed_by_t12":source_times["stt"]<=t12_limit}
-            if all(t12_checks.values()):
-                verified_t12.append(code)
-                print(json.dumps({"outcome":"T12_COMPLETE_PAIR_PASS","race":code,
-                                  "observed_by":t12_limit.isoformat(),"response_received_at":response_received_at.isoformat(),
-                                  "source_observed_at":{kind:v.isoformat() for kind,v in source_times.items()}},ensure_ascii=False))
-            else:
+            # Official beforeinfo can independently prove the six exhibition
+            # values, without proving the two separate tkz/stt CSV receipts
+            # needed for the strict research T-12 pair. Never elevate an
+            # official-only receipt into a two-source T-12 success.
+            source_times,source_issues=verified_csv_pair_receipts(
+                audit["beforeinfo"],deadline,response_received_at)
+            if source_issues:
                 print(json.dumps({"outcome":"T12_PAIR_NOT_VERIFIED","race":code,
-                                  "limit":t12_limit.isoformat(),"checks":t12_checks,
-                                  "response_received_at":response_received_at.isoformat(),
-                                  "source_observed_at":{kind:v.isoformat() for kind,v in source_times.items()}},ensure_ascii=False))
+                                  "reason":"independent_csv_source_pair_incomplete",
+                                  "beforeinfo_source":audit["beforeinfo"].get("source"),
+                                  "source_issues":source_issues,
+                                  "formal":False},ensure_ascii=False))
+            else:
+                t12_limit=deadline-timedelta(minutes=12)
+                t12_checks={"api_received_by_t12":response_received_at<=t12_limit,
+                            "tkz_observed_by_t12":source_times["tkz"]<=t12_limit,
+                            "stt_observed_by_t12":source_times["stt"]<=t12_limit}
+                if all(t12_checks.values()):
+                    verified_t12.append(code)
+                    print(json.dumps({"outcome":"T12_COMPLETE_PAIR_PASS","race":code,
+                                      "observed_by":t12_limit.isoformat(),"response_received_at":response_received_at.isoformat(),
+                                      "source_observed_at":{kind:v.isoformat() for kind,v in source_times.items()}},ensure_ascii=False))
+                else:
+                    print(json.dumps({"outcome":"T12_PAIR_NOT_VERIFIED","race":code,
+                                      "limit":t12_limit.isoformat(),"checks":t12_checks,
+                                      "response_received_at":response_received_at.isoformat(),
+                                      "source_observed_at":{kind:v.isoformat() for kind,v in source_times.items()}},ensure_ascii=False))
             print(json.dumps({"outcome":"EXHIBITION_PASS","race":code,"courses":[entry["course"] for entry in starts],"source":audit["beforeinfo"].get("source")},ensure_ascii=False))
         verified_cards.append(code)
         if before=="ok":verified_previews.append(code)

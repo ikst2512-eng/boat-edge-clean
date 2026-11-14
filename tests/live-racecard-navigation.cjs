@@ -191,18 +191,31 @@ const {chromium}=require('playwright');
      if(!Number.isFinite(observed)||!Number.isFinite(deadline)||observed>=deadline||observed>Date.now())
       throw Error('LIVE_EXHIBITION_TIMESTAMP_INVALID '+JSON.stringify({race:expected,observed:audit.fetched_at,deadline:d.meta?.deadline}));
      if(preview?.racers?.length!==6||preview?.start_exhibition?.length!==6)throw Error('LIVE_EXHIBITION_INCOMPLETE '+expected);
-     // Cross-check that the actual user-facing forecast preview can consume the same race.
-     await page.evaluate(item=>{datePinned=true;venueTouched=true;s.date=item.date;s.venue=item.venue-1;s.race=item.race;setView('forecast');render();},
+     // Current public UI shows the official 6-boat comparison in the main
+     // Exhibition tab, not the legacy hidden forecast subpane. Check the
+     // actually visible DOM against the same race's independently fetched API.
+     await page.evaluate(item=>{datePinned=true;venueTouched=true;s.date=item.date;s.venue=item.venue-1;s.race=item.race;setView('exhibit');render();},
        {date:today.slice(0,4)+'-'+today.slice(4,6)+'-'+today.slice(6,8),...selected});
      const expectedRows=Array.from({length:6},(_,i)=>{
       const lane=i+1,ex=preview.racers.find(v=>Number(v.lane)===lane),st=preview.start_exhibition.find(v=>Number(v.lane)===lane);
       if(!ex||!st)throw Error('LIVE_EXHIBITION_MISSING_LANE '+lane);
-      return {lane,text:'展示 '+ex.exhibition_time+'｜チルト '+ex.tilt+'｜進入 '+st.course+'コース｜展示ST '+st.st};
+      return {lane,time:String(ex.exhibition_time),tilt:String(ex.tilt),course:String(st.course)+'C',st:String(st.st)};
      });
-     await page.waitForFunction(key=>document.getElementById('forecastPreviewRows')?.children.length===6&&sameRaceKey()===key,expected,{timeout:12000});
-     const displayed=await page.locator('#forecastPreviewRows .clean-race-lane').allInnerTexts();
-     if(displayed.length!==6||expectedRows.some((row,i)=>!displayed[i].includes(row.text)))
-      throw Error('LIVE_EXHIBITION_DOM_MISMATCH '+JSON.stringify({expectedRows,displayed}));
+     await page.waitForFunction(key=>sameRaceKey()===key&&
+       document.querySelectorAll('#exhibitionGrid .exhibition-boat').length===6&&
+       (document.querySelector('#exhibitionGrid .muted')?.textContent||'').includes('取得記録は締切前'),
+       expected,{timeout:25000});
+     const displayed=await page.evaluate(()=>[...document.querySelectorAll('#exhibitionGrid .exhibition-boat')].map(el=>({
+       lane:Number(el.querySelector('.lane-badge')?.textContent),
+       metrics:Object.fromEntries([...el.querySelectorAll('.exhibition-metric')].map(m=>[
+         m.querySelector('span')?.textContent,m.querySelector('strong')?.textContent]))
+     })));
+     if(displayed.length!==6||expectedRows.some((row,i)=>{
+       const actual=displayed[i],m=actual?.metrics||{};
+       return actual?.lane!==row.lane||
+         m['展示タイム']!==row.time||m['チルト']!==row.tilt||
+         m['展示進入']!==row.course||m['展示ST']!==row.st;
+     }))throw Error('LIVE_EXHIBITION_DOM_MISMATCH '+JSON.stringify({expectedRows,displayed}));
      if(Date.now()>=deadline){
       console.log('LIVE_EXHIBITION_DISPLAY_AFTER_CUTOFF_NOT_A_PASS '+expected);
       continue;

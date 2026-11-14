@@ -1,81 +1,70 @@
-<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BOAT EDGE CLEAN｜購入候補・並行検証</title><style>body{margin:0;background:#f2f6fb;color:#18324d;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif}header{padding:15px;background:#0b3057;color:white}header a{color:#d9f6ff}main{max-width:900px;margin:auto;padding:12px}.panel{background:#fff;border:1px solid #d9e4ef;border-radius:12px;padding:16px;margin:12px 0}.panel h2{font-size:17px;margin:0 0 12px}.tabs{display:flex;flex-wrap:wrap;gap:7px}.tabs a{padding:9px;background:#e9f2fc;border-radius:7px;color:#164a80;text-decoration:none;font-weight:700}.mode-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:12px 0}.mode-tabs a{border:1px solid #b9d9ef;border-radius:8px;padding:10px 4px;text-align:center;text-decoration:none;font-size:12px;font-weight:800;background:#eff7ff;color:#22415f}.mode-tabs a[aria-current="page"]{background:#174e84;color:#fff;border-color:#174e84}.notes{font-size:13px;color:#64778c;line-height:1.6}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.card{border:1px solid #d7e3ee;border-radius:9px;padding:12px}.num{font-weight:900;font-size:24px}.metric{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #e7edf5}table{border-collapse:collapse;width:100%;font-size:13px}th,td{border-bottom:1px solid #e4ebf4;padding:11px 4px;text-align:right}th:first-child,td:first-child{text-align:left}th{white-space:nowrap} .scroll{overflow:auto} .alert{border-left:4px solid #e3a73a;padding:9px;background:#fff9ea}a{color:#155a9e}</style></head><body><header><strong>BOAT EDGE CLEAN</strong><div class="tabs" style="margin-top:12px"><a href="/">締切前3R・開催場</a><a href="/forecast">全レースの予想</a><a href="/results">結果</a><a href="/review">正式検証</a><a href="/selection" aria-current="page">購入候補・並行検証</a></div></header><main><section class="panel" id="todayCandidateRaces" aria-labelledby="todayCandidateHeading"><h2 id="todayCandidateHeading">本日の候補レース</h2><p id="todayCandidateDate" class="notes"></p><p id="candidateStatus" class="notes" role="status">本日の保存済み研究予想を確認中…</p><p class="notes">締切前の保存原本があるレースだけ、上位の3連単をそのまま掲載します。<strong>未検証の研究予想は購入推奨ではありません。</strong>過去の確定結果から作った研究候補を、本日の購入候補として表示することはありません。</p><div id="candidateCards" class="cards"></div><p class="notes">※締切時刻は保存済み日程の時刻です。購入前に公式締切とオッズを確認してください。</p></section><nav class="mode-tabs" aria-label="検証方法"><a href="/review">全レース検証</a><a href="/selection" aria-current="page">70%以上を選別</a><a href="/forecast">全レースの予想</a></nav><section class="panel"><h2>同一レースを使った参考比較</h2><p class="notes">保存済み予想を全件掲載し、70%以上の候補だけ別集計します。未較正の研究用試算であり、実際の購入推奨ではありません。</p><p id="status" role="status">検証済みデータを読み込み中…</p><div class="scroll"><table><thead><tr><th>選別ルール</th><th>対象</th><th>的中率</th><th>回収率</th><th>想定収支</th></tr></thead><tbody id="rows"></tbody></table></div><p id="meta" class="notes"></p><p id="skipCount" class="notes" role="status"></p><h2>ルール確定後の新規予想（別集計）</h2><p id="cohortStatus" class="notes">集計中…</p><p class="notes">全件・70%以上は、すべて同一の過去データから計算。的中率や回収率が良く見えても将来の利益は保証されません。レース前オッズの完全保存と新規レースでの検証が必要です。</p><section class="panel"><h2>確定レース別｜候補・見送りの答え合わせ</h2><p class="notes">保存済み事前予想と確定結果の両方が確認されたレースだけを表示。信頼度70%未満も照合結果を残します。</p><div class="scroll"><table><thead><tr><th>レース</th><th>信頼度</th><th>判定</th><th>確定3連単</th><th>20点照合</th></tr></thead><tbody id="raceAudit"></tbody></table></div></section></main><script>const todayJst=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());document.getElementById('todayCandidateDate').textContent='対象日（日本時間）：'+todayJst;const fmt=n=>n==null?'—':Number(n).toLocaleString('ja-JP');function cell(tr,value){const td=document.createElement('td');td.textContent=value;tr.append(td)}async function main(){const status=document.getElementById('status');try{const response=await fetch('/api/selection-research',{cache:'no-store',signal:AbortSignal.timeout(15000)});if(!response.ok)throw Error('検証データを取得できません');const d=await response.json();if(d.minimum_confidence!==0.7||d.below_minimum_policy!=='skip_selection_keep_forecast')throw Error('最低信頼度の設定が一致しません');if(d.schema!=='CLEAN_DUAL_RESEARCH_V1'||!d.selection_is_observational||!d.odds_free||d.prediction_publication_policy!=='all_races_unfiltered')throw Error('検証形式が一致しません');const tbody=document.getElementById('rows');for(const [key,label] of [['all','全レース'],['confidence_70','信頼度70%以上']]){const v=d.ledgers[key];if(!v)throw Error('検証結果が不足しています');const tr=document.createElement('tr');cell(tr,label);cell(tr,fmt(v.races)+'件');cell(tr,v.hit_rate_pct==null?'—':v.hit_rate_pct+'%');cell(tr,v.roi_pct==null?'—':v.roi_pct+'%');cell(tr,(v.profit_yen>0?'+':'')+fmt(v.profit_yen)+'円');tbody.append(tr)}if(d.skipped_below_70){document.getElementById('skipCount').textContent='信頼度70%未満で見送ったレース：'+fmt(d.skipped_below_70.races)+'件（研究上の購入費用0円）。予想と答え合わせは継続します。'}const after=d.cohorts?.post_policy;if(after){const a=after.all,b=after.confidence_70;document.getElementById('cohortStatus').textContent='ルール確定後に作成した予想：'+fmt(a.races)+'件／信頼度70%以上：'+fmt(b.races)+'件／的中：'+fmt(b.hits)+'件／回収率：'+(b.roi_pct==null?'集計対象なし':b.roi_pct+'%')+'。締切前の保存予想のみで算出。'}const audit=document.getElementById('raceAudit');for(const race of d.recent_verified_races||[]){const tr=document.createElement('tr');cell(tr,race.race_code);cell(tr,race.confidence_pct+'%');cell(tr,race.selection==='candidate'?'候補':'見送り');cell(tr,race.finish);cell(tr,race.research_20ticket_hit?'的中':'不的中');audit.append(tr)}status.textContent='研究データの読み込み完了';document.getElementById('meta').textContent='対象：保存・照合済み'+fmt(d.sample_races)+'レース｜1購入候補あたりの想定投資'+fmt(d.budget_per_selected_race_yen)+'円｜実購入ではありません'}catch(e){status.textContent='検証値を確認できません。正式予想は予想ページをご確認ください。';document.getElementById('meta').textContent=String(e.message||e)}}main();
-async function showTodayCandidates(){
- const status=document.getElementById('candidateStatus'),root=document.getElementById('candidateCards');
- const dateParts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).filter(p=>p.type!=='literal').map(p=>[p.type,p.value]));
- const code=dateParts.year+dateParts.month+dateParts.day;
- const date=code.slice(0,4)+'-'+code.slice(4,6)+'-'+code.slice(6);
- const rawBase='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/';
- const api='https://boat-edge-clean.onrender.com';
- const pad=x=>String(x).padStart(2,'0');
- const cleanText=x=>String(x??'').slice(0,120);
- const names=['桐生','戸田','江戸川','平和島','多摩川','浜名湖','蒲郡','常滑','津','三国','びわこ','住之江','尼崎','鳴門','丸亀','児島','宮島','徳山','下関','若松','芦屋','福岡','唐津','大村'];
- const timed=async url=>fetch(url,{cache:'no-store',signal:AbortSignal.timeout(15000)});
- try{
-  let races=[],snapshot=null;
-  try{const response=await timed(rawBase+'schedule_snapshots/'+code+'.json');if(response.ok)snapshot=await response.json()}catch(_){}
-  if(snapshot?.date===date&&snapshot.phase==='PRE_RESULT'&&snapshot.results_seen===false&&snapshot.unlock===false&&snapshot.scoring===false&&Array.isArray(snapshot.venues)){
-   races=snapshot.venues.flatMap(v=>(v.races||[]).map(r=>({venue:Number(v.jcd),race:Number(r.race_no),deadline:r.deadline})));
-  }else{
-   const response=await timed(api+'/api/clean-schedule?date='+code);
-   if(!response.ok)throw Error('開催日程を取得できません（HTTP '+response.status+'）');
-   const feed=await response.json();
-   if(feed.ok!==true||feed.date!==code||!Array.isArray(feed.races))throw Error('開催日程の検証に失敗しました');
-   races=feed.races.map(r=>({venue:Number(r.venue_code),race:Number(r.race_no),deadline:typeof r.deadline_jst==='string'?r.deadline_jst.slice(11,16):''}));
-  }
-  const upcoming=races.filter(r=>Number.isInteger(r.venue)&&r.venue>=1&&r.venue<=24&&Number.isInteger(r.race)&&r.race>=1&&r.race<=12&&/^\d{2}:\d{2}$/.test(r.deadline)&&Date.parse(date+'T'+r.deadline+':00+09:00')>Date.now()).sort((a,b)=>a.deadline.localeCompare(b.deadline)||a.venue-b.venue||a.race-b.race);
-  if(!upcoming.length){status.textContent='本日の締切前レースはありません。開催場一覧から別の日付を確認できます。';return}
-  // Probe all upcoming race keys in bounded parallel batches: a valid saved
-  // candidate may sit beyond the first 18 races. Never infer picks from results.
-  let checked=0,available=0,fetchFailures=0;
-  for(let start=0;start<upcoming.length&&available<6;start+=12){
-   const batch=upcoming.slice(start,start+12);
-   const records=await Promise.all(batch.map(async race=>{
-    const raceCode=code+pad(race.venue)+pad(race.race);
-    try{
-     const response=await fetch(rawBase+'prospective_predictions/'+raceCode+'.json',{cache:'no-store',signal:AbortSignal.timeout(4500)});
-     if(response.status===404)return null; // Missing archive, not a network failure.
-     if(!response.ok)return {fetchFailure:true};
-     return await response.json();
-    }catch(_){return {fetchFailure:true}}
-   }));
-   for(let i=0;i<batch.length&&available<6;i++){
-    const race=batch[i],pred=records[i];
-    const raceCode=code+pad(race.venue)+pad(race.race),limit=Date.parse(date+'T'+race.deadline+':00+09:00');
-    if(Date.now()>=limit)continue;
-    checked++;
-    if(!pred)continue;
-    if(pred.fetchFailure===true){fetchFailures++;continue}
-   // Fail closed before counting or showing tickets: a source received after
-   // the claimed generation time is not a verified pre-race prediction.
-   const isJstStamp=value=>typeof value==='string'&&
-     /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?\+09:00$/.test(value)&&Number.isFinite(Date.parse(value));
-   const tickets=pred?.predictions;
-   const times=['source_title_received_jst','source_cards_received_jst','generated_at','cutoff_jst','source_deadline_jst'];
-   const validTimes=times.every(key=>isJstStamp(pred?.[key]));
-   const titleReceived=Date.parse(pred?.source_title_received_jst);
-   const cardsReceived=Date.parse(pred?.source_cards_received_jst);
-   const generated=Date.parse(pred?.generated_at);
-   const cutoff=Date.parse(pred?.cutoff_jst);
-   const recordedDeadline=Date.parse(pred?.source_deadline_jst);
-   const structurallyValid=pred?.race_code===raceCode&&pred?.formal===false&&pred?.scoring===false&&
-     pred?.status==='prospective_candidate'&&Array.isArray(tickets)&&tickets.length>=1&&tickets.length<=10&&new Set(tickets).size===tickets.length&&
-     tickets.every(t=>/^[1-6]-[1-6]-[1-6]$/.test(t)&&new Set(t.split('-')).size===3)&&validTimes&&
-     recordedDeadline===limit&&limit-cutoff===12*60*1000&&
-     titleReceived<=generated&&cardsReceived<=generated&&generated<cutoff&&generated<=Date.now();
-   if(!structurallyValid)continue;
-   available++;
-   const card=document.createElement('article');card.className='card';
-   const title=document.createElement('strong');title.textContent=names[race.venue-1]+' '+race.race+'R｜締切 '+race.deadline;card.append(title);
-   const provenance=document.createElement('p');provenance.className='notes';provenance.textContent='研究予想・入力時刻の順序のみ検証（Git初回登録・遠隔初見・予測精度は未検証、購入判断に使用しないでください）';card.append(provenance);
-   const all=document.createElement('p');all.className='notes';all.textContent='保存済み3連単 '+tickets.length+'点：'+tickets.join(' ／ ');card.append(all);
-   const link=document.createElement('a');link.href=api+'/forecast?date='+date+'&venue='+race.venue+'&race='+race.race;link.textContent='このレースの予想・出走表・展示を見る';card.append(link);
-   root.append(card);
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BOAT EDGE CLEAN｜候補研究と予想・結果の履歴</title><style>body{margin:0;background:#f2f6fb;color:#18324d;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif}header{padding:15px;background:#0b3057;color:white}header a{color:#d9f6ff}main{max-width:900px;margin:auto;padding:12px}.panel{background:#fff;border:1px solid #d9e4ef;border-radius:12px;padding:16px;margin:12px 0}.panel h2{font-size:17px;margin:0 0 12px}.tabs{display:flex;flex-wrap:wrap;gap:7px}.tabs a{padding:9px;background:#e9f2fc;border-radius:7px;color:#164a80;text-decoration:none;font-weight:700}.mode-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:12px 0}.mode-tabs a{border:1px solid #b9d9ef;border-radius:8px;padding:10px 4px;text-align:center;text-decoration:none;font-size:12px;font-weight:800;background:#eff7ff;color:#22415f}.mode-tabs a[aria-current="page"]{background:#174e84;color:#fff;border-color:#174e84}.notes{font-size:13px;color:#64778c;line-height:1.6}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.card{border:1px solid #d7e3ee;border-radius:9px;padding:12px}.num{font-weight:900;font-size:24px}.metric{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #e7edf5}table{border-collapse:collapse;width:100%;font-size:13px}th,td{border-bottom:1px solid #e4ebf4;padding:11px 4px;text-align:right}th:first-child,td:first-child{text-align:left}th{white-space:nowrap} .scroll{overflow:auto} .alert{border-left:4px solid #e3a73a;padding:9px;background:#fff9ea}a{color:#155a9e}.history-list article{padding:12px;margin:8px 0;border:1px solid #c9ddeb;border-radius:9px}.history-list h3{margin:0 0 7px;font-size:15px}.history-list details{border-top:1px solid #e2ecf4;padding-top:7px;margin-top:7px}.history-list summary{font-weight:750;cursor:pointer}.history-list .hit{font-weight:800;color:#a82230}.history-list .miss{color:#526478}.history-controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:8px 0}.history-controls button,.history-controls input{padding:9px;min-height:42px;border:1px solid #b7d0e5;border-radius:7px;background:#f4f9ff}</style></head><body><header><strong>BOAT EDGE CLEAN</strong><div class="tabs" style="margin-top:12px"><a href="/">締切前3R・開催場</a><a href="/forecast">全レースの予想</a><a href="/results">結果</a><a href="/review">正式検証</a><a href="/selection" aria-current="page">候補研究・結果履歴</a></div></header><main><section class="panel" id="todayCandidateRaces" aria-labelledby="todayCandidateHeading"><h2 id="todayCandidateHeading">候補レース｜保存済み全件履歴</h2><p id="todayCandidateDate" class="notes"></p><p id="candidateStatus" class="notes" role="status">本日の保存済み研究予想を確認中…</p><p class="notes">保存済みの候補は締切後も残し、日付別に当時の研究買い目と確定結果を参照します。70%条件は実測的中率を示すものではありません。<strong>未検証の研究予想は購入推奨ではありません。</strong>過去の確定結果から作った研究候補を、本日の購入候補として表示することはありません。</p><div id="candidateCards" class="cards"></div><p class="notes">※締切時刻は保存済み日程の時刻です。購入前に公式締切とオッズを確認してください。</p></section><nav class="mode-tabs" aria-label="検証方法"><a href="/review">全レース検証</a><a href="/selection" aria-current="page">70%条件の検証</a><a href="/forecast">全レースの予想</a></nav><section class="panel"><h2>同一レースを使った参考比較</h2><p class="notes">70%は「1着候補上位2艇のモデル予測確率の合計」です。3連単の的中率70%ではありません。未較正の研究スコアによる選別結果と、確定結果による実測的中率を区別します。購入推奨ではありません。</p><p id="status" role="status">検証済みデータを読み込み中…</p><div class="scroll"><table><thead><tr><th>選別ルール</th><th>対象</th><th>的中率</th><th>回収率</th><th>想定収支</th></tr></thead><tbody id="rows"></tbody></table></div><p id="meta" class="notes"></p><p id="skipCount" class="notes" role="status"></p><h2>ルール確定後の新規予想（別集計）</h2><p id="cohortStatus" class="notes">集計中…</p><p class="notes">全件・70%以上は、すべて同一の過去データから計算。的中率や回収率が良く見えても将来の利益は保証されません。レース前オッズの完全保存と新規レースでの検証が必要です。</p><section class="panel"><h2>確定レース別｜候補・見送りの答え合わせ</h2><p class="notes">保存済み事前予想と確定結果の両方が確認されたレースだけを表示。信頼度70%未満も照合結果を残します。</p><div class="scroll"><table><thead><tr><th>レース</th><th>信頼度</th><th>判定</th><th>確定3連単</th><th>20点照合</th></tr></thead><tbody id="raceAudit"></tbody></table></div></section><section class="panel" id="savedPredictionHistory"><h2>保存済み4モード予想・確定結果の履歴</h2><p class="notes">締切前の保存予想と、別に保存された確定3連単・払戻をレースごとに残して表示します。初回Git登録・入力時刻まで独立証明できない記録は参考照合であり、正式的中率に計上しません。</p><div class="history-controls"><label for="savedHistoryDate">日付</label><input id="savedHistoryDate" type="date"><button type="button" id="savedHistoryLatest">最新日</button></div><p id="savedHistoryStatus" role="status" class="notes">保存履歴を取得中…</p><div id="savedHistoryCards" class="history-list"></div><button id="savedHistoryMore" type="button" hidden>次の8レースを見る</button></section></main><script>const todayJst=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());document.getElementById('todayCandidateDate').textContent='対象日（日本時間）：'+todayJst;const fmt=n=>n==null?'—':Number(n).toLocaleString('ja-JP');function cell(tr,value){const td=document.createElement('td');td.textContent=value;tr.append(td)}async function main(){const status=document.getElementById('status');try{const response=await fetch('/api/selection-research',{cache:'no-store',signal:AbortSignal.timeout(15000)});if(!response.ok)throw Error('検証データを取得できません');const d=await response.json();if(d.minimum_confidence!==0.7||d.below_minimum_policy!=='skip_selection_keep_forecast')throw Error('最低信頼度の設定が一致しません');if(d.schema!=='CLEAN_DUAL_RESEARCH_V1'||!d.selection_is_observational||!d.odds_free||d.prediction_publication_policy!=='all_races_unfiltered')throw Error('検証形式が一致しません');const tbody=document.getElementById('rows');for(const [key,label] of [['all','全レース'],['confidence_70','1着候補2艇の予測確率合計70%以上']]){const v=d.ledgers[key];if(!v)throw Error('検証結果が不足しています');const tr=document.createElement('tr');cell(tr,label);cell(tr,fmt(v.races)+'件');cell(tr,v.hit_rate_pct==null?'—':v.hit_rate_pct+'%');cell(tr,v.roi_pct==null?'—':v.roi_pct+'%');cell(tr,(v.profit_yen>0?'+':'')+fmt(v.profit_yen)+'円');tbody.append(tr)}if(d.skipped_below_70){document.getElementById('skipCount').textContent='信頼度70%未満で見送ったレース：'+fmt(d.skipped_below_70.races)+'件（研究上の購入費用0円）。予想と答え合わせは継続します。'}const after=d.cohorts?.post_policy;if(after){const a=after.all,b=after.confidence_70;document.getElementById('cohortStatus').textContent='ルール確定後に作成した予想：'+fmt(a.races)+'件／1着候補2艇の予測確率合計70%以上：'+fmt(b.races)+'件／的中：'+fmt(b.hits)+'件／回収率：'+(b.roi_pct==null?'集計対象なし':b.roi_pct+'%')+'。締切前の保存予想のみで算出。'}const audit=document.getElementById('raceAudit');for(const race of d.recent_verified_races||[]){const tr=document.createElement('tr');cell(tr,race.race_code);cell(tr,race.confidence_pct+'%');cell(tr,race.selection==='candidate'?'候補':'見送り');cell(tr,race.finish);cell(tr,race.research_20ticket_hit?'的中':'不的中');audit.append(tr)}status.textContent='研究データの読み込み完了';document.getElementById('meta').textContent='対象：保存・照合済み'+fmt(d.sample_races)+'レース｜1購入候補あたりの想定投資'+fmt(d.budget_per_selected_race_yen)+'円｜実購入ではありません'}catch(e){status.textContent='検証値を確認できません。正式予想は予想ページをご確認ください。';document.getElementById('meta').textContent=String(e.message||e)}}main();
+const savedHistoryState={rows:[],day:'',shown:0,token:0};
+const savedHistoryBase='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/';
+const savedHistoryNames=['桐生','戸田','江戸川','平和島','多摩川','浜名湖','蒲郡','常滑','津','三国','びわこ','住之江','尼崎','鳴門','丸亀','児島','宮島','徳山','下関','若松','芦屋','福岡','唐津','大村'];
+const savedHistoryMoney=v=>Number.isFinite(v)&&v>=0?v.toLocaleString('ja-JP')+'円':'未確認';
+const savedHistoryElement=(tag,text,className)=>{const e=document.createElement(tag);e.textContent=text||'';if(className)e.className=className;return e;};
+async function savedHistoryRender(){
+ const st=savedHistoryState,token=++st.token;
+ const status=document.getElementById('savedHistoryStatus'),root=document.getElementById('savedHistoryCards'),more=document.getElementById('savedHistoryMore');
+ const rows=st.rows.filter(r=>r.race_code.slice(0,8)===st.day.replaceAll('-',''));
+ if(st.shown===0)root.replaceChildren();
+ const batch=rows.slice(st.shown,st.shown+8);
+ if(!batch.length){status.textContent=rows.length?'対象日 '+st.day+' の保存履歴 '+rows.length+'件を表示済み':'この日には照合できる保存予想・結果がありません。結果未取得を不的中扱いしません。';more.hidden=true;return;}
+ status.textContent='対象日 '+st.day+'｜'+rows.length+'レース中、保存原本を照合中…';
+ const loaded=await Promise.all(batch.map(async r=>{
+  try{
+   const res=await fetch(savedHistoryBase+'four_mode_forecasts/'+r.race_code+'.json',{cache:'no-store',signal:AbortSignal.timeout(12000)});
+   if(!res.ok)return {r,a:null};
+   const a=await res.json();
+   if(a.schema!=='CLEAN_FOUR_MODES_PREDEADLINE_V1'||a.race_code!==r.race_code||
+     !Number.isFinite(Date.parse(a.generated_at_jst))||!Number.isFinite(Date.parse(a.deadline_jst))||
+     Date.parse(a.generated_at_jst)>=Date.parse(a.deadline_jst))return {r,a:null};
+   return {r,a};
+  }catch(_){return {r,a:null}}
+ }));
+ if(token!==st.token)return;
+ for(const {r,a} of loaded){
+  const article=savedHistoryElement('article'),code=r.race_code;
+  const venue=Number(code.slice(8,10)),race=Number(code.slice(10,12));
+  article.append(savedHistoryElement('h3',code.slice(0,4)+'/'+code.slice(4,6)+'/'+code.slice(6,8)+'　'+(savedHistoryNames[venue-1]||'場不明')+race+'R'));
+  article.append(savedHistoryElement('p','確定3連単 '+r.finish+' ／ 100円あたり '+savedHistoryMoney(r.payout_per_100_yen),'hit'));
+  if(!a)article.append(savedHistoryElement('p','予想原本を読み込めません。結果だけで予想を作り直しません。','notes'));
+  else{
+   article.append(savedHistoryElement('p','予想原本の生成記録 '+a.generated_at_jst+'｜Git初回時刻は別途監査','notes'));
+   for(const [mode,label] of [['hit','本命'],['balance','バランス'],['hole','穴'],['narrow','絞り']]){
+    const tickets=a.modes?.[mode]?.tickets,outcome=r.modes?.[mode];
+    if(!Array.isArray(tickets)||!tickets.length||!tickets.every(t=>/^([1-6]-){2}[1-6]$/.test(t?.combo)&&new Set(t.combo.split('-')).size===3&&Number.isFinite(t.p)&&t.p>=0)||typeof outcome?.hit!=='boolean')continue;
+    const d=document.createElement('details'),summary=savedHistoryElement('summary',label+'｜'+(outcome.hit?'的中':'不的中')+'｜保存済み'+tickets.length+'点');
+    d.append(summary,savedHistoryElement('p','想定払戻 '+savedHistoryMoney(outcome.return_yen),outcome.hit?'hit':'miss'));
+    d.append(savedHistoryElement('p',tickets.map(t=>t.combo+' ('+t.p.toFixed(2)+'%)').join(' ／ '),'notes'));
+    article.append(d);
    }
   }
-  status.textContent=available?'締切前に保存された研究予想 '+available+'レース表示（候補の的中率順位・購入推奨ではありません）'+(fetchFailures?'／通信未確認 '+fetchFailures+'件':''):
-   fetchFailures?'締切前の開催レース '+upcoming.length+'件を探索しましたが、通信未確認が'+fetchFailures+'件あります。候補なしとは断定できません。':
-   '締切前の開催レース '+upcoming.length+'件を確認しましたが、安全に表示できる保存済み研究予想はありません。';
- }catch(error){status.textContent='本日の候補を取得できません：'+cleanText(error?.message||'通信エラー')+'。開催場一覧からレースを直接選択できます。'}
+  const link=savedHistoryElement('a','このレースの予想と結果を見る');
+  link.href='https://boat-edge-clean.onrender.com/forecast?date='+code.slice(0,4)+'-'+code.slice(4,6)+'-'+code.slice(6,8)+'&venue='+venue+'&race='+race;
+  article.append(link);root.append(article);
+ }
+ st.shown+=batch.length;more.hidden=st.shown>=rows.length;
+ status.textContent='対象日 '+st.day+'｜保存済み'+rows.length+'レース中'+st.shown+'件表示（参考照合・正式的中率ではありません）';
 }
-showTodayCandidates();
-</script></body></html>
+async function savedHistoryInit(){
+ const status=document.getElementById('savedHistoryStatus');
+ try{
+  const res=await fetch(savedHistoryBase+'four_mode_performance/history-10000.json',{cache:'no-store',signal:AbortSignal.timeout(15000)});
+  if(!res.ok)throw Error('履歴の取得に失敗しました：HTTP '+res.status);
+  const h=await res.json();
+  if(h.schema!=='CLEAN_VERIFIED_FOUR_MODE_HISTORY_V1'||!Array.isArray(h.races))throw Error('履歴の形式が異なります');
+  savedHistoryState.rows=h.races.filter(r=>/^20\d{10}$/.test(r.race_code)&&/^([1-6]-){2}[1-6]$/.test(r.finish)&&Number.isFinite(r.payout_per_100_yen)).sort((a,b)=>b.race_code.localeCompare(a.race_code));
+  if(!savedHistoryState.rows.length){status.textContent='まだ確定結果と照合済みの保存予想はありません。';return}
+  const code=savedHistoryState.rows[0].race_code,latest=code.slice(0,4)+'-'+code.slice(4,6)+'-'+code.slice(6,8);
+  const input=document.getElementById('savedHistoryDate');input.value=latest;input.max=latest;savedHistoryState.day=latest;
+  input.addEventListener('change',()=>{savedHistoryState.day=input.value;savedHistoryState.shown=0;void savedHistoryRender()});
+  document.getElementById('savedHistoryLatest').addEventListener('click',()=>{input.value=latest;savedHistoryState.day=latest;savedHistoryState.shown=0;void savedHistoryRender()});
+  document.getElementById('savedHistoryMore').addEventListener('click',()=>void savedHistoryRender());
+  void savedHistoryRender();
+ }catch(e){status.textContent='保存予想・確定結果の取得に失敗しました：'+String(e.message||e).slice(0,110);}
+}
+void savedHistoryInit();
+
+</script><script src="/candidate_history.js"></script></body></html>

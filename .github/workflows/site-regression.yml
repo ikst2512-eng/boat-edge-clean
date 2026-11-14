@@ -7,6 +7,12 @@ on:
       - tests/site-regression.cjs
       - tests/test_prospective_receipt_order.py
       - server.py
+      - legacy_scenario_engine.py
+      - test_legacy_scenario_engine.py
+      - tests/test_four_mode_archive_cors_hotfix.py
+      - entry_course_t12_seed.py
+      - research_model.py
+      - tests/test_entry_course_t12_seed.py
       - tests/audit_workflow_paths.py
       - .github/workflows/site-regression.yml
       - .github/workflows/deploy-pages.yml
@@ -18,6 +24,12 @@ on:
       - tests/site-regression.cjs
       - tests/test_prospective_receipt_order.py
       - server.py
+      - legacy_scenario_engine.py
+      - test_legacy_scenario_engine.py
+      - tests/test_four_mode_archive_cors_hotfix.py
+      - entry_course_t12_seed.py
+      - research_model.py
+      - tests/test_entry_course_t12_seed.py
       - tests/audit_workflow_paths.py
       - .github/workflows/site-regression.yml
       - .github/workflows/deploy-pages.yml
@@ -41,6 +53,39 @@ jobs:
           node tests/site-regression.cjs 2>&1 | tee test-results/site-regression.log
       - name: Verify archived research source receipt ordering
         run: python3 -m unittest discover -s tests -p 'test_prospective_receipt_order.py' -v
+      - name: Verify restored scenario engine and immutable V2 comparison
+        run: python3 -m unittest -v test_legacy_scenario_engine test_forecast_strategy_contract
+      - name: Verify real local HTTP CORS and Render deploy revision header
+        run: python3 -m unittest discover -s tests -p 'test_four_mode_archive_cors_hotfix.py' -v
+      - name: Observe actual Render deploy commit (read-only; not a publish claim)
+        if: github.event_name == 'push'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          headers="$(mktemp)"
+          trap 'rm -f "$headers"' EXIT
+          if ! curl --silent --show-error --fail --location --head --max-time 18             "https://boat-edge-clean.onrender.com/healthz" -o "$headers"; then
+            echo "RENDER_DEPLOY_COMMIT_UNVERIFIED reason=health_http_unavailable"
+            echo "::warning::Render health HTTP unavailable; backend revision unverified"
+            exit 1
+          fi
+          revision="$(awk -F': *' 'tolower($1)=="x-boat-edge-deploy-commit" {gsub(/\r/,"",$2); print tolower($2)}' "$headers" | tail -n 1)"
+          if [[ ! "$revision" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "RENDER_DEPLOY_COMMIT_UNVERIFIED reason=header_missing_or_invalid"
+            echo "::warning::Render runtime has not provided a valid deployed commit SHA"
+            exit 1
+          fi
+          echo "RENDER_DEPLOY_COMMIT_OBSERVED $revision"
+          echo "RENDER_MAIN_SHA_CHECKED $GITHUB_SHA"
+          if [ "$revision" = "$GITHUB_SHA" ]; then
+            echo "RENDER_DEPLOY_EQUALS_MAIN_PASS $revision"
+          else
+            echo "RENDER_DEPLOY_BEHIND_OR_DIFFERENT_MAIN $revision"
+            echo "::warning::Published Render runtime revision differs from current test SHA; not claiming backend deployment parity"
+          fi
+      - name: Verify fresh T-12 generation preserves immutable research originals
+        run: python3 -m unittest discover -s tests -p 'test_entry_course_t12_seed.py' -v
       - name: Audit all CLEAN workflow path filters
         run: python3 tests/audit_workflow_paths.py
       - name: Upload regression evidence

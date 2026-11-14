@@ -1,0 +1,95 @@
+{
+  "schema": "entry-t12-manual-evidence-snapshot-v1",
+  "note": "Recorded read-only from full UTC-day GitHub REST event-filtered inventory at 2026-11-10 17:40 JST. Action run creation is not job/step execution, original source receipt, immutable first add, or formal T-12 proof. The nine race deadlines are from T-2 expected_schedule published title and nine ledger absences are from a recursive evidence-branch tree.",
+  "date_jst": "20261110",
+  "observed_at_jst": "2026-11-10T17:40:00+09:00",
+  "run_inventory_complete": true,
+  "event_types_checked": [
+    "schedule",
+    "workflow_dispatch"
+  ],
+  "ledger_inventory_complete": true,
+  "ledger_present_race_codes": [],
+  "races": [
+    {
+      "race_code": "202611100406",
+      "source_deadline_jst": "2026-11-10T13:09:00+09:00"
+    },
+    {
+      "race_code": "202611101010",
+      "source_deadline_jst": "2026-11-10T13:11:00+09:00"
+    },
+    {
+      "race_code": "202611101406",
+      "source_deadline_jst": "2026-11-10T13:07:00+09:00"
+    },
+    {
+      "race_code": "202611101108",
+      "source_deadline_jst": "2026-11-10T13:43:00+09:00"
+    },
+    {
+      "race_code": "202611102207",
+      "source_deadline_jst": "2026-11-10T13:41:00+09:00"
+    },
+    {
+      "race_code": "202611100911",
+      "source_deadline_jst": "2026-11-10T15:34:00+09:00"
+    },
+    {
+      "race_code": "202611101712",
+      "source_deadline_jst": "2026-11-10T15:33:00+09:00"
+    },
+    {
+      "race_code": "202611101412",
+      "source_deadline_jst": "2026-11-10T16:15:00+09:00"
+    },
+    {
+      "race_code": "202611101903",
+      "source_deadline_jst": "2026-11-10T16:12:00+09:00"
+    }
+  ],
+  "runs": [
+    {
+      "id": 42753422347,
+      "event": "workflow_dispatch",
+      "created_at": "2026-11-10T04:03:54Z",
+      "workflow_id": 405663641,
+      "head_branch": "main"
+    },
+    {
+      "id": 42756909257,
+      "event": "workflow_dispatch",
+      "created_at": "2026-11-10T04:36:13Z",
+      "workflow_id": 405663641,
+      "head_branch": "main"
+    },
+    {
+      "id": 42762482591,
+      "event": "schedule",
+      "created_at": "2026-11-10T05:29:50Z",
+      "workflow_id": 405663641,
+      "head_branch": "main"
+    },
+    {
+      "id": 42768846588,
+      "event": "workflow_dispatch",
+      "created_at": "2026-11-10T06:29:30Z",
+      "workflow_id": 405663641,
+      "head_branch": "main"
+    },
+    {
+      "id": 42773188811,
+      "event": "workflow_dispatch",
+      "created_at": "2026-11-10T07:08:17Z",
+      "workflow_id": 405663641,
+      "head_branch": "main"
+    },
+    {
+      "id": 42782606537,
+      "event": "workflow_dispatch",
+      "created_at": "2026-11-10T08:26:08Z",
+      "workflow_id": 405663641,
+      "head_branch": "main"
+    }
+  ]
+}

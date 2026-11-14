@@ -4,7 +4,8 @@ Prioritize races that still have enough time to establish the API receipt
 before the T-12 limit. Candidates lacking preview data remain eligible to
 diagnose missing upstream sources. Never label any candidate as T-12 proven.
 """
-from datetime import timedelta
+from datetime import datetime, timedelta
+import re
 
 
 def t12_window_open(deadline, now, margin_minutes=12):
@@ -80,3 +81,43 @@ def fresh_candidates_at_selection(candidates, selection_now, min_minutes=2):
         else:
             expired.append((deadline,code))
     return eligible,expired
+
+
+def verified_csv_pair_receipts(before_audit, deadline, api_received_at):
+    """Classify a genuine tkz+stt pair without confusing an official fallback.
+
+    A complete official beforeinfo response may prove six exhibition readings,
+    but its single 'official' receipt is not two independent CSV observations.
+    Return (times, problems) so the caller can keep exhibition verification
+    separate from the strict T-12 two-source eligibility check.
+    """
+    if deadline.tzinfo is None or api_received_at.tzinfo is None:
+        raise ValueError("csv_pair_clock_timezone_missing")
+    sources=before_audit.get("sources") if isinstance(before_audit,dict) else None
+    if not isinstance(sources,dict):
+        sources={}
+    observed_times={}
+    problems=[]
+    for kind in ("tkz","stt"):
+        receipt=sources.get(kind)
+        if not isinstance(receipt,dict):
+            problems.append(kind+":source_receipt_missing")
+            continue
+        raw=receipt.get("observed_at")
+        if not isinstance(raw,str) or not raw.strip():
+            problems.append(kind+":observed_at_missing")
+            continue
+        try:
+            observed=datetime.fromisoformat(raw)
+        except ValueError:
+            problems.append(kind+":observed_at_invalid")
+            continue
+        if observed.tzinfo is None or observed>api_received_at or observed>=deadline:
+            problems.append(kind+":observed_at_not_predeadline")
+            continue
+        sha=receipt.get("sha256")
+        if not isinstance(sha,str) or re.fullmatch(r"[a-fA-F0-9]{64}",sha) is None:
+            problems.append(kind+":sha256_missing_or_invalid")
+            continue
+        observed_times[kind]=observed
+    return observed_times,problems

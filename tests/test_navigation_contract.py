@@ -67,8 +67,40 @@ class NavigationContractTest(unittest.TestCase):
             self.assertIn("['" + {"forecast": "予想", "card": "出走表",
                                    "exhibit": "展示・直前", "result": "結果"}[view]
                           + "','" + view + "']", self.nav)
+        self.assertNotIn("['連対率','stats']", self.nav)
+        self.assertIn("view==='card'&&typeof setRaceCardPane==='function'", self.nav)
+        self.assertIn("['出走表','card']", self.nav)
         self.assertIn("async function loadPredictions", self.index)
         self.assertIn("function openCleanListTab", self.index)
+
+    def test_forecast_tickets_and_racecard_stats_are_separate(self):
+        """The four main tabs remain; rates are a subtab of the race card."""
+        card_start = self.index.index('<section class="box" id="raceDataSection"')
+        card_end = self.index.index('<section class="box forecast-quick"', card_start)
+        stats_start = self.index.index('<section class="race-card-stats-pane"', card_start)
+        forecast_start = self.index.index('<section class="box" id="forecast"')
+        card_stats = self.index[stats_start:card_end]
+        forecast = self.index[forecast_start:]
+        self.assertLess(card_start, stats_start)
+        self.assertLess(stats_start, card_end)
+        self.assertLess(card_end, forecast_start)
+        self.assertIn('id="raceCardCore"', self.index[card_start:stats_start])
+        self.assertIn('data-race-card-pane="card"', self.index[card_start:stats_start])
+        self.assertIn('data-race-card-pane="rates"', self.index[card_start:stats_start])
+        for required in ('forecast-statistics', 'forecastLeaderRows',
+                         'entryScenarioPanel', 'legacyTopnResearch',
+                         'forecast-inline-evidence', 'forecastQuinellaRows'):
+            self.assertIn(required, card_stats)
+            self.assertNotIn('id="' + required + '"', forecast)
+        self.assertIn('id="fourModeForecastRows"', forecast)
+        self.assertIn("function setRaceCardPane(pane)", self.index)
+        self.assertIn("view==='card'&&raceCardPane==='rates'", self.index)
+        self.assertIn("v.pane==='rates'?'rates':'card'", self.nav)
+        self.assertIn("if(next.view==='card'&&next.pane==='rates')", self.nav)
+        self.assertIn("restoreNavigationLocation(url,state)", self.nav)
+        self.assertIn('全国・当地・モーター・ボートの2連対率', card_stats)
+        self.assertIn("const raceCardValid=raw.race_key===key", self.index)
+        self.assertIn("value.toFixed(1)+'%':'未取得'", self.index)
 
     def test_prediction_shortcut_resets_nested_forecast_tab(self):
         self.assertIn("view==='forecast'&&typeof setForecastPane==='function'", self.nav)
@@ -94,8 +126,8 @@ class NavigationContractTest(unittest.TestCase):
         self.assertIn("レース選択へ", self.secondary)
         self.assertIn(".site-head .header-candidate-tab", self.nav)
 
-    def test_pages_candidate_route_is_render_and_keeps_origin(self):
-        self.assertIn("selection.href='https://boat-edge-clean.onrender.com/selection'",self.nav)
+    def test_pages_candidate_history_stays_on_pages(self):
+        self.assertIn("selection.href='/boat-edge-clean/candidates.html'",self.nav)
         self.assertIn("document.querySelector('.site-head .header-candidate-tab[href=", self.nav)
         self.assertIn("destination.origin===location.origin?destination.pathname+destination.search:destination.href",self.nav)
 

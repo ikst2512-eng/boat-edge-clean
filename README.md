@@ -1,5 +1,112 @@
 # BOAT EDGE CLEAN — 固定画面テンプレート
 
+> **最優先・2026-11-14オーナー再確認**：このリポジトリの目標は **①公式/開催場/実コース/今節/機力/展示/水面の有効情報を実際に消費する展開予想 ②BOAT RACEを参考にした説明文の少ない4タブのモバイルサイト ③毎日全開催を母数にした締切前保存→結果/払戻→最有力モデルと研究候補の比較検証 ④サイト/データの自動更新と、厳格な昇格ゲート付き自動改善**。日々の成功条件・データ不足時の扱い・不要コード削除基準は **[AGENTS.md「P0最優先：2026-11-14」](AGENTS.md)** を全トーク共通正本とする。現行固定V127/V133 3/10/12/穴15・18・20は、300+300と明示承認まで無断変更禁止。過去の方針やPR数中心の進捗よりこの契約を優先。研究PR/CIの成功≠本番・精度成功。
+
+
+## P0 最新引継ぎ（2026-11-14 20:25 JST）：V127/V133を無断変更禁止・全トーク共通
+
+**ユーザーの最優先指示：今のV127/V133展開重視予想と点数（絞り3／本命10／バランス12／穴15・18・20）を固定。** 現行モデルは `V127_V133_BALANCE12_HOLE15_18_20_REFERENCE_V2`。元の買い目の確率順位・展開分岐・旧保存原本・V2比較を勝手に変更しない。他トークはUI/取得/保存/結果/研究に専念し、モデル変更は**実際に有力な研究候補が将来300+独立300レースで優位を示して、ユーザーが明示承認した場合のみ**。
+
+**技術的ロック**： [AGENTS.md §P0](AGENTS.md) と [active_forecast_lock](research/active_forecast_lock_20261114.json)、`test_active_forecast_lock.py`、PR・pushの専用CI `active-forecast-lock.yml` と改ざん耐性のあるベース側 `active-forecast-protected-pr.yml`。既存 `four-mode-prospective-capture.yml` のpublication前テストにも接続。コードと運用契約はPR/CI/mergeごとに検証し、**チェックを飛ばして予想エンジンを差し替えない**。
+
+**独立精度の状況**：11/14現在、#1769の新点数は本番APIで3/10/12/15の実予想を確認。#1771で新規V133予想の将来write-once保存経路、#1772でGitHub APIバイト読み戻し監査を追加。**本番の新 `v133_policy_forecasts/` 初回Git追加・正式T−12・独立300+300・精度向上は未認定**。数値が良くなった・購入推奨できる、と断定しない。
+
+**管理者の必須作業**：リポジトリのmainブランチ保護／Rulesetsで、モデルロックのPRチェックを必須・レビュー必須・直接push禁止に設定するまで、CIは検知であって物理的な全面禁止にはならない。実行環境はbranch protection APIが403で権限不足、Rulesetsは参照時点で空。**他トークがGitHubを参照できる場合は必ず最初にこの節を確認し、Issue #1708にも差分を記録する。**
+
+
+## 30日完成ロードマップ（2026-11-10決定）
+**目標：2026年12月10日（木）までに BOAT EDGE CLEAN V1 を実際の公開サイトで完成させる。** 着手日11月10日・30日間。最終期限は「研究PRを作った日」ではなく **GitHub Pages／Renderで公開機能が動作し、利用者の操作を検証した日**。期限設定は目標であり、実装完了を保証する宣言ではない。
+
+| 公開ゲート | 期限 | 本番で実際に使える状態（未達なら未完了） | 主担当 |
+| --- | --- | --- | --- |
+| 阻害要因整理 | **11/13（金）** | #1707のCI・競合・UI仕様、#1703履歴、実データ欠落の阻害項目を分類し、既存修正を優先 | ①サイト／②予想／③収集 |
+| 予想・出走表のUI公開 | **11/20（金）** | 4主タブ、出走表内の連対率サブタブ、買い目中心の予想、スマホ幅、選択/戻る/進むが公開URLで動く | **①サイト** |
+| 消えない候補・予想・結果 | **11/24（火）** | #1703の必要機能を重複なく統合し、過去日を選べて締切済み全候補の保存原本・買い目・結果/払戻を確認できる | **①サイト＋③収集** |
+| 6艇展示・24場選択 | **12/1（火）** | 全国24場/1〜12R、公式展示・スタート展示・オリ展を1〜6艇の同じ比較表へ。非提供/未公開/取得失敗は区別 | **①サイト＋③収集** |
+| 収集・結果照合の安定化 | **12/4（金）** | Actions・Render・Pagesの障害、CORS、保存欠落、候補70%の誤表記を検査。重大未解決P0なし | **③収集＋①サイト、②検証** |
+| 公開総合QA／整理 | **12/5〜9** | 公開URLのスマホ幅Chromium/WebKit、できれば実機Safari、データ原本・履歴・予想・結果・ナビの最終試験。不要物は参照確認後のみ整理 | **①最終責任、②③支援** |
+| **V1完成判定** | **12/10（木）** | Pages/Render/mainの反映SHA・公開ブラウザ操作の証拠・機能別合否・残障害を報告。未達は完成扱いしない | **①サイト最終責任** |
+
+**3トーク分担**：①サイト制作・本番反映＝唯一の本番統合担当。②競艇予想精度改善＝4モード/展開/確率の独立検証（未検証の新モデルは本番投入しない）。③データ収集・保存＝公式/オリ展/T−12の収集、監視、原本と結果の永続保存。どの担当も作業開始時に最新GitHub・PR・Actions・公開URLを再照合する。
+
+**遅延時の優先順位**：11/20または11/24の公開ゲートに間に合わなければ、装飾・追加研究・新PRより本番P0/P1復旧に集中。原本/証拠の削除や後付け予想で見かけ上の完成を作らない。**V1公開期限と、将来の「70%実測的中率」や独立600件の精度実証は別**（精度目標は未立証）。
+
+詳細な受入要件・日別責任・削除基準は [AGENTS.md §6](./AGENTS.md#6-30日完成期限と公開工程ユーザー指定2026-11-10) を正本とする。
+
+## 最新の引継ぎ：本番の実態／次にやること
+
+**最新スナップショット：2026-11-11 19:00 JST（以降の過去記録より優先）**
+- **修正版Render稼働＋本番公式24/24＋証拠Artifactまで確認**：CSV直前情報の展示STが`-0.06`を`F.06`、`0.1`を`.10`と表示する必要は[上流BoatraceCSV仕様](https://boatracecsv.github.io/docs/data/previews.html)に基づく。main [`450f2db4`](https://github.com/ikst2512-eng/boat-edge-clean/commit/450f2db450a50f84ea766339e3c96a95b117144e) の初実装の正規表現エスケープ不備は [`1435ac86`](https://github.com/ikst2512-eng/boat-edge-clean/commit/1435ac863bf8609fba9acc78029d52b0ef3f0b6e) で修正し、後者の実CI [27/27](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42999167497)・[45/45](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42999167308)ともPASS。正規表現が壊れていた旧runの失敗を成功扱いしない。生CSVのSHAと締切前受領、レース同一性、正式認定条件は不変。
+- **Render実修正版SHAをHTTPで初確認**：[公式LIVE Actions #42999469293](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42999469293) 18:57 JSTでRender`/healthz`から稼働SHA `1435ac863bf8609fba9acc78029d52b0ef3f0b6e`を事前HEADと事後GETで観測。下関9R `202611111909`（締切19:04）公式受領18:57:27.303/Render18:57:28.709/公開Pages Chromium表示18:57:29.707 JST、展示タイム/チルト/展示ST/進入**6艇×4=24/24 LIVE全値一致**。独立証拠Artifact `official-live-e2e-decision-42999469293` / ID `13844424899` も実保存。これで確認済みは**3開催場・6レース**（下関6/7/9R・蒲郡8/9R・大村8R）。ただしこの成功レースで**CSV代替経路が実際に使用されたとは未証明**。公式取得とPages一致、Render補正コード実配備、CSV変換による本番改善の因果は区別。
+- **公式照合の再発防止**：[main `3e3d6316`](https://github.com/ikst2512-eng/boat-edge-clean/commit/3e3d6316cfe59258fec6a07b9bfe200f92e17053)で既存`.github/workflows/verify-real-beforeinfo.yml`のmain push pathsに`clean_racecard.py`を追加。今後backendプレビュー変更時も厳格24値LIVE診断（pushでは診断、固定`schedule`/dispatchはhard gate）。新Cronなし。別の[main `d36ead40`](https://github.com/ikst2512-eng/boat-edge-clean/commit/d36ead40a8c4e3b8813c43256196e4092ab15dd6)で証拠ファイル欠落ならCI FAILを固定済み。**19:35 JSTの本来のschedule実行はまだ未認定**。
+- **研究原本の実数（19:00頃照会）**：独立Git `t12_baselines/20261111/` **41件**、`waku10/20261111/` **4件**。T−2新規の蒲郡9R（凍結18:51:11.489/締切18:52）・下関9R（凍結18:58:09.148/締切19:02）は既存台帳に初回1コミットで実保存、研究のみ`formal=false`, `independent_remote_first_seen_verified=false`。**正式T−12認定0、独立300+300精度検証は未完**。詳細は [共通作業Issue #43](https://github.com/ikst2512-eng/boat-edge-clean/issues/43#issuecomment-6792825446)。次は19:35 JSTの実`schedule`run ID／24値／証拠Artifact／Render SHA、19:40〜19:59救済、20:15既存監査。
+- **別の実レースで公式24値LIVE完全一致が再現**：[Action #42989974056](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42989974056) `push`本番診断SUCCESS、下関7R `202611111907`（18:04締切）の公式→公開Render API→実Pages可視DOMの**展示タイム/チルト/ST/進入 6艇×4=24/24全値一致**。公式HTTP17:48:53.186 JST、Render HTTP17:48:53.891、公開Pages DOM比較17:48:55.060。生ログ`LIVE_OFFICIAL_PAGES_E2E_EVIDENCE`と`LIVE_OFFICIAL_PAGES_E2E_PASS`。同日下関6Rの2回と合わせて**同じ下関の2レース・3回PASS**。蒲郡7R `202611110707`は同runで`public_api_missing_verified_six`となり未認定。**異なる2会場での実証とは言わない**。正式T12とは別。
+- **Render稼働SHAが実HTTPで判明**：[main `6e82b4d2`](https://github.com/ikst2512-eng/boat-edge-clean/commit/6e82b4d214da45dba030bce19b09886d36dcf765)でE2E後の`GET /healthz`診断を追加。同じ[実Action #42989974056](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42989974056)の事前HEADと事後GETで `X-Boat-Edge-Deploy-Commit=e3026fce4f102406d2f12e0be4ddebf338448b5d` を双方確認。検証run head `6e82b4d2` と**不一致**。これにより「SHA未取得」から「実観測した旧版へのデプロイ遅れ」へ状態を明確化。**本番データ24値の一致は成功**だが、最新mainと同じbackendへの切替は引き続き未確認。Renderの内部デプロイ原因は断定しない。
+- **T−2研究の実Git保存2件目**：[Action #42987500289](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42987500289) 研究原本`waku10/20261111/202611111906.json`（下関6R）新規1件。実原本`frozen_at=17:33:05.675 JST`、cutoff17:35、初回Gitコミット[`73729530`](https://github.com/ikst2512-eng/boat-edge-clean/commit/73729530e371eb4fbe4f1e0a8e636981afb710b7)17:33:06 JST。6艇コース別走数8/9/10/10/10/8、研究120順位×3方式、`formal=false`。別のT−2新規は蒲郡6R。**実保存ができたことと、モデル的中・正式T−12・GitHub独立server first-seenは区別**。
+- **11/11研究Git台帳**：`t12_baselines/20261111/` は照会時**36件**（全件新たに正式監査済みという意味ではない）。17:30 T−12 [Action #42987497567](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42987497567)は蒲郡7R `202611110707`研究原本新規1件と初回readback SHA256一致。正式T12=0、4モード独立精度300+300=0/600。詳細は[共通Issue #43](https://github.com/ikst2512-eng/boat-edge-clean/issues/43#issuecomment-6791464134)。
+- **公式展示24値の実LIVE完全一致を初確認**：既存 `verify-real-beforeinfo.yml` に自己ファイル変更時のみ走るpush診断を追加した[main `bf63569c`](https://github.com/ikst2512-eng/boat-edge-clean/commit/bf63569c615716ee637d79c35c51a3e763d1801b)。[実Actions #42986904220](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42986904220) 17:25 JST と [再実測 #42987236233](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42987236233) 17:28 JST で、下関6R `202611111906`（17:37締切）について公式beforeinfo→公開Render API→実GitHub Pages 390px Chromiumの**6艇×4項目（展示タイム/チルト/展示ST/展示進入）24/24完全一致**。公式HTTP／Render応答／実DOM照合は両runとも締切前。レースごとの実値とレスポンスSHAは[Issue #43](https://github.com/ikst2512-eng/boat-edge-clean/issues/43#issuecomment-6791004802)。**これはpush本番診断のLIVE成功であり、11/11 19:35 JSTの定期`schedule`起動・救済成否、正式T−12予測認定、全レース網羅とは別**。新Cronなし。
+- **17:28時点はRenderバックエンドのSHAを未取得（上記17:48時点で観測済み）**：既存`/healthz` HEADの`X-Boat-Edge-Deploy-Commit`を実際に確認し、ワークフローのcheckout SHAと比較する診断を[main `1462f00f`](https://github.com/ikst2512-eng/boat-edge-clean/commit/1462f00ff2dd4e3fe59c41cab40feabefdd78264)へ追加。ただし[17:28再実測 #42987236233](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42987236233)のcurl HEADは20秒timeoutで`RENDER_DEPLOY_SHA_UNVERIFIED`。同runの独立RenderレースカードGETとPages24値一致はPASS。**HTTPでデータ一致したことと、最新main同一SHAの配備成功を混同しない**。
+- **初めてT−2研究原本を実Git初回追加**：[実Action #42986829552](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42986829552) SUCCESS、蒲郡6R `202611110706`の`waku10/20261111/202611110706.json`を独立ブランチへ17:25:00 JSTに初回追加。T−2締切17:26、事前source receiptと凍結済み研究120順位×3方式が一致、6艇のコース別走数`10/9/9/10/9/10`ですべて既定の8以上。**研究のみ（formal=false、精度未証明）**。T−12研究原本と別系列。
+- **Waku10不成立の見える化**：[main `3eeb396f`](https://github.com/ikst2512-eng/boat-edge-clean/commit/3eeb396fdb3096b38c10ac838ca1d537e8241b25)は元データを再HTTP取得せず、不足時に艇別コース走数・不足艇をログ出力するだけの診断。[CI #42986796766](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42986796766)で公式3原本12件＋T−2キー9件＋Waku10 7件PASS。8走基準も予想モデルも不変。不成立例の本番診断はまだ未検証。
+- **公式3原本の現場成功が2レース**：[#42984181854](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42984181854) 大村5R、[#42985280575](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42985280575) 蒲郡6Rで、公式出走表・beforeinfoの展示6艇・公式3連単120通りの元HTTPを同一runで収集、内容SHA・艇登録番号・締切12分前の受領を独立照合PASS。原本はGitHub Actions artifactに保存。**最終進入、Git first-seen、当該公式原本を使用した正式予想は未証明（formal T−12=0）**。既存研究ワークフロー内の収集で、新Cron・原本改変なし。
+- **T−2`invalid_race_key`を原因修復**：main [`e027d901`](https://github.com/ikst2512-eng/boat-edge-clean/commit/e027d901bd9ec6754208bbcf9a028aa3ab7c5c93)でレース番号05等の出走表呼び出しを整数表記へ正規化。既存[CI #42985271052](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42985271052)の回帰9件PASS。実T−2 [#42985274575](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42985274575)はキー不正を抜け、次のコース別実サンプル不足で安全に未保存。**T−2研究保存0のケースを成功と呼ばない**。
+- **公開Pagesブラウザは総合SUCCESS**：[Action #42983846376](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42983846376) の6艇×4表示、保存Top10・確定結果・払戻・日付別144R・ナビを実本番照合PASS。**公式→Render→公開Pagesの24/24は上記push診断で初LIVE合格。ただし19:35の定期Cron起動・正式T−12・Render最新backend SHAの同一性は引き続き未証明。**
+- **本日T−12実証の更新（17:29時点の履歴）**：独立Git研究台帳の11/11原本は当時**33件**（照会時点、以後追加され得る）。14時台18件を含む32件について生成/タイトル/6艇カード受領はT−12 cutoffより前であり、ファイルごとの変更履歴は1コミット、committer時刻もcutoff前。全件は公刊事前CSV由来の未検証研究原本であり、早朝非公式OpenAPI代替の本番成功例は未確認。詳細は[共通台帳](docs/WORK_STATUS.md)。非予想用canaryと区別。**正式6艇＋オッズ120/独立server first-seen の正式T−12認定は0件**、未収集レースあり。最初の有効救済は [08:51 T12 dispatch #42926776029](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42926776029)で三国2Rを保存。三国1Rの08:21〜08:33の取得/初回保存は見つからず未達。11:39 [schedule #42947528225](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42947528225)では3件保存。以前の「08:39失敗」は **03:39 JST** のUTC誤換算だったので朝08:39の証拠と扱わない。
+- **保存API/readbackと早朝元ソースの修復**：main `2f1d439e` でGit初回PUT後の一時的な読取遅延だけを短時間再照合（不一致やcutoff超過は拒否）。main `6ac8488d` で公刊CSVとholdingの両方が不達の時に限り既存非公式・事前6艇OpenAPIを研究専用の候補日程として利用（受領時刻/SHA/6艇検証、結果データ禁止）。**[Actions #42963455437](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42963455437) T−12回帰37/37 PASS**。早朝代替元の本番取得成功は未実証、原本の後付け編集なし。今夜19:35 JSTの公式LIVE24値実測と20:15 JST監査は別ゲート。
+- **11/11 02時台の朝対象を特定**：三国1R `202611111001`、締切予定08:47→T−12 08:35、生成選択窓08:21〜08:33（主Cron候補08:25/08:30）。6艇全国勝率は保存原本上すべて正値。独立 ledger の11/11 T12保存・当日schedule write probeは02時台照会時未生成（正常な時刻）。[既存回帰 Actions #42863709906](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42863709906) 30/30 PASS。**朝実起動・新ソース受領・T12初回Git追加は未実証**、09:15既存監査でrun IDと初回保存時刻を照合。
+- **11/11朝T−12の直前修正**：main `fceee894`。旧`research_snapshots`キャッシュをT−12の新予想と誤認定していたため、通常の既存原本には一切触れず、未保存のT−12対象レースだけ新入力を一時保存先で独立生成→締切前/鮮度検証→create-only Git追加するよう修正。無効な時刻・ソース欠落なら保存しない。[GitHub Actions #42844134322](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42844134322)の**29 T−12単体回帰がPASS**。08時台の実Git初回保存/公式24値/正式認定は未実測、既存09:15 JSTの自動監査で確認。
+- **本番で確認できた機能**：main `1ddb26bf`時点の公開Pages/Render `index.html`・`navigation.js` は双方一致。無加工の公開Chromium/WebKitでCORS 200/404/422、保存4モード5/10/16/22点、履歴・4主タブ・戻る/進むがPASS（[Actions #42824633355](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42824633355)）。これはその時点の**公開フロント**の証拠であり、mainの全バックエンド変更がRenderにデプロイ済みとは言わない。
+- **追加の実公開証明（11/10 23:59 JST頃）**：[Pages #42832056749](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42832056749)で保存候補/研究予想/確定結果/独立払戻が11/10対象117件すべて公開表示PASS（的中117件の意味ではない）。[回帰 #42839754344](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42839754344)で公開Renderの実稼働Git SHAは `fea60e6a`、同時点main `8c294a4f`との差はCI Workflow1ファイルのみで実行コードは一致。以後は `/healthz` の `X-Boat-Edge-Deploy-Commit` を実HTTPで検査し、main SHAと同一か・コードに差分があるかを区別する。
+- **統合済／整理済**：UI [#1707](https://github.com/ikst2512-eng/boat-edge-clean/pull/1707)、候補履歴 [#1703](https://github.com/ikst2512-eng/boat-edge-clean/pull/1703) はmerged。診断限定 [#1712](https://github.com/ikst2512-eng/boat-edge-clean/pull/1712) は公開検証成功後、独立の本番採用機能がないと確認してclosed（非merged）。大型 [#1679](https://github.com/ikst2512-eng/boat-edge-clean/pull/1679) は今もDraft/open・統合禁止。重複解消だけでなくsingleflight等の独自差分があるため、確認なしに削除しない。
+- **翌11/11の未達実測**：08時台T−12実保存（既存09:15自動監査）、19:35 JST公式展示24値のschedule、欠落または失敗時の既存watchdog救済（19:40台の欠落救済／19:50台の明確な失敗への1回リトライ）、20:15 JST有効な自動監査。実開催6艇×4の公式→Render→公開Pagesの締切前一致が確認されるまでは**LIVE24値PASS=未認定**。T−12 Git初回登録・公式受領・実機iPhone Safari・Render最新backend deploy SHA・70%実測的中率は別ゲート。
+- **公式展示検証器を最小修正**：[main `d1ffba95`](https://github.com/ikst2512-eng/boat-edge-clean/commit/d1ffba95c0a8fdbca475419a52903d0ffc8693af) で「公式取得時刻は締切前だけでなく、Render APIのHTTP応答受信より前」「ソースSHA256は64桁」を要求。保存済み2026-11-04桐生11Rの24値正例と不正時刻・欠落ハッシュ等の拒否を事前検算。新Cron/PRは作成せず、**修正後の正式live E2Eは実測待ち**。
+- **次のサイト工程**：11/13の阻害要因整理→11/20 UI公開ゲート→11/24候補・予想・結果の長期履歴→12/1 6艇展示→12/10 V1完成。PRの数やCIのみで「公開完成」としない。最新の作業詳細は [WORK_STATUS](docs/WORK_STATUS.md) と [AGENTS](AGENTS.md) を読む。
+
+**以下は各時点の履歴的な引継ぎ記録。最新スナップショットを優先する。**
+
+
+**2026-11-10 夜・公式展示の実レース総合検証：検証基盤公開済み／実測合格は未達**：[PR #1719](https://github.com/ikst2512-eng/boat-edge-clean/pull/1719) を main `482b1353` に統合。既存の `verify-real-beforeinfo.yml` を再利用し、**Cronを追加せず** 既存の1日1回の時刻を21:40→**19:35 JST**へ変更。開催中の同一レースで公式beforeinfo JSON→公開Render API→実GitHub Pagesのスマホ幅Chromiumを照合し、6艇の登録番号＋展示タイム/チルト/展示ST/進入の24値が一致して初めて PASS。公式/日程/Renderの締切不一致も棄却する追加ガードを main `17c045be` に反映。 [PR CI #42810686750](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42810686750) は基本検証とブラウザ起動の環境確認に成功したが、20:50 JST付近で締切前の対象なし `LIVE_OFFICIAL_PAGES_E2E_UNVERIFIED [NO_STILL_OPEN_RACE_WITHIN_60_MIN]`。**公開E2Eの実測 PASS は0件**。次の実際のscheduled/dispatch runで原本と公開DOMの24値が一致したログを確認するまで未完了とする。過去原本を使う公開再現24/24・オリ展72/72は別の既達証拠。実機iPhone SafariとRenderの最新deploy SHAはこの検査では未確認。研究予想・締切前の正式認定は変更なし。
+**2026-11-10 20:46 JST 自動起動の実測アップデート（以前の記録に追加）**：研究元 `research-live-preview-evidence.yml` は5分ごとのCron設定だが11/09 JSTのschedule実行は2回、11/10 JST 20:41まで1回。実行不足は事実だが、GitHub側の遅延/失効など単一原因は未断定。既存の`entry-course-activation-watchdog.yml`（10分fallback、push／既存workflow_run入力）へ**独立した研究用プレビュー収集の二次起動**を追加し、新しいCron/PRなしでmainへ反映（`e9684c3a1f9d70f56d6dccc5205db8ac817068eb`）。[監視 #42810131813](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42810131813)は20テストPASS、研究用`workflow_dispatch`発行成功、[受信 #42810162379](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42810162379)は実行SUCCESS。次の[監視 #42810195733](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42810195733)は起動直後を検知して重複発行を抑制。研究用のCSV収集ワークフローに同一refの同時実行抑止を追加。11/10 20:46の救済runは新規候補**保存0**、独立T−12証拠0。11/10 15:37頃の既存schedule収集では研究候補**1件保存**（レースコード`202611100702`、[実行 #42769768447](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42769768447)）。成功したActionsを保存数や正式精度と混同しない。**11/11朝08 JSTの自動T−12初回保存は引き続き未検証。**
+
+
+**2026-11-10 夜の追加実測（以前のアーティファクト「20ページ打切り」記載より優先）**：11月9日の後追い研究候補検索を、[実行 #42807166116](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42807166116) で修正・検証。研究収集元ワークフローをJST対象日＋翌日まで走査し、**対象main実行4、保存アーティファクト4、11/09候補取り込み0、検索打切りなし**、9ユニット試験SUCCESS。これは「対象収集元の原本に該当候補が見つからない」という結論であり、研究用Cronの実行率が十分・的中率0%という意味ではない。4実行/48時間は5分設定に比べ著しく少なく、起動漏れ監査が残る。変更は研究用読み取りのみ（\`810208ea\`）、保存済み予想を作成・上書きしていない。
+
+**11/10 夜の実際のT−12保存照合**：[収集 #42806151821](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42806151821) で202611101912（下関12R、20:38締切/T−12=20:26）の研究原本を追加、[収集 #42807094674](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42807094674) で202611101212（住之江12R、20:45締切/T−12=20:33）を追加。原本ブランチ初回\`added\`コミットの記載時刻は順に **20:16:55／20:23:47 JST**（[1912初回コミット](https://github.com/ikst2512-eng/boat-edge-clean/commit/2ba3597d8b0e444243d329630339278d08a3bfc8)、[1212初回コミット](https://github.com/ikst2512-eng/boat-edge-clean/commit/a2597375dbb65471319e55d946efb20c252ce159)）。**両原本のgenerated_atとソース受領記録は13:21 JST頃と古く、T−12時点の新鮮な直前入力を取得した証明ではない**。コミッター時刻はGitHubサーバー独立初回受領証明でもない。両方\`formal=false\`/\`independent_first_seen_verified=false\`の研究参考原本であり、正式T−12認定は0を維持。両実行は\`workflow_dispatch\`であり、翌朝08時台のスケジュール自動収集実績は未確認。
+
+**2026-11-10 20時台・本番収集の追加引継ぎ（旧記録より優先）**：[#1714](https://github.com/ikst2512-eng/boat-edge-clean/pull/1714) は **main統合済み**（`eea742db5eae8b7cf058ff8b04627dfe3d33ded7`）。既存単一T−12 Cronは08:00〜22:59 JST、10分間隔watchdogは08時台をT−12のみ補助、同時対象バッチ上限は10件。結果収集の既存イベント起動も追加。**今後の08時台にGitHub Actionが実行され、締切前に入力を受領してGit初回原本が保存された実測証拠は未確認**。11/10の欠落9件は復元せず正式予想に認定しない。払戻ワークフローの自動書込み変更は本PRから除外済み。
+
+**前日研究比較の実測状態**：API→アーティファクトダウンロード時の401を認証ヘッダー分離で修正。[既存ワークフローのコード変更時検証](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42805292327) は7ユニットテスト＋実ダウンロード工程 SUCCESS。一方2026-11-09の候補検索は一覧20ページ上限に達し `incomplete_artifact_scan`、0件インポート・比較対象0件は**データ不存在/的中率0%の証明ではない**。残件：対象日までの完全なアーティファクト探索と本番T−12初回保存証拠。
+
+**2026-11-10 19:53 JST 時点の静的記録。作業開始時は必ず最新main、PR、Actions、Pages・Render実配信を再取得。** 設計指示の正本は AGENTS.md。
+
+| 作業 | 公開状態 | 実測証拠と残件 |
+| --- | --- | --- |
+| 4主タブ・出走表内連対率・コンパクト予想 | **本番公開済** | [統合 #1707](https://github.com/ikst2512-eng/boat-edge-clean/pull/1707)／[Pages公開検証 #42797423327](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42797423327)。物理iPhone Safariは未検証 |
+| 締切後も消えない候補・買い目・結果 | **本番公開済** | [統合 #1703](https://github.com/ikst2512-eng/boat-edge-clean/pull/1703)／[公開試験 #42800540502](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42800540502)。11/8保存候補117件を全件表示。14日/1,698件の静的日別原本マニフェスト生成を確認 |
+| 公式展示・スタート展示＋オリ展の6艇内統合 | **画面公開、オリ展実測4/4レースPASS** | [本番検証 #42802645236](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42802645236)：10/28桐生1R、10/31蒲郡8R、11/2下関5R、11/3下関11Rで各6艇×オリ展3項目、独立原本CSVとの72値一致・不一致0。公式展示の実測値独立照合・24場網羅は残る |
+| 予想70%以上・収集原本・長期安定性 | **未達・研究/監視継続** | 70%は1着候補上位2艇の推定確率合計であり実測的中率ではない。T−12原本初回Git時刻、提供場別欠落、実機Safari、Render継続稼働を別検証 |
+
+**本番基準点**：2026-11-10 19:53 JSTにmain・Render LIVE が 409cce6c09a4ea591c576052197adfa4ebd007c0、Pages公開ワークフロー #42802645236 SUCCESS。後続mainに変更があればそのSHAを優先し、古い証拠を最新と呼ばない。
+
+**次の最短順**：①公式展示の号艇別実値と独立ソースの一致照合、②オリ展の場別非提供/未公開/取得失敗と遅延の正確な分類、③iPhone Safari・CORS・4モード実レース操作の公開QA、④依存確認済み重複UI/CSS/古いPRを安全に整理。新規PR・Cronを増やす前に既存コードを使う。
+
+**保護対象**：予想原本、確定結果、監査証拠、取得時刻、過去ブランチの証拠は削除しない。別トークへ自動通知される仕組みではなく、各トークがこの最新mainを読み直して引き継ぐ。
+
+## 最初に読む：全開発トーク共通の正本
+
+**ChatGPT / Work / Codex / GitHub Copilot 等、どの開発トーク・担当から始めても、作業前に必ず次の順でGitHub `main` の最新版を参照する。以前の会話の記憶やDraftブランチを正本としない。**
+
+1. [AGENTS.md](./AGENTS.md)：**最新版のユーザー指示と開発優先順位**。旧指示と衝突したら日付の新しい明示指示を優先。
+2. [docs/WORK_STATUS.md](./docs/WORK_STATUS.md)：実際に公開済みの作業・未完了・障害。更新日時と根拠を照合。
+3. [Pull Requests](https://github.com/ikst2512-eng/boat-edge-clean/pulls)：未公開・重複PRの再利用と競合確認。
+4. [GitHub Actions](https://github.com/ikst2512-eng/boat-edge-clean/actions) と本番 [GitHub Pages](https://ikst2512-eng.github.io/boat-edge-clean/)／[Render](https://boat-edge-clean.onrender.com/)：実行・公開・操作の証拠を確認。
+
+**共通の仕事の終点は、コード作成やPR・CI成功ではなく、「本番に反映され、利用者が操作できること」。** 本番未反映なら未完了と明記し、同機能のPRを増やす前に既存修正の公開を優先する。実機Safari・運用安定性・正式的中率など、まだ検証していない項目を完了扱いしない。
+
+**最新の画面要件（2026-11-10）:** 予想は保存済みの4モード買い目中心、連対率・コース実績は**出走表内のサブタブ**、展示・直前と結果・答え合わせは独立した表示。候補・予想・結果は締切後も日付別に原本照合できるようにする。候補「70%以上」は3連単の将来的な実測的中率70%を意味しない。詳細はAGENTS.mdを優先。
+
+※このREADMEはリポジトリを参照するための共通入口。開かれていない別チャットへ変更内容が自動通知される仕組みではない。
+
 このサイトは **1ページ・レース中心・スマホ優先** で統一する。画面を先に固定し、既存の検証済みデータを各枠へ当てはめる。ボーターズの操作の分かりやすさを参考にするが、独自デザインと証拠基準を維持する。
 
 ## 画面の順番（変更には理由とテストが必要）
@@ -10,7 +117,7 @@
 
 ## 各タブに当てはめる情報
 - **出走表**：艇番、選手、全国・当地成績、モーター、ボート。取得できない値は「—」。
-- **展示**：公式事前データの展示タイム・ST・チルト。未公開と通信失敗を区別。
+- **展示**：公式展示タイム・チルト、スタート展示の進入/ST、オリ展の1周/回り足/直線を**1〜6艇の同じ比較表**へ統合。提供なし/未公開/通信失敗を区別。
 - **予想**：初回Git原本と締切前保存を証明できる予想だけ、純粋なモデル確率順でTop3/Top5/Top10。オッズで勝手に並べ替えない。予想がなければその理由を明記。
 - **結果**：確認済み確定結果を表示し、検証済みの事前予想だけでTop3/5/10の的中照合。事前予想が欠ける場合は判定保留。結果を予想生成へ戻さない。
 

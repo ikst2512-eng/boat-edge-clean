@@ -77,6 +77,28 @@ class CollectorTests(unittest.TestCase):
             self.assertEqual(out["status"],"preview_not_ready")
             self.assertEqual(out["historical_requests"],0)
             self.assertFalse(out["stored"])
+    def test_live_racecard_receives_unpadded_race_number(self):
+        # An actual 12-digit ledger key such as ...0708 contains '08',
+        # while clean_racecard.racecard accepts '8'. The original race_key
+        # and signed research baseline must stay unmodified.
+        with tempfile.TemporaryDirectory() as tmp:
+            root,card,_=setup(tmp)
+            card["source_audit"]["beforeinfo"]["status"]="not_published_or_unavailable"
+            observed=[]
+            def reader(day,venue,race):
+                observed.append((day,venue,race))
+                if race!="8":
+                    raise ValueError("invalid_race_key")
+                return card
+            out=attempt(root,waku_enabled=False,now=lambda:NOW,
+                prefetch=lambda day:self.fail("do not fetch history without preview"),
+                card_reader=reader,preview_poll_limit=1)
+            self.assertEqual(observed,[("20261103","07","8")])
+            self.assertEqual(out["race_code"],"202611030708")
+            self.assertEqual(out["status"],"preview_not_ready")
+            self.assertNotEqual(out["reason"],"invalid_race_key")
+            self.assertEqual(out["historical_requests"],0)
+
     def test_wrong_race_preview_must_not_fetch_history(self):
         with tempfile.TemporaryDirectory() as tmp:
             root,card,_=setup(tmp)

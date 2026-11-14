@@ -1,13 +1,50 @@
 name: Entry course missed-cron activation watchdog
 on:
   # Separate schedule events for the original jobs remain the primary path.
-  # Push and a completed four-mode scheduled run give a second event source.
+  # Push, independent CLEAN/V236 and existing read-only audit completions
+  # can wake rescue. Audit completion is NOT an on-time T12 schedule run.
+  # Delayed GitHub schedule events may still miss a T12 selection window.
+  # Ten-minute fallback ticks fit every 12-minute T-12 selection window
+  # on the 2026-11-10 schedule; a Cron event is NOT guaranteed to start.
   push:
     branches: [main]
+  pull_request:
+    paths:
+      - scripts/entry_course_activation_watchdog.py
+      - tests/test_entry_course_activation_watchdog.py
+      - .github/workflows/entry-course-activation-watchdog.yml
   schedule:
-    - cron: '3,18,33,48 0-13 * * *'
+    - cron: '3,13,23,33,43,53 23,0-13 * * *'
   workflow_run:
-    workflows: ["Four-mode prospective capture (research only)"]
+    workflows:
+      - "Four-mode prospective capture (research only)"
+      - "CLEAN prospective pre-cutoff capture"
+      - "CLEAN V236 verification queue"
+      # Existing independently scheduled four-mode watchdog can rescue an
+      # absent 19:35 official probe after 19:40, or missed 08 JST T12.
+      # The job gate limits this parent to UTC 10/23; no new Cron or writer.
+      - "Four-mode capture schedule watchdog"
+      # An independently scheduled result collector also has live evening
+      # ticks. Only its 19:40-19:59 JST native completion may wake the
+      # existing missing-official watchdog; no new Cron/collector/forecast.
+      # Observed 11/14: this independent odds-probe native schedule launched
+      # delayed at 19:43 JST. Its successful completion can wake the same
+      # existing 19:40-19:59 rescue, but is not the 19:35 official Cron.
+      - "CLEAN live official trifecta odds probe"
+      # Existing official exhibition source probe had a native success at
+      # 20:24 JST, within a missed 20:33 T-12 preview research window.
+      # Its completion wakes only the bounded fallback; never native proof.
+      - "CLEAN today's predeadline exhibition source probe"
+      # An independently scheduled T-2 collector also runs during race hours.
+      # Its real main/schedule completion is a fallback wakeup only: never a
+      # native run of the official-three-raw preview or proof of Git storage.
+      - "Entry course research-only late preview capture"
+      - "CLEAN independent confirmed result collection"
+      # Existing unrelated read-only schedules give independent wakeups if
+      # the T12/watchdog own cron does not fire; dispatch remains cooldown-
+      # guarded, same-repo/main/schedule-only and research-only.
+      - "AI operations read-only audit"
+      - "Cross-model content audit"
     types: [completed]
   workflow_dispatch:
 permissions:
@@ -18,13 +55,29 @@ concurrency:
   cancel-in-progress: false
 jobs:
   recover-missing-schedule:
-    # Never let a PR/dispatch-triggered four-mode run masquerade as a cron.
+    # Only same-repo main/schedule parent events may wake this fallback.
     if: >-
       github.repository == 'ikst2512-eng/boat-edge-clean' &&
-      github.ref == 'refs/heads/main' &&
-      (github.event_name != 'workflow_run' ||
-       (github.event.workflow_run.event == 'schedule' &&
-        github.event.workflow_run.head_branch == 'main'))
+      ((github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository) ||
+       (github.ref == 'refs/heads/main' &&
+        (github.event_name != 'workflow_run' ||
+         (github.event.workflow_run.event == 'schedule' &&
+          github.event.workflow_run.head_branch == 'main' &&
+          github.event.workflow_run.head_repository.full_name == github.repository &&
+          (github.event.workflow_run.name != 'CLEAN V236 verification queue' ||
+           contains(github.event.workflow_run.created_at, 'T23:') ||
+           contains(github.event.workflow_run.created_at, 'T10:')) &&
+          (github.event.workflow_run.name != 'Four-mode capture schedule watchdog' ||
+           contains(github.event.workflow_run.created_at, 'T23:') ||
+           contains(github.event.workflow_run.created_at, 'T10:')) &&
+          (github.event.workflow_run.name != 'CLEAN live official trifecta odds probe' ||
+           (github.event.workflow_run.conclusion == 'success' &&
+            (contains(github.event.workflow_run.created_at, 'T10:4') ||
+             contains(github.event.workflow_run.created_at, 'T10:5')))) &&
+          (github.event.workflow_run.name != 'CLEAN independent confirmed result collection' ||
+           contains(github.event.workflow_run.created_at, 'T10:4') ||
+           contains(github.event.workflow_run.created_at, 'T10:5'))))))
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
@@ -36,12 +89,13 @@ jobs:
           python-version: '3.12'
       - name: Validate fallback dispatch policy
         run: python -m unittest discover -s tests -p test_entry_course_activation_watchdog.py -v
-      - name: Dispatch missing T12/T2 research runs (not a scheduled evidence claim)
+      - name: Dispatch missing T12/T2 plus independent preview research (not scheduled proof)
+        if: github.event_name != 'pull_request'
         run: python scripts/entry_course_activation_watchdog.py
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Retain fallback decision independently of research capture
-        if: always()
+        if: always() && github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: entry-course-activation-watchdog-${{ github.run_id }}-${{ github.run_attempt }}

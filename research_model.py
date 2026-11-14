@@ -62,12 +62,21 @@ def _saved(code):
     valid={"-".join(map(str,t)) for t in TICKETS}
     if any(t not in valid for t in tickets):raise ValueError("invalid ticket")
     return {key:record[key] for key in ("ok","status","predictions","model_version","generated_at","message","validated")}
-def predict(hd,jcd,rno):
+def predict(hd,jcd,rno,*,output_dir=None):
+    """Normally reuse the immutable snapshot; an isolated T-12 caller may
+    generate once into a separate empty directory without changing STORE.
+    """
     day=datetime.strptime(hd,"%Y%m%d").date()
     if day<=datetime(2026,10,21).date():raise ValueError("training date excluded")
     code=f"{hd}{int(jcd):02d}{int(rno):02d}"
-    old=_saved(code)
-    if old is not None:return old
+    if output_dir is None:
+        old=_saved(code)
+        if old is not None:return old
+        destination=_record_path(code)
+    else:
+        # Never read/rewrite research_snapshots in the T-12 fresh path.
+        # Exclusive creation below also protects a caller-owned output dir.
+        destination=Path(output_dir)/(code+".json")
     path=f"{hd[:4]}/{hd[4:6]}/{hd[6:8]}.csv"
     try:
         titles,t1,title_sha256=read_rows(BASE+"title/"+path)
@@ -166,7 +175,7 @@ def predict(hd,jcd,rno):
     result={"ok":True,"status":"research","predictions":predictions,
             "model_version":"national-beta0.4-exploratory-v1","generated_at":now.isoformat(),
             "message":"研究予想（未検証・回収率未確認）","validated":False}
-    STORE.mkdir(parents=True,exist_ok=True)
+    destination.parent.mkdir(parents=True,exist_ok=True)
     record=dict(result,race_code=code,input_source_kind=source_kind,topn_model_mass_pct=topn_model_mass_pct,confidence_calibrated=False,source_deadline_jst=deadline.isoformat(),cutoff_jst=cutoff.isoformat(),source_title_received_jst=t1.isoformat(),
                 source_cards_received_jst=t2.isoformat(),national_win_rates=rates,source_title_sha256=title_sha256,
                 source_cards_sha256=cards_sha256, input_sha256=hashlib.sha256(
@@ -179,7 +188,7 @@ def predict(hd,jcd,rno):
     if datetime.now(JST) > cutoff:
         raise ValueError("research snapshot write missed 12-minute cutoff")
     # Exclusive create: never silently replace a previously saved forecast.
-    with _record_path(code).open("x",encoding="utf-8") as out:
+    with destination.open("x",encoding="utf-8") as out:
         out.write(data)
         out.flush()
         os.fsync(out.fileno())

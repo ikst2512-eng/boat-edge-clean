@@ -4,9 +4,14 @@ on:
     branches: [main]
     paths:
       - index.html
-      - selection.html # Re-run the existing published Render candidate browser diagnostic on candidate UI changes.
+      - selection.html
+      - candidates.html
+      - candidate_history.js
+      - candidate_history.py
       - navigation.js
+      - 'prospective_predictions/**'
       - 'confirmed_results/**'
+      - 'payout_evidence/**' # Human/app main commits; GITHUB_TOKEN payout writer uses explicit workflow_dispatch.
       - 'schedule_snapshots/**'
       - .github/workflows/deploy-pages.yml
   workflow_dispatch:
@@ -16,9 +21,12 @@ permissions:
   pages: write
   id-token: write
 
+# Continuous result/schedule pushes must not abort a deployment halfway
+# through public-browser verification. GitHub keeps one latest pending run;
+# the active publish is allowed to finish before the pending one proceeds.
 concurrency:
   group: boat-edge-clean-pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -63,7 +71,27 @@ jobs:
       - name: Stage only public files
         run: |
           mkdir -p public
-          cp index.html navigation.js public/
+          cp index.html navigation.js candidates.html candidate_history.js public/
+          mkdir -p public/candidate_history
+          python3 - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+          from candidate_history import daily_candidate_history
+          days = sorted({p.name[:8] for p in Path('prospective_predictions').glob('*.json')
+                         if re.fullmatch(r'20[0-9]{10}[.]json', p.name)})
+          if not days:
+              raise SystemExit('No archived candidate days present')
+          total = 0
+          for day in days:
+              status, record = daily_candidate_history(day)
+              if status != 200 or record['candidate_count'] < 1:
+                  raise SystemExit(f'Invalid candidate manifest for {day}')
+              target = Path('public/candidate_history') / (day + '.json')
+              target.write_text(json.dumps(record, ensure_ascii=False, separators=(',', ':')) + '\n', encoding='utf-8')
+              total += record['candidate_count']
+          print(f'CLEAN_CANDIDATE_PAGES_MANIFEST days={len(days)} candidates={total}')
+          PY
           cp -R confirmed_results public/confirmed_results
           cp -R schedule_snapshots public/schedule_snapshots
           test -s public/schedule_snapshots/20261030.json
@@ -73,18 +101,27 @@ jobs:
           test -s public/confirmed_results/202611031911.json
           test -s public/index.html
           test -s public/navigation.js
+          test -s public/candidates.html
+          test -s public/candidate_history.js
+          test -s public/candidate_history/20261108.json
       # Pages is already configured to deploy from GitHub Actions.
       # Do not query the Pages settings API on every publish: its installation
       # rate-limit previously blocked artifact upload before deployment began.
       # Upload/deploy retain the existing github-pages environment and
       # pages:write + id-token:write permissions; no bypass of deploy checks.
+      # A rerun retains artifacts from earlier attempts under the same run ID.
+      # Give each attempt its own name or deploy-pages rejects duplicate
+      # "github-pages" artifacts and skips all postdeployment checks.
       - name: Upload public site
         uses: actions/upload-pages-artifact@v3
         with:
+          name: github-pages-${{ github.run_attempt }}
           path: public
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
       - name: Record deployed revision
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
@@ -152,6 +189,8 @@ jobs:
         run: |
           npm install --no-save --no-package-lock playwright@1.56.1
           npx playwright install chromium
+          # Reuse the existing no-mock full-history acceptance script in WebKit too.
+          npx playwright install --with-deps webkit
           node - <<'JS'
           const { chromium }=require('playwright');
           (async()=>{
@@ -204,6 +243,34 @@ jobs:
             } finally {await browser.close();}
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
+      - name: Verify every published candidate day, archived tickets, results and payouts in Chromium and WebKit
+        timeout-minutes: 9
+        shell: bash
+        run: |
+          set -o pipefail
+          node tests/live_candidate_history_full_postdeploy.cjs 2>&1 | tee full-candidate-history.log
+      - name: Preserve full candidate-history public acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clean-published-history-${{ github.run_id }}-${{ github.run_attempt }}
+          path: full-candidate-history.log
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Verify 24 real held venues and six-boat original exhibition on published Pages
+        timeout-minutes: 10
+        shell: bash
+        run: |
+          set -o pipefail
+          node tests/live_24venue_exhibition_browser.cjs 2>&1 | tee full-24venue-exhibition.log
+      - name: Preserve real 24-venue exhibition acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clean-published-24venue-${{ github.run_id }}-${{ github.run_attempt }}
+          path: full-24venue-exhibition.log
+          if-no-files-found: warn
+          retention-days: 30
       - name: Verify Oct 31 archived forecast and visible receipt warning
         timeout-minutes: 3
         env:
@@ -266,14 +333,46 @@ jobs:
               url.searchParams.set('race',race.race);
               const response=await page.goto(url.toString(),{waitUntil:'domcontentloaded',timeout:30000});
               if(response?.status()!==200)throw Error('PUBLIC_PAGES_HTTP '+response?.status());
-              await page.evaluate(async()=>{
-                datePinned=true;venueSpecified=true;
-                setView('card');
-                await loadRaceData(true);
-              });
-              const status=await page.locator('#raceDataStatus').innerText();
-              const count=await page.locator('#raceDataRows tr').count();
-              if(count!==6)throw Error('PUBLIC_HISTORICAL_RACECARD_NOT_SIX_LANES '+JSON.stringify({count,status}));
+              // A cold Render instance can outlast the frontend's bounded
+              // transport retry. Retry the SAME published race once only.
+              // Never accept a stale cache, another race, or a failed response.
+              let status='',count=0;
+              for(let attempt=1;attempt<=2;attempt++){
+                await page.evaluate(async()=>{
+                  datePinned=true;venueSpecified=true;
+                  setView('card');
+                  await loadRaceData(true);
+                });
+                status=await page.locator('#raceDataStatus').innerText();
+                count=await page.locator('#raceDataRows tr').count();
+                if(count===6)break;
+                console.log('PUBLIC_HISTORICAL_RACECARD_RETRY',JSON.stringify({
+                  race:race.key,attempt,count,status
+                }));
+                if(attempt<2)await new Promise(resolve=>setTimeout(resolve,2000));
+              }
+              if(count!==6){
+                // Do not convert a failed Render read or invalid card into a
+                // successful browser check. Record actual backend response and
+                // selected race for actionable public deployment diagnostics.
+                const state=await page.evaluate(()=>({
+                  selected:sameRaceKey(),date:s.date,venue:s.venue,race:s.race,
+                  view:activeView,requestId:window.raceDataRequestId,
+                  cached:verifiedRaceCache.has(sameRaceKey())
+                }));
+                const cardUrl='https://boat-edge-clean.onrender.com/api/clean-racecard?hd='+
+                  race.key.slice(0,8)+'&jcd='+Number(race.key.slice(8,10))+
+                  '&rno='+Number(race.key.slice(10,12));
+                let probe;
+                try{
+                  const api=await page.request.get(cardUrl,{timeout:20000,headers:{'Cache-Control':'no-cache'}});
+                  probe={http:api.status(),body:(await api.text()).slice(0,450)};
+                }catch(error){
+                  probe={error:String(error).slice(0,260)};
+                }
+                console.log('PUBLIC_HISTORICAL_RACECARD_UNVERIFIED',JSON.stringify({race:race.key,count,status,state,probe}));
+                throw Error('PUBLIC_HISTORICAL_RACECARD_NOT_SIX_LANES '+JSON.stringify({race:race.key,count,status,state,probe}));
+              }
               const lanes=await page.locator('#raceDataRows tr td:first-child').allTextContents();
               if(lanes.map(x=>x.trim()).join(',')!=='1,2,3,4,5,6')throw Error('PUBLIC_HISTORICAL_RACECARD_LANES '+lanes.join(','));
               if(!(await page.locator('#raceDataSource').innerText()).includes('Git初回登録時刻は未照合'))throw Error('PUBLIC_HISTORICAL_RACECARD_EVIDENCE_NOTICE_MISSING');
@@ -476,11 +575,12 @@ jobs:
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exitCode=1});
           JS
-      - name: Observe published JST-day candidate tickets (diagnostic)
+      - name: Observe published JST-day candidate history (diagnostic)
         timeout-minutes: 3
-        # External archives can be missing or delayed; record UNVERIFIED rather
-        # than turning absence of evidence into a false-positive publish failure.
+        # Preserve diagnostics, but never certify formal prediction accuracy.
         continue-on-error: true
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         run: |
           node - <<'JS'
           const {chromium}=require('playwright');
@@ -491,30 +591,92 @@ jobs:
             try{
               const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
               const errors=[];page.on('pageerror',e=>errors.push(e.message));
-              const response=await page.goto('https://boat-edge-clean.onrender.com/selection',{waitUntil:'domcontentloaded',timeout:30000});
+              const target=new URL('candidates.html?date=2026-11-08',process.env.PAGE_URL).href;
+              const response=await page.goto(target,{waitUntil:'domcontentloaded',timeout:30000});
               if(!response||response.status()!==200)throw Error('candidate_page_http_'+response?.status());
               await page.waitForFunction(()=>{
-                const text=document.querySelector('#candidateStatus')?.textContent||'';
-                return !!text&&!text.includes('確認中');
-              },null,{timeout:90000});
+                const value=document.querySelector('#candidateStatus')?.textContent||'';
+                return value.startsWith('保存候補 ')||value.includes('読み込めません')||value.includes('公開されていません');
+              },null,{timeout:30000});
+              if(await page.locator('#candidateHistoryFilters [data-candidate-filter="priority"]').getAttribute('aria-pressed')!=='true')
+                throw Error('published_research_shortlist_not_default');
+              // Full-history assertions must explicitly select all rows.
+              await page.locator('#candidateHistoryFilters [data-candidate-filter="all"]').click();
               const evidence=await page.evaluate(()=>{
                 const status=document.querySelector('#candidateStatus')?.textContent?.trim()||'';
-                const cards=[...document.querySelectorAll('#candidateCards > article.card')];
-                return {date:document.querySelector('#todayCandidateDate')?.textContent?.trim(),
-                  status,count:cards.length,
-                  items:cards.map(c=>({title:c.querySelector('strong')?.textContent?.trim(),
-                    provenance:c.querySelector('p.notes')?.textContent?.trim(),
-                    ticketText:c.querySelectorAll('p.notes')[1]?.textContent?.trim()?.slice(0,150)}))};
+                const cards=[...document.querySelectorAll('#candidateCards > details.candidate-history-card')];
+                return {status,count:cards.length,unique:new Set(cards.map(c=>c.dataset.raceCode)).size,
+                  first:cards[0]?.querySelector('summary')?.textContent?.trim()};
               });
-              if(evidence.count>6)throw Error('candidate_limit_exceeded_'+evidence.count);
-              if(evidence.count&&!evidence.status.includes(evidence.count+'レース表示'))
-                throw Error('candidate_status_count_disagrees_'+JSON.stringify(evidence));
-              if(evidence.items.some(c=>!c.title||!c.ticketText?.includes('保存済み3連単')||
-                  !c.provenance?.includes('研究予想')||!c.provenance?.includes('検証')))
-                throw Error('candidate_warning_or_tickets_missing_'+JSON.stringify(evidence));
+              if(evidence.count<=6||evidence.unique!==evidence.count)
+                throw Error('candidate_archive_not_complete_'+JSON.stringify(evidence));
+              if(!evidence.status.includes('保存候補 '+evidence.count+'件'))
+                throw Error('candidate_history_count_mismatch_'+JSON.stringify(evidence));
+              await page.locator('#candidateCards > details.candidate-history-card').first().locator('summary').click();
+              if(!(await page.locator('#candidateCards > details.candidate-history-card').first().locator('.candidate-tickets').first().innerText()).includes('-'))
+                throw Error('candidate_saved_tickets_missing');
+              // Independently saved payout / confirmed finish is part of the
+              // user's actual retained-history workflow, not a sample/mock.
+              const payoutPage=new URL('candidates.html?date=2026-11-10',process.env.PAGE_URL).href;
+              const loaded=await page.goto(payoutPage,{waitUntil:'domcontentloaded',timeout:30000});
+              if(!loaded||loaded.status()!==200)throw Error('candidate_payout_page_http_'+loaded?.status());
+              await page.locator('#candidateHistoryFilters [data-candidate-filter="all"]').click({timeout:30000});
+              const paidCode='202611100401';
+              const paidSelector='#candidateCards > details.candidate-history-card[data-race-code="'+paidCode+'"]';
+              await page.waitForFunction(code=>{
+                const row=document.querySelector('#candidateCards > details.candidate-history-card[data-race-code="'+code+'"]');
+                return Boolean(row)&&document.querySelector('#candidateStatus')?.textContent?.includes('払戻照合済み ');
+              },paidCode,{timeout:30000});
+              const paid=page.locator(paidSelector);
+              await paid.locator('summary').click();
+              const payoutEvidence=await paid.evaluate(el=>({
+                raceCode:el.dataset.raceCode,summary:el.querySelector('summary')?.textContent,
+                amount:[...el.querySelectorAll('.candidate-detail p')].map(n=>n.textContent)
+                  .find(x=>x.includes('3連単払戻：'))||'',
+                researchDisclaimer:el.querySelector('.candidate-detail')?.textContent?.includes('正式認定')||false
+              }));
+              if(payoutEvidence.raceCode!==paidCode||
+                 !payoutEvidence.summary.includes('確定 1-5-2')||
+                 !payoutEvidence.amount.includes('8,910円（100円あたり・独立保存原本照合済み）')||
+                 !payoutEvidence.researchDisclaimer)
+                throw Error('candidate_saved_payout_public_mismatch_'+JSON.stringify(payoutEvidence));
               if(errors.length)throw Error('candidate_page_js_errors_'+errors.join(';').slice(0,300));
+              console.log('CLEAN_CANDIDATE_PAYOUT_PUBLIC_PASS',JSON.stringify(payoutEvidence));
+              // Verify ALL independently matched Nov 11 payouts visible in the actual
+              // published archive, not merely the dispatch or an older sample row.
+              // The expected set is built from immutable Git sources during staging.
+              const todayManifest=JSON.parse(fs.readFileSync('public/candidate_history/20261111.json','utf8'));
+              const paidRows=todayManifest.races.filter(r=>r.payout_status==='verified_independent');
+              if(paidRows.length!==todayManifest.payout_verified_count||paidRows.length<34)
+                throw Error('nov11_payout_source_set_incomplete_'+JSON.stringify({verified:paidRows.length,declared:todayManifest.payout_verified_count}));
+              const todayUrl=new URL('candidates.html?date=2026-11-11',process.env.PAGE_URL).href;
+              const todayResponse=await page.goto(todayUrl,{waitUntil:'domcontentloaded',timeout:30000});
+              if(!todayResponse||todayResponse.status()!==200)throw Error('nov11_candidate_http_'+todayResponse?.status());
+              await page.waitForFunction(()=>document.querySelector('#candidateStatus')?.textContent?.startsWith('保存候補 '),null,{timeout:30000});
+              await page.locator('#candidateHistoryFilters [data-candidate-filter="all"]').click();
+              const publicToday=await page.evaluate(()=>({
+                status:document.querySelector('#candidateStatus')?.textContent?.trim()||'',
+                rows:[...document.querySelectorAll('#candidateCards > details.candidate-history-card')].map(n=>({
+                  code:n.dataset.raceCode,summary:n.querySelector('summary')?.textContent||'',
+                  detail:n.querySelector('.candidate-detail')?.textContent||''
+                }))
+              }));
+              if(publicToday.rows.length!==todayManifest.candidate_count||
+                 !publicToday.status.includes('払戻照合済み '+paidRows.length+'件'))
+                throw Error('nov11_payout_public_counts_mismatch_'+JSON.stringify({source:todayManifest.candidate_count,public:publicToday.rows.length,status:publicToday.status}));
+              const byCode=new Map(publicToday.rows.map(r=>[r.code,r]));
+              for(const source of paidRows){
+                const displayed=byCode.get(source.race_code);
+                const yen=source.payout_yen_per_100.toLocaleString('ja-JP');
+                const expectedAmount='3連単払戻：'+yen+'円（100円あたり・独立保存原本照合済み）';
+                if(!displayed||!displayed.summary.includes('確定 '+source.finish)||
+                   !displayed.detail.includes(expectedAmount))
+                  throw Error('nov11_payout_public_row_mismatch_'+source.race_code);
+              }
+              if(errors.length)throw Error('nov11_candidate_page_js_errors_'+errors.join(';').slice(0,300));
+              console.log('CLEAN_NOV11_PAYOUT_PUBLIC_PASS',JSON.stringify({day:'20261111',archiveRows:publicToday.rows.length,payoutsMatched:paidRows.length,scope:'published Pages DOM vs build-time independently verified Git manifest'}));
               console.log('CLEAN_CANDIDATE_PUBLIC_DISPLAY',JSON.stringify(evidence));
-              summary('Real JST-day candidate page: **'+(evidence.count?'DISPLAY_OBSERVED':'ZERO_OR_UNVERIFIED')+
+              summary('Published stored candidate archive: **'+(evidence.count>6?'DISPLAY_OBSERVED':'ZERO_OR_UNVERIFIED')+
                 '** '+JSON.stringify(evidence).slice(0,1100));
             }catch(e){
               console.error('CLEAN_CANDIDATE_PUBLIC_UNVERIFIED',e.message);
@@ -523,6 +685,536 @@ jobs:
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exitCode=1});
           JS
+      - name: Inspect real six-boat exhibition against independent CSV (diagnostic)
+        timeout-minutes: 4
+        continue-on-error: true
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          node - <<'JS'
+          const {chromium}=require('playwright');
+          const parse=line=>{let a=[],s='',q=false;for(let i=0;i<line.length;i++){let c=line[i];if(c==='"'){if(q&&line[i+1]==='"'){s+='"';i++}else q=!q;}else if(c===','&&!q){a.push(s);s='';}else s+=c;}a.push(s);return a;};
+          (async()=>{
+            const browser=await chromium.launch({headless:true}),reports=[];
+            try{
+              const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+              for(const [day,venue,race] of [['2026-10-28','01',1],['2026-10-31','07',8],['2026-11-02','19',5],['2026-11-03','19',11]]){
+                const code=day.replaceAll('-','')+venue+String(race).padStart(2,'0');
+                const report={code,state:'unverified'};
+                try{
+                  const csvUrl='https://boatracecsv.github.io/data/previews/original_exhibition/'+day.replaceAll('-','/')+'.csv';
+                  const csv=await page.request.get(csvUrl,{timeout:15000});
+                  if(csv.status()!==200){report.reason='csv_http_'+csv.status();reports.push(report);continue;}
+                  const raw=(await csv.text()).replace(/^\uFEFF/,'').split(/\r?\n/).filter(Boolean).map(parse),head=raw.shift()||[];
+                  if(new Set(head).size!==head.length)throw Error('DUPLICATE_HEADER');
+                  const pos=Object.fromEntries(head.map((h,i)=>[h,i]));
+                  const rows=raw.filter(x=>x[pos['レースコード']]===code);
+                  if(rows.length===0){report.reason='csv_race_absent';reports.push(report);continue;}
+                  if(rows.length!==1)throw Error('DUPLICATE_RACE');
+                  const row=rows[0],count=Number(row[pos['計測数']]);
+                  if(!Number.isInteger(count)||count<1||count>3)throw Error('INVALID_COUNT');
+                  const url=new URL(process.env.PAGE_URL);
+                  for(const [k,v] of [['date',day],['venue',venue],['race',String(race)],['view','exhibit']])url.searchParams.set(k,v);
+                  const response=await page.goto(url.href,{waitUntil:'domcontentloaded',timeout:30000});
+                  if(response?.status()!==200)throw Error('PAGE_HTTP_'+response?.status());
+                  await page.evaluate(()=>{setView('exhibit');render()});
+                  const stage=async()=>page.evaluate(()=>({key:sameRaceKey(),view:activeView,cardStatus:document.querySelector('#raceDataStatus')?.textContent,boats:document.querySelectorAll('#exhibitionGrid .exhibition-boat').length,originalStatus:document.querySelector('#originalExhibitionStatus')?.textContent||'missing'}));
+                  try{await page.waitForFunction(()=>document.querySelectorAll('#exhibitionGrid .exhibition-boat').length===6,null,{timeout:16000});}catch(e){throw Error('NO_SIX_CARD_LAYOUT '+JSON.stringify(await stage()));}
+                  try{await page.waitForFunction(()=>/6艇分|元データを取得・検証できません|未配信/.test(document.querySelector('#originalExhibitionStatus')?.textContent||''),null,{timeout:16000});}catch(e){throw Error('ORIGINAL_NOT_FINISHED '+JSON.stringify(await stage()));}
+                  const got=await page.evaluate(()=>({
+                    key:sameRaceKey(),status:document.querySelector('#originalExhibitionStatus').textContent,
+                    boats:[...document.querySelectorAll('#exhibitionGrid .exhibition-boat')].map(c=>({
+                      lane:Number(c.querySelector('.lane-badge')?.textContent),
+                      official:c.querySelectorAll('.exhibition-metric').length,
+                      original:[...c.querySelectorAll('.exhibition-original-metric')].map(x=>[x.querySelector('span')?.textContent,x.querySelector('strong')?.textContent])
+                    }))
+                  }));
+                  if(got.key!==day.replaceAll('-','')+'-'+venue+'-'+String(race).padStart(2,'0'))throw Error('RACE_KEY');
+                  if(got.boats.length!==6||got.boats.some((b,i)=>b.lane!==i+1||b.official!==5||b.original.length!==count))throw Error('SIX_BOAT_METRICS');
+                  for(let lane=1;lane<=6;lane++)for(let k=1;k<=count;k++){
+                    const label=row[pos['計測項目'+k]]?.trim(),ix=pos['艇'+lane+'_値'+k];
+                    if(!label||!Number.isInteger(ix))throw Error('CSV_COLUMN_'+lane+'_'+k);
+                    const expected=(row[ix]||'').trim()||'—',shown=got.boats[lane-1].original[k-1];
+                    if(shown[0]!==label||shown[1]!==expected)throw Error('LANE_MISMATCH_'+lane+'_'+k);
+                  }
+                  report.state='six_boats_match_original_csv';report.metrics=count;
+                }catch(e){report.state='mismatch';report.reason=String(e.message||e)}
+                reports.push(report);console.log('PUBLIC_EXHIBITION_CASE',JSON.stringify(report));
+              }
+              const matched=reports.filter(x=>x.state==='six_boats_match_original_csv').length;
+              const failed=reports.filter(x=>x.state==='mismatch').length;
+              console.log('PUBLIC_EXHIBITION_SUMMARY',JSON.stringify({matched,failed,reports}));
+              require('node:fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,'Public 6-boat original CSV alignment: '+matched+' matched, '+failed+' mismatches, '+(reports.length-matched-failed)+' source-unverified\n');
+              if(failed||matched<1)throw Error('LIVE_EXHIBITION_NOT_FULLY_VERIFIED');
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          JS
+      - name: Audit all scheduled venues against archived real exhibition CSV (diagnostic)
+        timeout-minutes: 2
+        continue-on-error: true
+        run: |
+          node - <<'JS'
+          const fs=require('node:fs'),assert=require('node:assert/strict');
+          const {chromium}=require('playwright');
+          function csv(line){let arr=[],part='',quoted=false;for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'){if(quoted&&line[i+1]==='"'){part+='"';i++}else quoted=!quoted;}else if(ch===','&&!quoted){arr.push(part);part='';}else part+=ch;}arr.push(part);return arr}
+          (async()=>{
+            const snapshot=JSON.parse(fs.readFileSync('schedule_snapshots/20261110.json','utf8'));
+            assert.equal(snapshot.date,'2026-11-10');
+            const browser=await chromium.launch({headless:true});
+            try{
+              const page=await browser.newPage();
+              const url='https://boatracecsv.github.io/data/previews/original_exhibition/2026/11/10.csv';
+              const response=await page.request.get(url,{timeout:25000});
+              assert.equal(response.status(),200,'independent CSV unavailable');
+              const lines=(await response.text()).replace(/^\uFEFF/,'').split(/\r?\n/).filter(Boolean).map(csv);
+              const names=lines.shift();assert.equal(names.length,34,'source schema: 10 metadata columns plus six sets of four boat fields');
+              const col=Object.fromEntries(names.map((name,i)=>[name,i]));
+              assert.equal(Object.keys(col).length,names.length,'duplicated source fields');
+              const entries=new Map();
+              let emptyValues=0,observedValues=0;
+              const incompleteRaces=new Set(),deadlineDrifts=[];
+              for(const row of lines){
+                assert.equal(row.length,names.length,'truncated CSV row');
+                const code=row[col['レースコード']];
+                assert.match(code,/^20261110\d{4}$/);
+                assert.ok(!entries.has(code),'duplicated race '+code);
+                const count=Number(row[col['計測数']]);
+                assert.ok(Number.isInteger(count)&&count>=1&&count<=3,'invalid measurement count '+code);
+                for(let lane=1;lane<=6;lane++){
+                  assert.ok(row[col['艇'+lane+'_選手名']]?.trim(),'racer missing '+code+' lane '+lane);
+                  for(let k=1;k<=count;k++){
+                    const label=row[col['計測項目'+k]],value=row[col['艇'+lane+'_値'+k]];
+                    assert.ok(label?.trim()&&value!==undefined,'invalid metric schema '+code+' lane '+lane+' metric '+k);
+                    if(value.trim()===''){emptyValues++;incompleteRaces.add(code)}else observedValues++;
+                  }
+                }
+                entries.set(code,row);
+              }
+              const planned=new Set();
+              for(const venue of snapshot.venues){
+                const jcd=String(venue.jcd).padStart(2,'0');
+                for(const race of venue.races){
+                  const code='20261110'+jcd+String(race.race_no).padStart(2,'0');
+                  assert.ok(!planned.has(code),'duplicate scheduled race '+code);
+                  planned.add(code);
+                  const row=entries.get(code);
+                  assert.ok(row,'scheduled race absent '+code);
+                  assert.equal(Number(row[col['レース場']]),Number(jcd),'venue mismatch '+code);
+                  assert.equal(Number(String(row[col['レース回']]).replace(/R$/i,'')),Number(race.race_no),'race mismatch '+code);
+                  if(row[col['締切時刻']]!==race.deadline)deadlineDrifts.push({code,schedule:race.deadline,csv:row[col['締切時刻']]});
+                }
+              }
+              assert.equal(entries.size,planned.size,'unexpected/missing source races');
+              assert.equal(snapshot.venues.length,13,'observed venue cohort has changed');
+              assert.equal(planned.size,156,'observed scheduled count has changed');
+              const result={date:'2026-11-10',scheduled_venues:snapshot.venues.length,scheduled_races:planned.size,csv_races:entries.size,matched_race_codes:planned.size,missing_race_codes:0,measurement_values_present:observedValues,measurement_values_empty:emptyValues,incomplete_races:incompleteRaces.size,deadline_drifts:deadlineDrifts,source:'independent archived CSV',scope:'real-source inventory only; missing cells are not valid numbers; not published DOM or formal T-12'};
+              console.log('PUBLIC_EXHIBITION_SCHEDULE_SOURCE_MATCH',JSON.stringify(result));
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'Real 2026-11-10 exhibition CSV vs schedule: '+planned.size+' race identifiers matched; '+emptyValues+' empty source values in '+incompleteRaces.size+' races, '+deadlineDrifts.length+' source/snapshot deadline differences. Inactive venues are not certified non-provided. Not a T-12 record.\n');
+            }finally{await browser.close()}
+          })().catch(e=>{console.error('PUBLIC_EXHIBITION_SCHEDULE_SOURCE_UNVERIFIED',String(e));process.exit(1)});
+          JS
+      - name: Replay archived official six-boat source on published exhibition UI (diagnostic)
+        timeout-minutes: 3
+        continue-on-error: true
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          node - <<'JS'
+          const fs=require('node:fs'),assert=require('node:assert/strict');
+          const {chromium}=require('playwright');
+          const official=JSON.parse(fs.readFileSync('tests/fixtures/official_preview_202611040111.json','utf8')).maindata;
+          const archived=JSON.parse(fs.readFileSync('docs/observations/official_preview_production_202611040111.json','utf8'));
+          const card=JSON.parse(archived.raw_response_utf8),code='202611040111';
+          assert.equal(card.race_key,'20261104-01-11');
+          assert.equal(card.source_audit?.beforeinfo?.status,'ok');
+          const expected=Array.from({length:6},(_,i)=>{
+            const lane=i+1,te=official.teiinfolist.find(x=>Number(x.teino)===lane),
+                  st=official.sttenjiinfolist.find(x=>Number(x.teino)===lane);
+            assert.ok(te&&st,'missing official lane '+lane);
+            const proof=card.beforeinfo.racers.find(x=>x.lane===lane),
+                  start=card.beforeinfo.start_exhibition.find(x=>x.lane===lane);
+            assert.deepEqual([Number(proof.exhibition_time),Number(proof.tilt),start.st,start.course],
+              [Number(te.extime),Number(te.tilt),st.st,Number(st.cs)],'saved public API must match original official source for '+lane);
+            return {'展示タイム':String(Number(te.extime)),'展示ST':st.st,'展示進入':Number(st.cs)+'C','チルト':String(Number(te.tilt))};
+          });
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            try{
+              const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+              const fixed=Date.parse('2026-11-04T19:59:00+09:00');
+              await page.addInitScript(now=>{
+                const NativeDate=Date;
+                globalThis.Date=class extends NativeDate{
+                  constructor(...args){super(...(args.length?args:[now]))}
+                  static now(){return now}
+                };
+              },fixed);
+              let served=0;
+              await page.route('https://boat-edge-clean.onrender.com/api/clean-racecard?**',route=>{
+                const url=new URL(route.request().url());
+                if(url.searchParams.get('hd')===code.slice(0,8)&&
+                  Number(url.searchParams.get('jcd'))===1&&Number(url.searchParams.get('rno'))===11){
+                  served++;
+                  return route.fulfill({status:200,contentType:'application/json',body:archived.raw_response_utf8});
+                }
+                return route.continue();
+              });
+              const url=new URL(process.env.PAGE_URL);
+              for(const [key,value] of [['date','2026-11-04'],['venue','01'],['race','11'],['view','exhibit']])url.searchParams.set(key,value);
+              const res=await page.goto(url.href,{waitUntil:'domcontentloaded',timeout:30000});
+              assert.equal(res.status(),200);
+              await page.evaluate(()=>{s.date='2026-11-04';s.venue=0;s.race=11;setView('exhibit');render()});
+              try{
+                await page.waitForFunction(()=>[...document.querySelectorAll('#exhibitionGrid .exhibition-boat')].length===6&&
+                  document.querySelectorAll('#exhibitionGrid .exhibition-boat .exhibition-metric').length===30,null,{timeout:25000});
+              }catch(error){
+                const state=await page.evaluate(()=>({key:sameRaceKey(),view:activeView,status:document.querySelector('#raceDataStatus')?.textContent,boats:document.querySelectorAll('#exhibitionGrid .exhibition-boat').length}));
+                throw Error('OFFICIAL_REPLAY_NOT_VISIBLE '+JSON.stringify({served,state}));
+              }
+              const shown=await page.evaluate(()=>({
+                key:sameRaceKey(),boats:[...document.querySelectorAll('#exhibitionGrid .exhibition-boat')].map(el=>({
+                  lane:Number(el.querySelector('.lane-badge')?.textContent),
+                  metrics:Object.fromEntries([...el.querySelectorAll('.exhibition-metric')].map(x=>[x.querySelector('span')?.textContent,x.querySelector('strong')?.textContent]))
+                }))
+              }));
+              assert.ok(served>0,'published UI did not consume saved real API response');
+              assert.equal(shown.key,'20261104-01-11');
+              assert.equal(shown.boats.length,6);
+              for(let i=0;i<6;i++){
+                assert.equal(shown.boats[i].lane,i+1);
+                for(const [metric,value] of Object.entries(expected[i]))
+                  assert.equal(shown.boats[i].metrics[metric],value,'official display mismatch lane '+(i+1)+' '+metric);
+              }
+              console.log('PUBLISHED_OFFICIAL_REPLAY_MATCH',JSON.stringify({race:code,lanes:6,values:24,source:'saved genuine official beforeinfo JSON plus captured public API',time:'fixed historical predeadline replay',served}));
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'Official 2026-11-04 archived source replay: 6 boats / 24 values matched original JSON in published app (historical deterministic browser replay, not current live official source)\n');
+            }finally{await browser.close()}
+          })().catch(e=>{console.error('PUBLISHED_OFFICIAL_REPLAY_UNVERIFIED',String(e));process.exit(1)});
+          JS
+      - name: Verify genuinely sparse archived original CSV in public mobile browser (diagnostic)
+        timeout-minutes: 3
+        continue-on-error: true
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          node - <<'JS'
+          const {chromium}=require('playwright');
+          const assert=require('node:assert/strict');
+          const code='202611101106';
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            try{
+              const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+              const source=await page.request.get('https://boatracecsv.github.io/data/previews/original_exhibition/2026/11/10.csv',{timeout:20000});
+              assert.equal(source.status(),200,'real archived upstream must be accessible');
+              const csv=await source.text();
+              const originalRow=csv.split(/\r?\n/).find(x=>x.startsWith(code+','));
+              assert.ok(originalRow,'must verify a real original source race');
+              const cells=originalRow.split(',');
+              assert.equal(cells[6],'3','three measurements per lane');
+              const missing=[11,15,19,23,27,31].filter(i=>cells[i]==='');
+              assert.equal(missing.length,6,'this race must have exactly six blanks in first per-boat metric');
+              const url=new URL(process.env.PAGE_URL);
+              for(const [k,v] of [['date','2026-11-10'],['venue','11'],['race','6'],['view','exhibit']])url.searchParams.set(k,v);
+              const response=await page.goto(url.href,{waitUntil:'domcontentloaded',timeout:30000});
+              assert.equal(response?.status(),200);
+              await page.evaluate(()=>{s.date='2026-11-10';s.venue=10;s.race=6;setView('exhibit');render()});
+              try{
+                await page.waitForFunction(()=>document.querySelectorAll('#exhibitionGrid .exhibition-boat').length===6&&
+                    document.querySelector('#originalExhibitionStatus')?.dataset.originalState==='partial_missing',
+                  null,{timeout:22000});
+              }catch(e){
+                const state=await page.evaluate(()=>({
+                  key:sameRaceKey(),view:activeView,cardStatus:document.querySelector('#raceDataStatus')?.textContent,
+                  original:document.querySelector('#originalExhibitionStatus')?.textContent,
+                  boats:document.querySelectorAll('#exhibitionGrid .exhibition-boat').length
+                }));
+                throw Error('PUBLIC_ACTUAL_PARTIAL_SOURCE_UNVERIFIED '+JSON.stringify(state));
+              }
+              const actual=await page.evaluate(()=>({
+                notice:document.querySelector('#originalExhibitionStatus')?.textContent,
+                state:document.querySelector('#originalExhibitionStatus')?.dataset.originalState,
+                boats:[...document.querySelectorAll('#exhibitionGrid .exhibition-boat')].map(c=>({
+                  lane:Number(c.querySelector('.lane-badge')?.textContent),
+                  metrics:[...c.querySelectorAll('.exhibition-original-metric')].map(m=>({
+                    label:m.querySelector('span')?.textContent,shown:m.querySelector('strong')?.textContent,
+                    state:m.dataset.sourceValueState
+                  }))
+                })),
+                overflow:document.documentElement.scrollWidth>window.innerWidth+1
+              }));
+              assert.match(actual.notice,/一部欠測：6\/18項目/);
+              assert.equal(actual.boats.length,6);
+              assert.ok(!actual.overflow,'390px mobile horizontal overflow');
+              for(let i=0;i<6;i++){
+                const lane=actual.boats[i];
+                assert.equal(lane.lane,i+1);
+                assert.equal(lane.metrics.length,3);
+                assert.deepEqual(lane.metrics.map(x=>x.label),['一周','まわり足','直線']);
+                assert.equal(lane.metrics[0].state,'missing');
+                assert.equal(lane.metrics[0].shown,'—');
+                assert.equal(lane.metrics[1].state,'present');
+                assert.equal(lane.metrics[2].state,'present');
+              }
+              console.log('PUBLIC_ACTUAL_PARTIAL_SOURCE_PASS',JSON.stringify({race:code,boats:6,measured:18,missing:6,source:'real original 2026-11-10 CSV',mobileWidth:390,overflow:false}));
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          JS
+      - name: Check published exhibition missing-data states in browser (diagnostic)
+        timeout-minutes: 3
+        continue-on-error: true
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          node - <<'JS'
+          const {chromium}=require('playwright');
+          const assert=require('node:assert/strict');
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const cases=[
+              {name:'date_not_published',status:404,body:'',label:'オリ展：未公開'},
+              {name:'transport_failed',status:503,body:'',label:'オリ展：取得失敗'},
+              {name:'race_unlisted',status:200,body:'レースコード,計測数\n202610280102,3\n',label:'オリ展：未収録'},
+              {name:'invalid_source',status:200,body:'not,a,valid,original,source\n',label:'オリ展：検証不可'}
+            ];
+            try{
+              for(const sample of cases){
+                const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+                try{
+                  let intercepted=0;
+                  await page.route('https://boatracecsv.github.io/data/previews/original_exhibition/**',route=>{
+                    intercepted++;
+                    return route.fulfill({status:sample.status,contentType:'text/csv',body:sample.body});
+                  });
+                  const url=new URL(process.env.PAGE_URL);
+                  for(const [k,v] of [['date','2026-10-28'],['venue','01'],['race','1'],['view','exhibit']])url.searchParams.set(k,v);
+                  const res=await page.goto(url.href,{waitUntil:'domcontentloaded',timeout:30000});
+                  assert.equal(res.status(),200);
+                  // Opening the tab alone does not load its racecard: render the
+                  // explicitly selected historical race, as the official replay does.
+                  await page.evaluate(()=>{s.date='2026-10-28';s.venue=0;s.race=1;setView('exhibit');render()});
+                  try{await page.waitForFunction(state=>document.querySelector('#originalExhibitionStatus')?.dataset.originalState===state,sample.name,{timeout:17000});}
+                  catch(e){
+                    const state=await page.evaluate(()=>({key:sameRaceKey(),status:document.querySelector('#originalExhibitionStatus')?.textContent,kind:document.querySelector('#originalExhibitionStatus')?.dataset.originalState,boatCount:document.querySelectorAll('#exhibitionGrid .exhibition-boat').length}));
+                    throw Error('PUBLIC_EXHIBITION_MISSING_STATE_'+sample.name+' '+JSON.stringify(state));
+                  }
+                  const got=await page.evaluate(()=>({
+                    labels:[...document.querySelectorAll('#exhibitionGrid .exhibition-boat [data-original-exhibition-lane]')].map(el=>el.querySelector('.exhibition-original-pending')?.textContent||''),
+                    officialCount:document.querySelectorAll('#exhibitionGrid .exhibition-boat .exhibition-metric').length,
+                    measurements:document.querySelectorAll('#exhibitionGrid .exhibition-original-metric').length
+                  }));
+                  assert.ok(intercepted>=1,'mocked upstream was not requested');
+                  assert.equal(got.labels.length,6);
+                  assert.ok(got.labels.every(x=>x===sample.label),sample.name+' wrong six-lane missing labels');
+                  assert.equal(got.measurements,0,'must not invent missing original values');
+                  assert.equal(got.officialCount,30,'independent official measurement columns must remain');
+                  console.log('PUBLIC_EXHIBITION_EMPTY_STATE_MATCH',JSON.stringify({state:sample.name,boatCount:6,intercepted}));
+                }finally{await page.close()}
+              }
+              // Replay a real saved racecard with a diagnostic-only official adapter
+              // audit showing partial fields; do not invent source measurements or
+              // claim this is an independently observed live official race.
+              const originalResponse=JSON.parse(require('node:fs').readFileSync('docs/observations/official_preview_production_202611040111.json','utf8'));
+              const archivedCard=JSON.parse(originalResponse.raw_response_utf8);
+              for(const scenario of [
+                {name:'partial',expected:'公式展示の取得不足｜展示タイム 5/6艇｜チルト 6/6艇｜スタート展示 未検証（6/6行受信）',
+                  fallback:{reason:'incomplete_official_exhibition',
+                    official_measurement_counts:{racers:6,exhibition_time:5,tilt:6,start_rows:6,start_valid_six:false},
+                    missing_official_fields:['exhibition_time','start_exhibition']}},
+                {name:'deadline_mismatch',expected:'公式側の対象レース・締切時刻が一致せず',
+                  fallback:{reason:'official_race_or_deadline_mismatch'}}
+              ]){
+                const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+                try{
+                  const fixed=Date.parse('2026-11-04T19:59:00+09:00');
+                  await page.addInitScript(now=>{
+                    const NativeDate=Date;
+                    globalThis.Date=class extends NativeDate{
+                      constructor(...args){super(...(args.length?args:[now]))}
+                      static now(){return now}
+                    };
+                  },fixed);
+                  const card=JSON.parse(JSON.stringify(archivedCard));
+                  card.beforeinfo=null;
+                  card.source_audit.beforeinfo={status:'not_published_or_unavailable',formal_t12_certified:false,official_fallback:scenario.fallback};
+                  let intercepted=0;
+                  await page.route('https://boat-edge-clean.onrender.com/api/clean-racecard?**',route=>{
+                    const u=new URL(route.request().url());
+                    if(u.searchParams.get('hd')==='20261104'&&Number(u.searchParams.get('jcd'))===1&&Number(u.searchParams.get('rno'))===11){
+                      intercepted++;
+                      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(card)});
+                    }
+                    return route.continue();
+                  });
+                  const url=new URL(process.env.PAGE_URL);
+                  for(const [k,v] of [['date','2026-11-04'],['venue','01'],['race','11'],['view','exhibit']])url.searchParams.set(k,v);
+                  const response=await page.goto(url.href,{waitUntil:'domcontentloaded',timeout:30000});
+                  assert.equal(response.status(),200,'actual published Pages must load');
+                  await page.evaluate(()=>{s.date='2026-11-04';s.venue=0;s.race=11;setView('exhibit');render()});
+                  await page.waitForFunction(expected=>
+                    document.querySelector('#exhibitionGrid .muted')?.textContent?.includes(expected) &&
+                    document.querySelectorAll('#exhibitionGrid .exhibition-boat').length===6,
+                    scenario.expected,{timeout:25000});
+                  const shown=await page.evaluate(()=>({
+                    key:sameRaceKey(),
+                    note:document.querySelector('#exhibitionGrid .muted')?.textContent||'',
+                    boats:[...document.querySelectorAll('#exhibitionGrid .exhibition-boat')].map(el=>({
+                      lane:Number(el.querySelector('.lane-badge')?.textContent),
+                      fields:Object.fromEntries([...el.querySelectorAll('.exhibition-metric')].map(m=>[m.querySelector('span')?.textContent,m.querySelector('strong')?.textContent]))
+                    }))
+                  }));
+                  assert.ok(intercepted>0,'public app must consume the scenario-specific API response');
+                  assert.equal(shown.key,'20261104-01-11');
+                  assert.ok(shown.note.includes(scenario.expected));
+                  assert.equal(shown.boats.length,6);
+                  for(let i=0;i<6;i++){
+                    assert.equal(shown.boats[i].lane,i+1);
+                    for(const metric of ['展示タイム','チルト','展示ST','展示進入'])
+                      assert.equal(shown.boats[i].fields[metric],'—','unverified official '+metric+' must not be fabricated');
+                  }
+                  console.log('PUBLISHED_OFFICIAL_GAP_DIAGNOSTIC_PASS',JSON.stringify({scenario:scenario.name,lanes:6,withheld:24,intercepted,source:'archived racecard with synthetic missing-field audit; published browser renderer only'}));
+                }finally{await page.close()}
+              }
+              // Confirm that the actual public frontend distinguishes unavailable
+              // racecards from transient API failures without creating six boats.
+              for(const sample of [
+                {name:'render_503',status:503,expected:'公開APIに一時的に接続できません'},
+                {name:'not_published_404',status:404,expected:'このレースの事前出走表は未配信です'}
+              ]){
+                const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+                try{
+                  let served=0;
+                  await page.route('https://boat-edge-clean.onrender.com/api/clean-racecard?**',route=>{
+                    const u=new URL(route.request().url());
+                    if(u.searchParams.get('hd')==='20261028'&&Number(u.searchParams.get('jcd'))===1&&Number(u.searchParams.get('rno'))===1){
+                      served++;
+                      return route.fulfill({status:sample.status,contentType:'application/json',body:JSON.stringify({ok:false,error:'diagnostic_only'})});
+                    }
+                    return route.continue();
+                  });
+                  const url=new URL(process.env.PAGE_URL);
+                  for(const [k,v] of [['date','2026-10-28'],['venue','01'],['race','1'],['view','card']])url.searchParams.set(k,v);
+                  const response=await page.goto(url.href,{waitUntil:'domcontentloaded',timeout:30000});
+                  assert.equal(response.status(),200,'real public Pages HTTP');
+                  await page.evaluate(()=>{s.date='2026-10-28';s.venue=0;s.race=1;datePinned=true;venueSpecified=true;setView('card');render()});
+                  await page.waitForFunction(expected=>
+                    (document.querySelector('#raceDataStatus')?.textContent||'').includes(expected),
+                    sample.expected,{timeout:27000});
+                  const shown=await page.evaluate(()=>({
+                    key:sameRaceKey(),message:document.querySelector('#raceDataStatus')?.textContent,
+                    racerRows:document.querySelectorAll('#raceDataRows tr').length,
+                    exhibitionBoats:document.querySelectorAll('#exhibitionGrid .exhibition-boat').length
+                  }));
+                  assert.ok(served>=1,'must exercise selected live API request');
+                  assert.equal(shown.key,'20261028-01-01');
+                  assert.equal(shown.racerRows,0,'do not invent six racer rows on HTTP failure');
+                  assert.equal(shown.exhibitionBoats,0,'do not display unverified exhibition boats');
+                  console.log('PUBLISHED_RACECARD_API_STATE_PASS',JSON.stringify({case:sample.name,http:sample.status,served,rows:shown.racerRows}));
+                }finally{await page.close()}
+              }
+              console.log('PUBLIC_EXHIBITION_EMPTY_STATES_PASS',cases.length);
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          JS
+      - name: Observe public Render revision and racecard HTTP after publish (diagnostic only)
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 3
+        shell: bash
+        run: |
+          set -uo pipefail
+          # A Pages publish and an independent Render auto-deploy can overlap.
+          # Observe, never interpret an old SHA during rollout as a permanent fault.
+          mkdir -p test-results
+          evidence="test-results/render-edge-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.log"
+          : > "$evidence"
+          for sample in 1 2 3; do
+            timestamp="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            headers="$(mktemp)"
+            health_code="$(curl --silent --show-error --location --head --max-time 12 -D "$headers" -o /dev/null -w '%{http_code}' 'https://boat-edge-clean.onrender.com/healthz' 2>/dev/null)"
+            health_exit="$?"
+            revision="$(awk -F': *' 'tolower($1)=="x-boat-edge-deploy-commit" {gsub(/\r/,"",$2); print tolower($2)}' "$headers" | tail -n 1)"
+            rm -f "$headers"
+            if [[ "$health_code" == "200" && "$revision" =~ ^[0-9a-f]{40}$ ]]; then
+              if [[ "$revision" == "$GITHUB_SHA" ]]; then
+                state="same_as_publish_checkout"
+              else
+                state="other_live_revision_or_rollout"
+              fi
+            else
+              state="health_unverified"
+            fi
+            card_metrics="$(curl --silent --show-error --location --max-time 12 -o /dev/null -w 'http=%{http_code} total_s=%{time_total}' 'https://boat-edge-clean.onrender.com/api/clean-racecard?hd=20261028&jcd=01&rno=1' 2>/dev/null)"
+            card_exit="$?"
+            printf 'RENDER_PUBLISH_EDGE_DIAGNOSTIC sample=%s at_utc=%s expected_sha=%s health_http=%s health_curl_exit=%s observed_sha=%s sha_state=%s racecard=%s racecard_curl_exit=%s\n' \
+              "$sample" "$timestamp" "$GITHUB_SHA" "${health_code:-000}" "$health_exit" "${revision:-none}" "$state" "${card_metrics:-http=000}" "$card_exit" \
+              | tee -a "$evidence"
+            if [[ "$sample" != 3 ]]; then sleep 2; fi
+          done
+          echo "Render public health/racecard: **diagnostic only** (sampled statuses, not zero-502 or readiness certification)" >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve Render publish edge samples
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clean-render-publish-edge-${{ github.run_id }}-${{ github.run_attempt }}
+          path: test-results/render-edge-*.log
+          if-no-files-found: warn
+          retention-days: 30
+      # This runs AFTER Pages is deployed. A green historical 24-venue test
+      # is not evidence that the newly restored forecast API is responsive.
+      # Keep the site release red while V133 returns 502/invalid JSON, even if
+      # /healthz and archived racecard routes return HTTP 200.
+      - name: Verify live V133 JSON contract before accepting published release
+        timeout-minutes: 4
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import time
+          from urllib.error import HTTPError, URLError
+          from urllib.request import Request, urlopen
+
+          url = 'https://boat-edge-clean.onrender.com/api/v133-reference-preview?hd=invalid&jcd=01&rno=1'
+          req = Request(url, headers={
+              'User-Agent': 'BOAT-EDGE-CLEAN-release-contract/1',
+              'Origin': 'https://ikst2512-eng.github.io',
+          })
+          last = 'not_started'
+          # Render and Pages auto-deploy independently. Wait a bounded time
+          # for the LIVE backend; never silently accept 502 or a malformed response.
+          for attempt in range(1, 9):
+              started = time.monotonic()
+              try:
+                  with urlopen(req, timeout=12) as response:
+                      status, headers, body = response.status, response.headers, response.read(8192)
+              except HTTPError as error:
+                  status, headers, body = error.code, error.headers, error.read(8192)
+              except (URLError, TimeoutError, OSError) as error:
+                  last = type(error).__name__
+                  print(f'PUBLIC_V133_CONTRACT_UNVERIFIED attempt={attempt}/8 transport={last}', flush=True)
+                  if attempt < 8:
+                      time.sleep(10)
+                  continue
+              try:
+                  payload = json.loads(body)
+              except (UnicodeError, ValueError):
+                  payload = None
+              valid = (
+                  status == 400
+                  and payload == {'ok': False, 'status': 'invalid_race'}
+                  and headers.get('Content-Type', '').startswith('application/json')
+                  and headers.get('Access-Control-Allow-Origin') == 'https://ikst2512-eng.github.io'
+              )
+              elapsed = round(time.monotonic() - started, 3)
+              if valid:
+                  print(f'PUBLIC_V133_JSON_CONTRACT_PASS attempt={attempt}/8 http=400 latency_s={elapsed}', flush=True)
+                  break
+              last = f'http={status} content_type={headers.get("Content-Type", "missing")} cors={headers.get("Access-Control-Allow-Origin", "missing")} json_valid={payload is not None}'
+              print(f'PUBLIC_V133_CONTRACT_UNVERIFIED attempt={attempt}/8 {last} latency_s={elapsed}', flush=True)
+              if attempt < 8:
+                  time.sleep(10)
+          else:
+              raise SystemExit('PUBLIC_V133_JSON_CONTRACT_FAILED: ' + last)
+          PY
       - name: Browser-check deployed page
         timeout-minutes: 2
         env:
@@ -553,6 +1245,10 @@ jobs:
               await page.locator('#venues button').first().waitFor();
               if(await page.locator('#venues button').count()!==24)throw Error('Public 24 venue buttons missing');
               if(await page.locator('#races button').count()!==12)throw Error('Public 12 race buttons missing');
+              // The home screen may legitimately auto-follow a newly received
+              // schedule. Enter the detail first, then freeze its selected race.
+              await page.waitForFunction(()=>document.documentElement.dataset.cleanNavigationInit==='1');
+              await page.evaluate(()=>setView('card'));
               const selectedRace=await page.evaluate(()=>sameRaceKey());
               for(const view of ['card','exhibit','forecast','result']){
                 await page.evaluate(view => setView(view), view);
@@ -569,14 +1265,14 @@ jobs:
               }
               await page.waitForFunction(()=>document.documentElement.dataset.cleanNavigationInit==='1');
               // Pages has project-prefix URLs; navigation.js must preserve the review
-              // screen locally while directing candidate listings to CLEAN Render.
-              const candidateHref=await page.locator('.site-head a.header-candidate-tab[href*="/selection"]').getAttribute('href');
-              if(candidateHref!=='https://boat-edge-clean.onrender.com/selection')throw Error('PAGES_CANDIDATE_ROUTE_BROKEN '+candidateHref);
+              // screen locally and candidate history to independent GitHub Pages.
+              const candidateHref=await page.locator('.site-head a.header-candidate-tab[href*="candidates.html"]').getAttribute('href');
+              if(candidateHref!=='/boat-edge-clean/candidates.html')throw Error('PAGES_CANDIDATE_ROUTE_BROKEN '+candidateHref);
               const reviewHref=await page.locator('.site-global-nav a').getAttribute('href');
               const reviewUrl=new URL(reviewHref,process.env.PAGE_URL);
               if(reviewUrl.origin!==new URL(process.env.PAGE_URL).origin||reviewUrl.searchParams.get('screen')!=='review')
                 throw Error('PAGES_REVIEW_ROUTE_BROKEN '+reviewHref);
-              const candidateResponse=await page.request.get(candidateHref,{timeout:20000});
+              const candidateResponse=await page.request.get(new URL(candidateHref,process.env.PAGE_URL).href,{timeout:20000});
               if(candidateResponse.status()!==200||!(await candidateResponse.text()).includes('id="todayCandidateRaces"'))
                 throw Error('PUBLIC_CANDIDATE_PAGE_UNAVAILABLE '+candidateResponse.status());
               console.log('CLEAN_PAGES_CANDIDATE_NAV_VERIFIED',candidateHref,reviewHref);
@@ -584,6 +1280,13 @@ jobs:
               if(await shortcuts.count()!==4)throw Error('Published four race shortcuts missing');
               if(await page.locator('#forecast>.forecast-detail-tabs:visible').count()!==0)throw Error('Duplicate forecast tabs visible');
               if(await page.locator('#forecastQuick:visible').count()!==0)throw Error('Duplicate race picker visible');
+              await page.locator('.race-detail-shortcuts button[data-race-view="card"]').click();
+              if(await page.locator('#raceCardSubtabs:visible').count()!==1)throw Error('Published card subtabs missing');
+              await page.locator('[data-race-card-pane="rates"]').click();
+              if(await page.locator('#raceCardStatistics:visible').count()!==1)throw Error('Published racecard rates not visible');
+              if(await page.locator('#forecast>.forecast-combined-race:visible').count())throw Error('Published prediction shown inside racecard');
+              await page.locator('.race-detail-shortcuts button[data-race-view="forecast"]').click();
+              if(await page.locator('#forecast .forecast-statistics:visible').count())throw Error('Published prediction still showing rates');
               for(const view of ['forecast','card','exhibit','result']){
                 await page.locator('.race-detail-shortcuts button[data-race-view="'+view+'"]').click();
                 const active=await page.evaluate(()=>activeView);
@@ -593,10 +1296,10 @@ jobs:
               if(overflow>1)throw Error('Mobile horizontal overflow: '+overflow+'px');
               // Actual archived-result values are asserted by the dedicated
               // 'Verify published CLEAN confirmed result in browser' step above.
-              // Keep this step focused on the four navigation panels.
+              // Keep this step focused on the four navigation tabs and racecard subtabs.
               if(faults.length)throw Error('Public JS errors: '+faults.join('; '));
               console.log('DEPLOYED_BROWSER_PASS',process.env.PAGE_URL);
-              require('node:fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,'Public browser navigation: **PASS** (24 venues, 12 races, 4 tabs; archived result separately verified)\n');
+              require('node:fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,'Public browser navigation: **PASS** (24 venues, 12 races, 4 tabs + card statistics; archived result separately verified)\n');
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
           JS

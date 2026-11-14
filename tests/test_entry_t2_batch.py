@@ -37,13 +37,19 @@ def setup(root,count):
         (folder/(code+".json")).write_text(json.dumps(baseline))
     return cards,write_csv(rows)
 
+def mock_card(cards,day,venue,race):
+    # A 12-digit immutable ledger code has a two-digit race number (e.g. 08).
+    # clean_racecard.racecard expects the numeric argument "8"; test fixtures
+    # retain the canonical 12-digit key, without rewriting any saved original.
+    return cards[day+venue+f"{int(race):02d}"]
+
 class BatchTests(unittest.TestCase):
     def test_three_same_window_races_all_archived_without_history_fetch(self):
         with tempfile.TemporaryDirectory() as tmp:
             cards,bytes_=setup(tmp,3)
             archive={}
             out=attempt_batch(tmp,now=lambda:NOW,
-                card_reader=lambda d,v,r:cards[d+v+r],
+                card_reader=lambda d,v,r:mock_card(cards,d,v,r),
                 waku_fetch=lambda url:bytes_,
                 prefetch=lambda day:self.fail("no 62-file fallback"),
                 ledger_ops=(archive.get,lambda path,data:archive.setdefault(path,data)))
@@ -64,7 +70,7 @@ class BatchTests(unittest.TestCase):
             archive={}
             ops=(archive.get,lambda key,payload:archive.setdefault(key,payload))
             original=attempt_batch(tmp,now=lambda:NOW,
-                card_reader=lambda d,v,r:cards[d+v+r],
+                card_reader=lambda d,v,r:mock_card(cards,d,v,r),
                 waku_fetch=lambda url:bytes_,
                 ledger_ops=ops)
             self.assertEqual(original["newly_stored_count"],2)
@@ -103,7 +109,7 @@ class BatchTests(unittest.TestCase):
                 reads["count"]+=1
                 if clock[0] < NOW+timedelta(seconds=35):
                     raise ValueError("preview_not_yet_published")
-                return cards[day+venue+race]
+                return mock_card(cards,day,venue,race)
             storage={}
             out=attempt_batch(tmp,now=now,preview_retry_rounds=3,
                 preview_retry_interval=35,sleep=sleep,
@@ -138,13 +144,13 @@ class BatchTests(unittest.TestCase):
             def sleep(seconds):clock[0]+=timedelta(seconds=seconds)
             def preview(day,venue,race):
                 seen.append(race)
-                if race=="08":raise ValueError("no_preview")
-                return cards[day+venue+race]
+                if race=="8":raise ValueError("no_preview")
+                return mock_card(cards,day,venue,race)
             storage={}
             out=attempt_batch(tmp,now=now,preview_retry_rounds=2,
                 sleep=sleep,card_reader=preview,waku_fetch=lambda url:bytes_,
                 ledger_ops=(storage.get,lambda p,b:storage.setdefault(p,b)))
-            self.assertEqual(seen[:2],["08","09"])
+            self.assertEqual(seen[:2],["8","9"])
             self.assertEqual(out["status"],"t2_batch_partial_capture")
             self.assertEqual(out["newly_stored_count"],1)
             self.assertEqual(out["not_stored_count"],1)
@@ -159,9 +165,9 @@ class BatchTests(unittest.TestCase):
             cards,bytes_=setup(tmp,2)
             store={}
             def sometimes_unavailable(day,venue,race):
-                if race=="09":
+                if race=="9":
                     raise ValueError("preview_unavailable")
-                return cards[day+venue+race]
+                return mock_card(cards,day,venue,race)
             out=attempt_batch(tmp,now=lambda:NOW,
                 card_reader=sometimes_unavailable,waku_fetch=lambda url:bytes_,
                 ledger_ops=(store.get,lambda path,data:store.setdefault(path,data)))
@@ -174,11 +180,11 @@ class BatchTests(unittest.TestCase):
             cards,bytes_=setup(tmp,3)
             archive={}
             def card_reader(d,v,r):
-                if r=="09":
-                    bad=json.loads(json.dumps(cards[d+v+r]))
+                if r=="9":
+                    bad=json.loads(json.dumps(mock_card(cards,d,v,r)))
                     bad["beforeinfo"]=None
                     return bad
-                return cards[d+v+r]
+                return mock_card(cards,d,v,r)
             out=attempt_batch(tmp,now=lambda:NOW,
                 card_reader=card_reader,waku_fetch=lambda url:bytes_,
                 prefetch=lambda day:self.fail("no 62-file fallback"),
@@ -200,7 +206,7 @@ class BatchTests(unittest.TestCase):
                     raise ValueError("write_denied")
                 archive[path]=data
             out=attempt_batch(tmp,now=lambda:NOW,
-                card_reader=lambda d,v,r:cards[d+v+r],
+                card_reader=lambda d,v,r:mock_card(cards,d,v,r),
                 waku_fetch=lambda url:bytes_,
                 prefetch=lambda day:self.fail("no historical fetch"),
                 ledger_ops=(archive.get,create))
@@ -227,7 +233,7 @@ class BatchTests(unittest.TestCase):
                     [{"レースコード":f"2026110307{i:02d}",
                       "電話投票締切予定":"18:33"} for i in (8,9,10)],
                     "20261103","a"*64,"published_daily_title"),
-                card_reader=lambda d,v,r:cards[d+v+r],
+                card_reader=lambda d,v,r:mock_card(cards,d,v,r),
                 waku_fetch=lambda url:bytes_,
                 ledger_ops=(storage.get,lambda p,b:storage.setdefault(p,b)))
             self.assertEqual(out["newly_stored_count"],2)
@@ -244,7 +250,7 @@ class BatchTests(unittest.TestCase):
                     [{"レースコード":f"2026110307{i:02d}",
                       "電話投票締切予定":"18:33"} for i in (8,9)],
                     "20261103","a"*64,"published_daily_title"),
-                card_reader=lambda d,v,r:cards[d+v+r],
+                card_reader=lambda d,v,r:mock_card(cards,d,v,r),
                 waku_fetch=lambda url:bytes_,
                 ledger_ops=(storage.get,lambda p,b:storage.setdefault(p,b)))
             self.assertEqual(out["status"],"t2_batch_completed")
@@ -256,7 +262,7 @@ class BatchTests(unittest.TestCase):
             storage={}
             out=attempt_batch(tmp,now=lambda:NOW,verify_expected_schedule=True,
                 schedule_fetch=lambda snapshot:(_ for _ in ()).throw(OSError("schedule outage")),
-                card_reader=lambda d,v,r:cards[d+v+r],
+                card_reader=lambda d,v,r:mock_card(cards,d,v,r),
                 waku_fetch=lambda url:bytes_,
                 ledger_ops=(storage.get,lambda p,b:storage.setdefault(p,b)))
             self.assertEqual(out["status"],"t2_batch_expected_schedule_unavailable")
@@ -309,9 +315,9 @@ class BatchTests(unittest.TestCase):
             cards,raw_csv=setup(tmp,2)
             archived={}
             def reader(d,v,r):
-                if r=="09":
+                if r=="9":
                     raise ValueError("preview_not_ready")
-                return cards[d+v+r]
+                return mock_card(cards,d,v,r)
             verdict=attempt_batch(tmp,now=lambda:NOW,
                 card_reader=reader,waku_fetch=lambda url:raw_csv,
                 ledger_ops=(archived.get,lambda p,b:archived.setdefault(p,b)))
@@ -350,6 +356,25 @@ class BatchTests(unittest.TestCase):
                 card_reader=lambda *args:self.fail("local original must not be used"),
                 waku_fetch=lambda url:self.fail("no unsafe Waku10 capture"))
             self.assertEqual(result["status"],"t2_missing_expected_t12_baselines")
+    def test_unattended_rejects_hours_old_remote_baseline_without_rewriting_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cards,_=setup(tmp,1)
+            archived=__import__("test_entry_waku10_pilot").fixture()[0]
+            archived.update({
+                "model_version":"national-beta0.4-exploratory-v1",
+                # Old predeadline forecast, generated 21 minutes before cutoff.
+                "source_title_received_jst":archived["generated_at"],
+                "source_cards_received_jst":archived["generated_at"]})
+            folder=Path(tmp)/"entry-course-ledger"/"t12_baselines"/"20261103"
+            folder.mkdir(parents=True)
+            original_bytes=json.dumps(archived).encode()
+            path=folder/"202611030708.json"
+            path.write_bytes(original_bytes)
+            selected=__import__("entry_course_collector").candidates(
+                tmp,now=NOW,require_durable_t12=True)
+            self.assertEqual(selected,[])
+            self.assertEqual(path.read_bytes(),original_bytes)
+
     def test_unattended_mode_uses_durable_original_over_conflicting_local(self):
         with tempfile.TemporaryDirectory() as tmp:
             cards,raw_csv=setup(tmp,1)
@@ -362,8 +387,11 @@ class BatchTests(unittest.TestCase):
             original=__import__("test_entry_waku10_pilot").fixture()[0]
             original.update({
                 "model_version":"national-beta0.4-exploratory-v1",
-                "source_title_received_jst":original["generated_at"],
-                "source_cards_received_jst":original["generated_at"]})
+                # This scenario models a valid *T-12* remote baseline, not
+                # the intentionally earlier 18:00 generic preview fixture.
+                "generated_at":"2026-11-03T18:15:00+09:00",
+                "source_title_received_jst":"2026-11-03T18:15:00+09:00",
+                "source_cards_received_jst":"2026-11-03T18:15:00+09:00"})
             (durable/"202611030708.json").write_text(json.dumps(original))
             selected=__import__("entry_course_collector").candidates(
                 tmp,now=NOW,require_durable_t12=True)
@@ -371,7 +399,7 @@ class BatchTests(unittest.TestCase):
             self.assertEqual(selected[0][2]["predictions"],original["predictions"])
             archive={}
             out=attempt_batch(tmp,now=lambda:NOW,require_durable_t12=True,
-                card_reader=lambda d,v,r:cards[d+v+r],
+                card_reader=lambda d,v,r:mock_card(cards,d,v,r),
                 waku_fetch=lambda url:raw_csv,
                 ledger_ops=(archive.get,lambda p,b:archive.setdefault(p,b)))
             self.assertEqual(out["status"],"t2_batch_completed")
@@ -385,8 +413,11 @@ class BatchTests(unittest.TestCase):
             original=__import__("test_entry_waku10_pilot").fixture()[0]
             original.update({
                 "model_version":"national-beta0.4-exploratory-v1",
-                "source_title_received_jst":original["generated_at"],
-                "source_cards_received_jst":original["generated_at"]})
+                # This scenario models a valid *T-12* remote baseline, not
+                # the intentionally earlier 18:00 generic preview fixture.
+                "generated_at":"2026-11-03T18:15:00+09:00",
+                "source_title_received_jst":"2026-11-03T18:15:00+09:00",
+                "source_cards_received_jst":"2026-11-03T18:15:00+09:00"})
             target=durable/"202611030708.json"
             for bad in ("rank","digest","future_receipt","cutoff_receipt"):
                 with self.subTest(bad=bad):
@@ -421,7 +452,7 @@ class BatchTests(unittest.TestCase):
                     [{"レースコード":"202611030708",
                       "電話投票締切予定":"18:34"}],
                     "20261103","a"*64,"published_daily_title"),
-                card_reader=lambda d,v,r:cards[d+v+r],
+                card_reader=lambda d,v,r:mock_card(cards,d,v,r),
                 waku_fetch=lambda url:raw_csv,
                 ledger_ops=(archived.get,lambda path,raw:archived.setdefault(path,raw)))
             self.assertEqual(verdict["status"],"t2_batch_t12_deadline_conflict")
@@ -440,7 +471,7 @@ class BatchTests(unittest.TestCase):
             observed=[]
             def reader(day,venue,race):
                 observed.append(race)
-                return cards[day+venue+race]
+                return mock_card(cards,day,venue,race)
             report=attempt_batch(tmp,now=lambda:NOW,
                 verify_expected_schedule=True,
                 schedule_fetch=lambda snapshot:(
@@ -458,7 +489,7 @@ class BatchTests(unittest.TestCase):
             self.assertEqual(report["not_stored_count"],1)
             self.assertEqual(report["results"][0]["status"],
                              "independent_deadline_conflict")
-            self.assertEqual(observed,["09"])
+            self.assertEqual(observed,["9"])
             self.assertEqual(set(archive),{"waku10/20261103/202611030709.json"})
             self.assertTrue(t2_cli_failure(report))
     def test_deadline_change_outside_original_window_still_blocks_write(self):
@@ -486,7 +517,7 @@ class BatchTests(unittest.TestCase):
                     [{"レースコード":"202611030708",
                       "電話投票締切予定":"18:33"}],
                     "20261103","a"*64,"published_daily_title"),
-                card_reader=lambda d,v,r:cards[d+v+r],
+                card_reader=lambda d,v,r:mock_card(cards,d,v,r),
                 waku_fetch=lambda url:raw_csv,
                 ledger_ops=(archived.get,lambda path,raw:archived.setdefault(path,raw)))
             self.assertEqual(verdict["status"],"t2_batch_completed")
@@ -502,7 +533,7 @@ class BatchTests(unittest.TestCase):
                     [{"レースコード":"202611030708",
                       "電話投票締切予定":t} for t in ("18:33","18:34")],
                     "20261103","a"*64,"published_daily_title"),
-                card_reader=lambda d,v,r:cards[d+v+r],
+                card_reader=lambda d,v,r:mock_card(cards,d,v,r),
                 waku_fetch=lambda url:raw_csv,
                 ledger_ops=(archived.get,lambda path,raw:archived.setdefault(path,raw)))
             self.assertEqual(verdict["status"],"t2_batch_expected_schedule_unavailable")

@@ -1,0 +1,30 @@
+name: P0 active forecast identity lock
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  active-model-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check out repository candidate
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require unchanged V127/V133 engine, point counts and comparator
+        run: |
+          python -m unittest -v \
+            test_active_forecast_lock \
+            test_original_v133_primary_contract \
+            test_forecast_strategy_contract \
+            test_legacy_v133_reference_engine

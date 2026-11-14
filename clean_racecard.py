@@ -1,5 +1,6 @@
 """Independent CLEAN pre-race card adapter from documented public BoatraceCSV fields."""
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 from urllib.error import HTTPError,URLError
 import re
 import csv
@@ -16,6 +17,30 @@ def _num(v):
     except (ValueError,TypeError):
         return None
 
+
+
+def _official_display_csv_st(value):
+    """Format the signed BoatraceCSV exhibition ST as official .NN / F.NN.
+
+    Only known two-centisecond-precision encodings are converted. This does
+    not alter the source CSV bytes, origin, recorded HTTP receipts, or SHA.
+    Unsupported values are unverified, never rounded or invented.
+    """
+    if not isinstance(value,str):
+        return None
+    raw=value.strip()
+    f=re.fullmatch(r"F\.?(\d{2})",raw)
+    if f:
+        return "F."+f.group(1)
+    if not re.fullmatch(r"[+-]?(?:\d+(?:\.\d{1,2})?|\.\d{1,2})",raw):
+        return None
+    try:
+        st=Decimal(raw)
+    except InvalidOperation:
+        return None
+    if not -1<st<1 or st*100!=(st*100).to_integral_value():
+        return None
+    return ("F." if st<0 else ".")+f"{int(abs(st)*100):02d}"
 
 
 def _preview_rows(kind,path):
@@ -66,8 +91,8 @@ def _fetch_preview(code,path,deadline,clock=None):
                     course=[_num(row.get(f"艇{i}_コース")) for i in range(1,7)]
                     complete=(all(v is not None for v in course) and
                         sorted(course)==[1.,2.,3.,4.,5.,6.] and
-                        all(re.fullmatch(r"(?:[+-]?(?:\d+(?:\.\d+)?|\.\d+)|F\.?\d{1,2})",
-                            str(row.get(f"艇{i}_スタート展示") or "").strip()) for i in range(1,7)))
+                        all(_official_display_csv_st(row.get(f"艇{i}_スタート展示")) is not None
+                             for i in range(1,7)))
                 else:
                     complete=True
                 if complete:candidates.append((observed,row))
@@ -88,7 +113,8 @@ def _fetch_preview(code,path,deadline,clock=None):
     for lane in range(1,7):
         prefix=f"艇{lane}_"
         racers.append({"lane":lane,"exhibition_time":_num(tkz.get(prefix+"展示タイム")),"tilt":_num(tkz.get(prefix+"チルト"))})
-        starts.append({"lane":lane,"course":_num(stt.get(prefix+"コース")),"st":stt.get(prefix+"スタート展示") or None})
+        starts.append({"lane":lane,"course":_num(stt.get(prefix+"コース")),
+                       "st":_official_display_csv_st(stt.get(prefix+"スタート展示"))})
     # A CSV row and a timestamp alone do not prove valid exhibition measurements.
     # Only publish a complete six-boat set; otherwise keep the card and fail closed.
     times=[r["exhibition_time"] for r in racers]
@@ -96,7 +122,7 @@ def _fetch_preview(code,path,deadline,clock=None):
     courses=[r["course"] for r in starts]
     # A blank start-exhibition ST is incomplete evidence, even if course is known.
     start_times=[r["st"] for r in starts]
-    if (any(v is None or re.fullmatch(r"(?:[+-]?(?:\d+(?:\.\d+)?|\.\d+)|F\.?\d{1,2})", str(v).strip()) is None for v in start_times)
+    if (any(v is None for v in start_times)
         or any(v is None or not 5.0<=v<=9.0 for v in times)
         or any(v is None or not -1.0<=v<=3.0 for v in tilts)
         or any(v is None for v in courses)

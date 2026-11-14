@@ -1,24 +1,502 @@
 name: Verify REAL beforeinfo source
 on:
+  # An edit to this existing verifier can exercise current real sources
+  # before the fixed evening gate. Push is diagnostic only and adds no Cron.
+  push:
+    branches: [main]
+    paths:
+      # Backend preview adapter changes must run the same public LIVE
+      # diagnostic; a green unit test does not prove a Render deployment.
+      - clean_racecard.py
+      - .github/workflows/verify-real-beforeinfo.yml
   pull_request:
     paths:
       - clean_racecard.py
       - official_preview.py
       - tests/test_real_preview_probe.py
+      - tests/test_official_preview.py
       - scripts/verify_real_beforeinfo_source.py
       - .github/workflows/verify-real-beforeinfo.yml
   workflow_dispatch:
   schedule:
-    - cron: '40 12 * * *'
+    - cron: '35 10 * * *' # 19:35 JST: evening races still open; no extra cron
 permissions:
   contents: read
 jobs:
   real-source:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
+      # Trigger a harmless HEAD request before browser installation so a
+      # sleeping Render instance has a chance to wake. HTTP readiness is
+      # diagnostic only; real official -> Render -> Pages 24/24 remains hard.
+      - name: Pre-warm public Render (diagnostic, not official evidence)
+        if: github.event_name != 'pull_request'
+        timeout-minutes: 1
+        run: |
+          set +e
+          curl --silent --show-error --head --connect-timeout 6 --max-time 20 \
+            --output /tmp/clean-render-prewarm.headers \
+            --write-out 'RENDER_PREWARM_HTTP %{http_code}\\n' \
+            https://boat-edge-clean.onrender.com/healthz
+          rc=$?
+          if [ "$rc" -ne 0 ]; then
+            echo "RENDER_PREWARM_UNVERIFIED curl_exit=$rc"
+          fi
+          # Read-only provenance: /healthz HEAD exposes the actual deployed
+          # Render revision, not the SHA merely checked out in this job.
+          observed_sha=$(grep -i '^x-boat-edge-deploy-commit:' /tmp/clean-render-prewarm.headers \
+            | tail -n 1 | cut -d: -f2- | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+          if [[ "$observed_sha" =~ ^[a-f0-9]{40}$ ]]; then
+            echo "RENDER_DEPLOY_SHA $observed_sha"
+            echo "WORKFLOW_CHECKOUT_SHA $GITHUB_SHA"
+            if [ "$observed_sha" = "$GITHUB_SHA" ]; then
+              echo "RENDER_DEPLOY_SHA_MATCHES_RUN true"
+            else
+              echo "RENDER_DEPLOY_SHA_MATCHES_RUN false"
+            fi
+          else
+            echo "RENDER_DEPLOY_SHA_UNVERIFIED"
+          fi
+          echo "Render pre-warm and deploy SHA are diagnostic; NOT a LIVE official 24-value pass." >> "$GITHUB_STEP_SUMMARY"
+          exit 0
       - name: Verify current-source probe classification
         run: python -m unittest discover -s tests -p test_real_preview_probe.py -v
+      - name: Verify official six-boat values and missing-field diagnostics
+        run: python -m unittest discover -s tests -p test_official_preview.py -v
       - name: Probe current real HTTPS CSV/official adapter (no fixture)
+        id: csv_probe
+        if: github.event_name != 'pull_request'
+        continue-on-error: true # Independent upstream CSV diagnostic; live 24-value E2E remains the hard gate.
         run: python scripts/verify_real_beforeinfo_source.py
+      - name: Report upstream CSV diagnostic separately from LIVE E2E
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          echo "CSV_SOURCE_PROBE_OUTCOME=${{ steps.csv_probe.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.csv_probe.outcome }}" != "success" ]; then
+            echo "::warning::CSV_SOURCE_PROBE_FAILED: upstream CSV is unavailable or invalid; do not count it as source coverage or a LIVE 24-value PASS."
+          fi
+      - uses: actions/setup-node@v4
+        if: always()
+        with:
+          node-version: '22'
+      - name: Install existing Playwright browser for read-only live Pages verification
+        if: always()
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install chromium
+      - name: Compare real official six-boat source, Render and public Pages (diagnostic)
+        if: always()
+        # Only the existing 19:35 schedule and explicit manual dispatch
+        # are hard operational gates. A push/PR is an earlier read-only
+        # diagnostic whose failure cannot certify or disprove that gate.
+        continue-on-error: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+        timeout-minutes: 4
+        run: |
+          cat > .clean-live-official-pages.cjs <<'JS'
+          const {chromium}=require('playwright');
+          const fs=require('node:fs');
+          const base='https://boat-edge-clean.onrender.com';
+          const pages='https://ikst2512-eng.github.io/boat-edge-clean/';
+          const day=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+          const hd=day.replace(/-/g,'');
+          const report=[];
+          // Capture only this run's structured diagnostics. They are evidence of
+          // observations, not archived raw HTTP bodies or Git first-seen proof.
+          // Never let the historical contract fixture create a LIVE artifact.
+          const proofPath='clean-live-official-pages-evidence.ndjson';
+          const isHistorical=process.argv.includes('--historical-contract-test');
+          if(!isHistorical)fs.writeFileSync(proofPath,JSON.stringify({
+            kind:'AUDIT_RUN_CONTEXT',schema:'CLEAN_LIVE_OFFICIAL_PAGES_AUDIT_V1',
+            event:process.env.GITHUB_EVENT_NAME||null,
+            run_id:process.env.GITHUB_RUN_ID||null,
+            checkout_sha:process.env.GITHUB_SHA||null,
+            started_utc:new Date().toISOString(),
+            formal_t12_certified:false,raw_official_original_archived:false})+'\n',{flag:'wx'});
+          const out=s=>{
+            console.log(s);fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,s+'\n');
+            const kind=s.split(' ',1)[0];
+            if(!isHistorical&&(
+              kind==='LIVE_OFFICIAL_PAGES_E2E_EVIDENCE'||
+              kind==='LIVE_OFFICIAL_PAGES_E2E_PASS'||
+              kind==='LIVE_CSV_ALTERNATE_24_PASS'||
+              kind==='LIVE_OFFICIAL_PAGES_E2E_UNVERIFIED'||
+              kind==='LIVE_OFFICIAL_CASE_UNVERIFIED_EVIDENCE'||
+              kind==='RENDER_POST_E2E_DEPLOY'||
+              kind==='RENDER_POST_E2E_DEPLOY_UNVERIFIED')){
+              const raw=s.slice(kind.length).trim();
+              let details=raw;
+              if(raw.startsWith('{')||raw.startsWith('[')){
+                try{details=JSON.parse(raw)}catch(e){details=raw}
+              }
+              fs.appendFileSync(proofPath,JSON.stringify({
+                kind,details,observed_at_utc:new Date().toISOString(),
+                event:process.env.GITHUB_EVENT_NAME||null,
+                run_id:process.env.GITHUB_RUN_ID||null,
+                checkout_sha:process.env.GITHUB_SHA||null,
+                formal_t12_certified:false})+'\n');
+            }
+          };
+          const get=async(ctx,url,opts={})=>{const r=await ctx.request.get(url,{timeout:20000,...opts});if(r.status()!==200)throw Error('HTTP_'+r.status()+' '+new URL(url).pathname);return {data:await r.json(),received:Date.now(),url:r.url()}};
+          const valid6=a=>Array.isArray(a)&&a.length===6&&[1,2,3,4,5,6].every(x=>a.filter(y=>Number(y?.lane??y?.teino)===x).length===1);
+          const finiteReading=v=>(typeof v==='string'||typeof v==='number')&&String(v).trim()!==''&&Number.isFinite(Number(v));
+          // Match the production official inspector's accepted real start format.
+          const validSt=s=>typeof s==='string'&&/^(?:(?:F|L)?\.\d{1,2}|\d?\.\d{1,2})$/.test(s.trim());
+          // Reject missing, malformed or timezone-less HTTP receipt evidence (NaN < deadline is not proof).
+          const validPredeadlineReceipt=(v,cutoff)=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(v)&&Number.isFinite(Date.parse(v))&&Date.parse(v)<cutoff;
+          for(const st of ['F.01','L.02','.08','0.08'])if(!validSt(st))throw Error('ST_PARSER_POSITIVE_REGRESSION '+st);
+          for(const st of ['','--','F.01x','6.999'])if(validSt(st))throw Error('ST_PARSER_NEGATIVE_REGRESSION '+st);
+          if(!finiteReading(0)||finiteReading('')||finiteReading(false))throw Error('NUMERIC_READING_REGRESSION');
+          const regressionCutoff=Date.parse('2026-11-11T19:35:00+09:00');
+          for(const receipt of ['', 'invalid', '2026-11-11T10:35:00Z', '2026-11-11T19:34:59', '2026-11-11T19:35:00+09:00'])if(validPredeadlineReceipt(receipt,regressionCutoff))throw Error('INVALID_RECEIPT_ACCEPTED '+receipt);
+          if(!validPredeadlineReceipt('2026-11-11T19:34:59.123456+09:00',regressionCutoff))throw Error('VALID_RECEIPT_REJECTED');
+          // The same pure validators run for genuine scheduled E2E and a frozen
+          // historical official/Render source pair. Historical replay is NOT a
+          // live predeadline source observation or a formal T-12 receipt.
+          const byLane=(arr,l)=>arr.find(x=>Number(x?.teino??x?.lane)===l);
+          const verifiedOfficialValues=(main,date,venue,rno,deadlineText)=>{
+            if(!main||String(main.hd)!==date||Number(main.jcd)!==venue||
+              Number(main.rno)!==rno||String(main.deadline)!==deadlineText||
+              !valid6(main.teiinfolist)||!valid6(main.sttenjiinfolist))
+              throw Error('official_identity_deadline_or_six_missing');
+            const courses=main.sttenjiinfolist.map(x=>Number(x.cs)).sort((a,b)=>a-b);
+            if(courses.join(',')!=='1,2,3,4,5,6')throw Error('official_courses_invalid');
+            const values={};
+            for(let l=1;l<=6;l++){
+              const x=byLane(main.teiinfolist,l),st=byLane(main.sttenjiinfolist,l);
+              const time=Number(x.extime),tilt=Number(x.tilt);
+              if(!finiteReading(x.extime)||!finiteReading(x.tilt)||
+                time<5||time>9||tilt< -1||tilt>3||!validSt(st.st))
+                throw Error('official_measurements_incomplete');
+              values[l]={registration:String(x.racerno),time,tilt,st:st.st.trim(),course:Number(st.cs)};
+            }
+            return values;
+          };
+          // The public adapter has two valid proof formats: a race-matched
+          // official JSON receipt, or two independent predeadline tkz/stt CSV
+          // receipts. CSV does not have a single top-level sha256; rejecting
+          // it before checking the actual 24 readings hid real discrepancies.
+          const verifiedPreviewProvenance=(audit,cutoff,apiReceivedMs)=>{
+            if(!audit||audit.status!=='ok'||
+              !validPredeadlineReceipt(audit.fetched_at,cutoff)||
+              !Number.isFinite(apiReceivedMs)||apiReceivedMs>=cutoff||
+              Date.parse(audit.fetched_at)>apiReceivedMs)return false;
+            const validHash=v=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v);
+            if(audit.source==='BOAT RACE official beforeinfo JSON')
+              return validHash(audit.sha256);
+            if(audit.source==='BoatraceCSV predeadline snapshots')
+              return ['tkz','stt'].every(kind=>{
+                const r=audit.sources?.[kind];
+                return r&&validHash(r.sha256)&&
+                  validPredeadlineReceipt(r.observed_at,cutoff)&&
+                  validPredeadlineReceipt(r.received_at_jst,cutoff)&&
+                  Date.parse(r.observed_at)<=Date.parse(r.received_at_jst)&&
+                  Date.parse(r.received_at_jst)<=apiReceivedMs&&
+                  Date.parse(r.observed_at)<=Date.parse(audit.fetched_at);
+              });
+            return false;
+          };
+          const verifyOfficialRenderAgreement=(d,exp,date,venue,rno,deadlineText,cutoff,apiReceivedMs)=>{
+            if(d.meta?.phase!=='PRE_RESULT'||d.meta?.deadline!==deadlineText||
+              d.race_key!==date+'-'+String(venue).padStart(2,'0')+'-'+String(rno).padStart(2,'0')||
+              !verifiedPreviewProvenance(d.source_audit?.beforeinfo,cutoff,apiReceivedMs)||
+              !valid6(d.racers)||!valid6(d.beforeinfo?.racers)||
+              !valid6(d.beforeinfo?.start_exhibition))
+              throw Error('public_api_missing_verified_six');
+            for(let l=1;l<=6;l++){
+              const racer=byLane(d.racers,l),ex=byLane(d.beforeinfo.racers,l);
+              const st=byLane(d.beforeinfo.start_exhibition,l),v=exp[l];
+              if(String(racer.registration_no)!==v.registration||
+                Number(ex.exhibition_time)!==v.time||Number(ex.tilt)!==v.tilt||
+                String(st.st)!==v.st||Number(st.course)!==v.course)
+                throw Error('public_api_source_mismatch_lane_'+l);
+            }
+            return 24;
+          };
+          // Provenance detail is taken from the actual Render API response.
+          // A LIVE CSV pass requires the ordinary 24/24 source/API/Pages gate;
+          // it is not inferred from installed parser code or synthetic tests.
+          const csvReceiptEvidence=audit=>audit?.source==='BoatraceCSV predeadline snapshots'
+            ? Object.fromEntries(['tkz','stt'].map(kind=>{
+                const s=audit.sources[kind];
+                return [kind,{sha256:s.sha256,observed_at:s.observed_at,
+                  received_at_jst:s.received_at_jst}];
+              })) : null;
+          // Diagnostic-only field detail for source disagreement; never
+          // modifies the actual 24-value acceptance or missing-data guards.
+          const officialRenderFieldDiffs=(d,exp)=>{
+            const read=(rows,l)=>Array.isArray(rows)?rows.find(x=>Number(x?.lane)===l):null;
+            const differences=[];
+            for(let l=1;l<=6;l++){
+              const v=exp[l],r=read(d?.racers,l),
+                ex=read(d?.beforeinfo?.racers,l),
+                st=read(d?.beforeinfo?.start_exhibition,l);
+              const checks=[
+                ['registration_no',v?.registration,r?.registration_no,
+                  String(v?.registration)===String(r?.registration_no)],
+                ['exhibition_time',v?.time,ex?.exhibition_time,
+                  Number(v?.time)===Number(ex?.exhibition_time)],
+                ['tilt',v?.tilt,ex?.tilt,
+                  Number(v?.tilt)===Number(ex?.tilt)],
+                ['st',v?.st,st?.st,
+                  String(v?.st)===String(st?.st)],
+                ['course',v?.course,st?.course,
+                  Number(v?.course)===Number(st?.course)]
+              ];
+              const fields=checks.filter(x=>!x[3]).map(([field,official,render])=>({
+                field,official:official??null,render:render??null}));
+              if(fields.length)differences.push({lane:l,fields});
+            }
+            return differences;
+          };
+          if(process.argv.includes('--historical-contract-test')){
+            const official=JSON.parse(fs.readFileSync('tests/fixtures/official_preview_202611040111.json','utf8'));
+            const recorded=JSON.parse(fs.readFileSync('docs/observations/official_preview_production_202611040111.json','utf8'));
+            const api=JSON.parse(recorded.raw_response_utf8);
+            const cutoff=Date.parse('2026-11-04T20:03:00+09:00'), date='20261104';
+            const archiveApiReceived=Date.parse(recorded.response_received_jst);
+            const clone=v=>JSON.parse(JSON.stringify(v));
+            const exp=verifiedOfficialValues(official.maindata,date,1,11,'20:03');
+            if(verifyOfficialRenderAgreement(api,exp,date,1,11,'20:03',cutoff,archiveApiReceived)!==24)
+              throw Error('archived_positive_24_contract_failed');
+            if(officialRenderFieldDiffs(api,exp).length!==0)throw Error('archived_false_field_diff');
+            const wrongCourse=clone(api);wrongCourse.beforeinfo.start_exhibition[0].course=6;
+            const courseDifferences=officialRenderFieldDiffs(wrongCourse,exp);
+            if(courseDifferences.length!==1||courseDifferences[0].lane!==1||
+              courseDifferences[0].fields.length!==1||
+              courseDifferences[0].fields[0].field!=='course')
+              throw Error('archived_wrong_course_diagnostic_failed');
+            // Synthetic CSV-shape contract only: this is NOT a captured
+            // historical CSV or an additional LIVE pass. The fixed 24 real
+            // readings from the archived official fixture remain unchanged.
+            const csvApi=clone(api);
+            csvApi.source_audit.beforeinfo={
+              status:'ok',source:'BoatraceCSV predeadline snapshots',
+              fetched_at:'2026-11-04T19:57:22+09:00',
+              sources:Object.fromEntries(['tkz','stt'].map((kind,i)=>[
+                kind,{sha256:(i?'b':'a').repeat(64),
+                  observed_at:'2026-11-04T19:57:20+09:00',
+                  received_at_jst:'2026-11-04T19:57:21+09:00'}]))
+            };
+            if(verifyOfficialRenderAgreement(csvApi,exp,date,1,11,'20:03',cutoff,archiveApiReceived)!==24)
+              throw Error('synthetic_csv_two_receipt_positive_failed');
+            const csvNegative=[
+              ['missing_tkz',x=>{delete x.source_audit.beforeinfo.sources.tkz}],
+              ['forged_stt_hash',x=>{x.source_audit.beforeinfo.sources.stt.sha256='bad'}],
+              ['late_stt_receipt',x=>{x.source_audit.beforeinfo.sources.stt.received_at_jst='2026-11-04T20:03:00+09:00'}],
+              ['future_tkz_receipt',x=>{x.source_audit.beforeinfo.sources.tkz.received_at_jst='2026-11-04T20:01:00+09:00'}],
+              ['tkz_observed_after_received',x=>{x.source_audit.beforeinfo.sources.tkz.observed_at='2026-11-04T19:57:22+09:00'}],
+              ['csv_wrong_reading',x=>{x.beforeinfo.racers[0].exhibition_time=6.15}]
+            ];
+            for(const [name,mutate] of csvNegative){
+              const x=clone(csvApi);mutate(x);
+              let rejected=false;
+              try{verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff,archiveApiReceived)}
+              catch(e){rejected=/public_api_missing_verified_six|public_api_source_mismatch_lane_1/.test(String(e.message))}
+              if(!rejected)throw Error('synthetic_csv_negative_accepted '+name);
+            }
+            if(csvReceiptEvidence(api.source_audit.beforeinfo)!==null)
+              throw Error('archived_official_wrongly_classified_as_csv');
+            const csvEvidence=csvReceiptEvidence(csvApi.source_audit.beforeinfo);
+            if(!csvEvidence||!['tkz','stt'].every(k=>/^[a-f0-9]{64}$/.test(csvEvidence[k].sha256)))
+              throw Error('archived_synthetic_csv_receipt_trace_wrong');
+            console.log('ARCHIVED_SYNTHETIC_CSV_RECEIPT_CONTRACT_PASS 24 values | two source hashes/times | 6 negative guards | NOT LIVE');
+            const negative=[
+              ['official_wrong_race',()=>verifiedOfficialValues(official.maindata,date,1,12,'20:03'),/official_identity/],
+              ['official_wrong_deadline',()=>verifiedOfficialValues(official.maindata,date,1,11,'20:04'),/official_identity/],
+              ['render_wrong_race',()=>{const x=clone(api);x.race_key='20261104-01-12';return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff,archiveApiReceived)},/public_api_missing/],
+              ['render_wrong_racer',()=>{const x=clone(api);x.racers[0].registration_no='9999';return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff,archiveApiReceived)},/public_api_source_mismatch_lane_1/],
+              ['render_wrong_tilt',()=>{const x=clone(api);x.beforeinfo.racers[0].tilt=0;return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff,archiveApiReceived)},/public_api_source_mismatch_lane_1/],
+              ['render_wrong_st',()=>{const x=clone(api);x.beforeinfo.start_exhibition[1].st='.99';return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff,archiveApiReceived)},/public_api_source_mismatch_lane_2/],
+              ['render_wrong_course',()=>{const x=clone(api);x.beforeinfo.start_exhibition[0].course=6;return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff,archiveApiReceived)},/public_api_source_mismatch_lane_1/],
+              ['render_duplicate_lanes',()=>{const x=clone(api);x.beforeinfo.racers[1].lane=1;return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff,archiveApiReceived)},/public_api_missing/],
+              ['render_unproven_receipt',()=>{const x=clone(api);x.source_audit.beforeinfo.fetched_at='invalid';return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff,archiveApiReceived)},/public_api_missing/],
+              ['render_late_receipt',()=>{const x=clone(api);x.source_audit.beforeinfo.fetched_at='2026-11-04T20:03:00+09:00';return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff,archiveApiReceived)},/public_api_missing/],
+              ['render_missing_source_hash',()=>{const x=clone(api);x.source_audit.beforeinfo.sha256='';return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff,archiveApiReceived)},/public_api_missing/],
+              ['render_future_claimed_source_receipt',()=>{const x=clone(api);x.source_audit.beforeinfo.fetched_at=new Date(archiveApiReceived+1000).toISOString();return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff,archiveApiReceived)},/public_api_missing/]
+            ];
+            for(const [name,fn,pattern] of negative){
+              let reason='';
+              try{fn()}catch(e){reason=String(e.message)}
+              if(!pattern.test(reason))throw Error('ARCHIVED_CONTRACT_NEGATIVE_FAILED '+name+' '+reason);
+            }
+            console.log('ARCHIVED_OFFICIAL_RENDER_24_CONTRACT_PASS 202611040111 | 6 boats / 24 metrics | 12 negative guards | saved historical original only; NOT real-time E2E');
+            process.exit(0);
+          }
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+            let matched=0;
+            // After first official-source parity, sample up to two extra races
+            // for an actual CSV-source 24/24 pass, without forcing its selection.
+            let inspectedAfterFirstPass=0;
+            try{
+              const schedule=await get(ctx,base+'/api/clean-schedule?date='+hd);
+              if(schedule.data.date!==hd||!Array.isArray(schedule.data.races))throw Error('schedule_date_or_races_missing');
+              const now=Date.now();
+              const candidates=schedule.data.races.filter(r=>{
+                const deadline=Date.parse(r.deadline_jst||'');
+                return Number.isFinite(deadline)&&deadline-now>120000&&deadline-now<3600000&&
+                  /^[0-9]{2}$/.test(String(r.venue_code))&&Number.isInteger(r.race_no);
+              }).sort((a,b)=>a.deadline_jst.localeCompare(b.deadline_jst)).slice(0,8);
+              if(!candidates.length)report.push('NO_STILL_OPEN_RACE_WITHIN_60_MIN');
+              for(const race of candidates){
+                if(matched && inspectedAfterFirstPass>=2) break;
+                if(matched) inspectedAfterFirstPass++;
+                const venue=Number(race.venue_code),rno=race.race_no,deadline=Date.parse(race.deadline_jst);
+                const code=hd+String(venue).padStart(2,'0')+String(rno).padStart(2,'0');
+                // Only public source availability/provenance metadata. Do not log
+                // full upstream payloads or promote missing evidence to success.
+                const gap={official_boats:null,official_start_rows:null,
+                  render_preview_status:null,render_preview_source:null,
+                  render_csv_sources:null,render_official_fallback_reason:null,
+                  render_official_measurements:null,render_source_received_at:null,
+                  render_csv_receipts:null,official_render_field_differences:null};
+                try{
+                  const officialUrl='https://www.boatrace.jp/owsp/sp/spdata?type=beforeinfo&hd='+hd+'&jcd='+String(venue).padStart(2,'0')+'&rno='+rno;
+                  const src=await get(ctx,officialUrl,{headers:{'User-Agent':'BOAT-EDGE-CLEAN/1.0','Accept':'application/json','X-Requested-With':'XMLHttpRequest'}});
+                  if(src.url!==officialUrl)throw Error('official_redirect');
+                  const main=src.data.maindata;
+                  gap.official_boats=Array.isArray(main?.teiinfolist)?main.teiinfolist.length:0;
+                  gap.official_start_rows=Array.isArray(main?.sttenjiinfolist)?main.sttenjiinfolist.length:0;
+                  const exp=verifiedOfficialValues(main,hd,venue,rno,race.deadline_jst.slice(11,16));
+                  const apiUrl=base+'/api/clean-racecard?hd='+hd+'&jcd='+venue+'&rno='+rno;
+                  const api=await get(ctx,apiUrl),d=api.data;
+                  const previewAudit=d.source_audit?.beforeinfo||{};
+                  gap.render_preview_status=previewAudit.status??null;
+                  gap.render_preview_source=previewAudit.source??null;
+                  gap.render_csv_sources=previewAudit.source_status||previewAudit.csv_audit?.source_status||null;
+                  gap.render_official_fallback_reason=previewAudit.official_fallback?.reason??null;
+                  gap.render_official_measurements=previewAudit.official_fallback?.official_measurement_counts||null;
+                  gap.render_source_received_at=previewAudit.fetched_at??null;
+                  // Source-observed and local HTTP-completion times are distinct;
+                  // record both when the public CSV source exposes them.
+                  gap.render_csv_receipts=previewAudit.sources?Object.fromEntries(
+                    Object.entries(previewAudit.sources)
+                      .filter(([key])=>['tkz','stt','sui'].includes(key))
+                      .map(([key,value])=>[key,{
+                        observed_at:value?.observed_at??null,
+                        received_at_jst:value?.received_at_jst??null}])):null;
+                  gap.official_render_field_differences=officialRenderFieldDiffs(d,exp);
+                  if(api.received>=deadline||src.received>=deadline)throw Error('receipt_not_predeadline');
+                  verifyOfficialRenderAgreement(d,exp,hd,venue,rno,main.deadline,deadline,api.received);
+                  const page=await ctx.newPage();
+                  try{
+                    const target=new URL(pages);for(const [k,v] of [['date',day],['venue',String(venue)],['race',String(rno)],['view','exhibit']])target.searchParams.set(k,v);
+                    const loaded=await page.goto(target.href,{waitUntil:'domcontentloaded',timeout:30000});
+                    if(loaded?.status()!==200)throw Error('pages_http_'+loaded?.status());
+                    await page.evaluate(({date,v,r})=>{s.date=date;s.venue=v-1;s.race=r;setView('exhibit');render()},{date:day,v:venue,r:rno});
+                    await page.waitForFunction(()=>document.querySelectorAll('#exhibitionGrid .exhibition-boat').length===6 &&
+                      (document.querySelector('#exhibitionGrid .muted')?.textContent||'').includes('取得記録は締切前'),
+                      null,{timeout:23000});
+                    const shown=await page.evaluate(()=>[...document.querySelectorAll('#exhibitionGrid .exhibition-boat')].map(el=>({
+                      lane:Number(el.querySelector('.lane-badge')?.textContent),
+                      entries:Object.fromEntries([...el.querySelectorAll('.exhibition-metric')].map(m=>[m.querySelector('span')?.textContent,m.querySelector('strong')?.textContent]))
+                    })));
+                    if(shown.length!==6||shown.some((x,i)=>x.lane!==i+1))throw Error('pages_six_lanes_wrong');
+                    for(let l=1;l<=6;l++){
+                      const m=shown[l-1].entries,v=exp[l];
+                      if(m['展示タイム']!==String(v.time)||m['チルト']!==String(v.tilt)||m['展示ST']!==v.st||m['展示進入']!==v.course+'C')throw Error('pages_official_mismatch_lane_'+l);
+                    }
+                    if(Date.now()>=deadline)throw Error('pages_completed_after_cutoff');
+                    // Source/API/visible DOM evidence is read-only and race/lane specific.
+                    // The API source SHA is its own observation, not proof of independent remote first receipt.
+                    const proof=[1,2,3,4,5,6].map(l=>{
+                      const ex=d.beforeinfo.racers.find(x=>x.lane===l),st=d.beforeinfo.start_exhibition.find(x=>x.lane===l),m=shown[l-1].entries;
+                      return {lane:l,registration:exp[l].registration,
+                        official:{time:exp[l].time,tilt:exp[l].tilt,st:exp[l].st,course:exp[l].course},
+                        render:{time:ex.exhibition_time,tilt:ex.tilt,st:st.st,course:st.course},
+                        pages:{time:m['展示タイム'],tilt:m['チルト'],st:m['展示ST'],course:m['展示進入']}};
+                    });
+                    const selectedPreviewSource=d.source_audit.beforeinfo.source;
+                    const csvReceipts=csvReceiptEvidence(d.source_audit.beforeinfo);
+                    // Record *why* the live CSV route was bypassed when the
+                    // production adapter selected its official JSON fallback.
+                    // These are source availability diagnostics, not an extra PASS.
+                    const csvFallbackGap=selectedPreviewSource==='BOAT RACE official beforeinfo JSON'
+                      ? {status:d.source_audit.beforeinfo.csv_audit?.status??null,
+                         source_status:d.source_audit.beforeinfo.csv_audit?.source_status??null}
+                      : null;
+                    out('LIVE_OFFICIAL_PAGES_E2E_EVIDENCE '+JSON.stringify({
+                      race_code:code,deadline_jst:race.deadline_jst,
+                      official_http_received_utc:new Date(src.received).toISOString(),
+                      render_http_received_utc:new Date(api.received).toISOString(),
+                      render_source_fetched_at:d.source_audit.beforeinfo.fetched_at,
+                      render_source_kind:selectedPreviewSource,
+                      render_source_sha256:d.source_audit.beforeinfo.sha256||null,
+                      render_csv_tkz_stt_receipts:csvReceipts,
+                      render_csv_fallback_gap:csvFallbackGap,
+                      pages_compared_utc:new Date().toISOString(),matched_metrics:24,
+                      lanes:proof,formal_t12_certified:false}));
+                    matched++;
+                    out('LIVE_OFFICIAL_PAGES_E2E_PASS '+code+' | independent official JSON versus Render ['+selectedPreviewSource+'] and actual Pages browser | 6 lanes x 4 metrics = 24 exact values | before cutoff | not T-12');
+                    if(csvReceipts){
+                      out('LIVE_CSV_ALTERNATE_24_PASS '+JSON.stringify({
+                        race_code:code,deadline_jst:race.deadline_jst,
+                        render_preview_source:selectedPreviewSource,
+                        render_csv_tkz_stt_receipts:csvReceipts,
+                        official_http_received_utc:new Date(src.received).toISOString(),
+                        render_http_received_utc:new Date(api.received).toISOString(),
+                        pages_compared_utc:new Date().toISOString(),
+                        official_and_csv_render_start_st:proof.map(x=>({lane:x.lane,
+                          official:x.official.st,csv_render:x.render.st,pages:x.pages.st})),
+                        exact_matched_metrics:24,real_csv_route_verified:true,
+                        formal_t12_certified:false,independent_remote_first_seen_verified:false
+                      }));
+                    }
+                    // Keep verified official passes, but inspect at most two
+                    // further eligible races. A real CSV parity PASS finishes.
+                    if(csvReceipts) break;
+                  }finally{await page.close()}
+                }catch(e){
+                  report.push(code+':'+String(e.message).slice(0,130));
+                  console.log('LIVE_OFFICIAL_CASE_UNVERIFIED',code,String(e.message),
+                    'SOURCE_GAP',JSON.stringify(gap));
+                  // Keep source-specific gaps as structured diagnostics even
+                  // if another race in the same run achieves 24/24 parity.
+                  // Do not turn partial source coverage into a formal PASS.
+                  out('LIVE_OFFICIAL_CASE_UNVERIFIED_EVIDENCE '+JSON.stringify({
+                    race_code:code,deadline_jst:race.deadline_jst,
+                    reason:String(e.message).slice(0,130),
+                    source_gap:gap,formal_t12_certified:false}));
+                }
+              }
+              if(!matched){out('LIVE_OFFICIAL_PAGES_E2E_UNVERIFIED '+JSON.stringify(report));process.exitCode=1}
+              // Retry deployment identity after the live API has woken Render.
+              // This is independent, read-only diagnostics. It MUST NOT
+              // upgrade a failed source/DOM comparison to a live PASS, nor
+              // turn an already proven 24/24 comparison into a failure.
+              try{
+                const health=await ctx.request.get(base+'/healthz',{timeout:10000});
+                const observed=(health.headers()['x-boat-edge-deploy-commit']||'').trim().toLowerCase();
+                if(health.status()===200&&/^[a-f0-9]{40}$/.test(observed)){
+                  out('RENDER_POST_E2E_DEPLOY '+JSON.stringify({
+                    observed_commit:observed,workflow_checkout_commit:process.env.GITHUB_SHA||null,
+                    same_as_checkout:observed===process.env.GITHUB_SHA,diagnostic_only:true}));
+                }else{
+                  out('RENDER_POST_E2E_DEPLOY_UNVERIFIED '+JSON.stringify({
+                    http_status:health.status(),commit_header_valid:false,diagnostic_only:true}));
+                }
+              }catch(e){
+                out('RENDER_POST_E2E_DEPLOY_UNVERIFIED '+JSON.stringify({
+                  reason:String(e.message).slice(0,100),diagnostic_only:true}));
+              }
+            }catch(e){out('LIVE_OFFICIAL_PAGES_E2E_UNVERIFIED '+String(e));process.exitCode=1}
+            finally{await ctx.close();await browser.close()}
+          })().catch(e=>{console.error(e);process.exitCode=1});
+          JS
+          node --check .clean-live-official-pages.cjs
+          node .clean-live-official-pages.cjs --historical-contract-test
+          node .clean-live-official-pages.cjs
+      # Use the existing 19:35 gate and the same runner; don't add Cron or
+      # confuse a diagnostic artifact with the official upstream originals.
+      - name: Preserve real-source E2E decision and actual Render revision
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-live-e2e-decision-${{ github.run_id }}
+          path: clean-live-official-pages-evidence.ndjson
+          # Missing run-specific proof is a broken audit, not a green success.
+          if-no-files-found: error
+          retention-days: 90

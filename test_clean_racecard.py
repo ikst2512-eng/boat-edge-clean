@@ -33,6 +33,45 @@ class CleanRacecardTests(unittest.TestCase):
         self.assertEqual(result["meta"]["source"],"CLEAN_PUBLIC_PRE_RACE_CSV")
 
 
+
+    def test_csv_st_displays_official_f_and_centisecond_format(self):
+        # Source documentation: stt stores official F.NN as negative ST.
+        from clean_racecard import _official_display_csv_st
+        accepted={
+            "0.1":".10","0.12":".12",".03":".03",
+            "-0.06":"F.06","-.01":"F.01","F.06":"F.06",
+            "F06":"F.06","0.00":".00",
+        }
+        for value,want in accepted.items():
+            with self.subTest(value=value):
+                self.assertEqual(_official_display_csv_st(value),want)
+        for value in ("","--","L.02","0.123","-0.123","1.00",
+                      "-1.00","F.1","F.001","NaN",None):
+            with self.subTest(invalid=value):
+                self.assertIsNone(_official_display_csv_st(value))
+        code="202611110808"
+        deadline=datetime.fromisoformat("2026-11-11T18:43:00+09:00")
+        header={"レースコード":code,"締切時刻":"18:43",
+                "取得日時":"2026-11-11T18:35:00+09:00"}
+        tkz,stt=dict(header),dict(header)
+        observed=["0.1","0.12","0.01","-0.06","0.03","0.14"]
+        for lane in range(1,7):
+            tkz.update({f"艇{lane}_展示タイム":"6.77",f"艇{lane}_チルト":"0"})
+            stt.update({f"艇{lane}_コース":str(lane),
+                        f"艇{lane}_スタート展示":observed[lane-1]})
+        rows={"tkz":[tkz],"stt":[stt],"sui":[]}
+        with patch.object(clean_racecard,"_preview_rows",
+                          side_effect=lambda kind,path:(rows[kind],"a"*64)):
+            preview,audit=clean_racecard._fetch_preview(
+                code,"2026/11/11.csv",deadline,
+                clock=lambda:datetime.fromisoformat("2026-11-11T18:38:00+09:00"))
+        self.assertEqual(audit["status"],"ok")
+        self.assertEqual(audit["source"],"BoatraceCSV predeadline snapshots")
+        self.assertEqual(audit["sources"]["stt"]["sha256"],"a"*64)
+        self.assertEqual([v["st"] for v in preview["start_exhibition"]],
+                         [".10",".12",".01","F.06",".03",".14"])
+        self.assertEqual(audit["fetched_at"],header["取得日時"])
+
     def test_verified_preview_source(self):
         hd="20261030";code=hd+"0101"
         deadline=datetime.strptime(hd+"15:21","%Y%m%d%H:%M").replace(tzinfo=JST)
@@ -203,7 +242,7 @@ class CleanRacecardTests(unittest.TestCase):
         self.assertEqual(audit["status"],"ok")
         self.assertEqual(len(preview["racers"]),6)
         self.assertEqual(preview["racers"][2]["exhibition_time"],6.8)
-        self.assertEqual(preview["start_exhibition"][3]["st"],"0.12")
+        self.assertEqual(preview["start_exhibition"][3]["st"],".12")
 
     def test_missing_title_race_uses_direct_source(self):
         hd=(datetime.now(JST)+timedelta(days=1)).strftime("%Y%m%d")

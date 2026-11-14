@@ -17,7 +17,7 @@ on:
 jobs:
   production-pages:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 5
     steps:
       - name: Check Render public routes
         shell: bash
@@ -36,7 +36,7 @@ jobs:
               return 1
             fi
             if [[ "$path" == /selection ]]; then
-              grep -q '購入候補・並行検証' "$out" || { echo "::error::Selection page missing"; return 1; }
+              ( grep -Fq 'id="candidateStatus"' "$out" && grep -Fq 'id="savedPredictionHistory"' "$out" ) || { echo "::error::Selection candidates/history missing"; return 1; }
             elif [[ "$path" == /forecast ]]; then
               grep -q 'id="predictionRows"' "$out" || { echo "::error::Forecast page missing"; return 1; }
             else
@@ -64,7 +64,7 @@ jobs:
           set -euo pipefail
           # Cold starts may return 503 while the evidence audit initializes.
           # Retry boundedly; never accept a pending response as verified data.
-          for attempt in $(seq 1 12); do
+          for attempt in $(seq 1 24); do
             code="$(curl --max-time 15 -sSL -o holdout-status.json -w '%{http_code}' \
               https://boat-edge-clean.onrender.com/api/signal70-holdout-status)" || code="000"
             if [[ "$code" == 200 ]]; then
@@ -81,7 +81,7 @@ jobs:
           except (OSError,ValueError,TypeError):
               print("holdout response not valid diagnostic JSON")
           PYLOG
-            if [[ "$attempt" == 12 ]]; then
+            if [[ "$attempt" == 24 ]]; then
               echo "::error::holdout status did not become ready"
               exit 1
             fi
@@ -92,15 +92,20 @@ jobs:
           from pathlib import Path
           d=json.loads(Path("holdout-status.json").read_text(encoding="utf-8"))
           assert d["schema"]=="CLEAN_SIGNAL70_HOLDOUT_STATUS_V1"
-          # The four frozen candidates passed full-history GitHub CI audit.
-          # A production mismatch is a real deployment/evidence defect.
+          # The four immutable examples have source receipt timestamps AFTER
+          # their recorded generation times. Do not certify these as pre-race
+          # evidence or silently accept a different rejection cause.
           probes=d.get("first_add_probes")
           assert isinstance(probes,dict), "Render has not deployed first-add probes"
           for code in ("202610301306","202610312412","202611011306","202611022412"):
               proof=probes.get(code)
               print("Production first-add probe:",code,proof)
-              assert isinstance(proof,dict) and proof.get("ok") is True, (
-                  "Render first-add audit differs from full-history CI: "+code)
+              assert (isinstance(proof,dict)
+                  and proof.get("ok") is False
+                  and proof.get("reason")=="ValueError"
+                  and proof.get("reason_detail")=="source received after candidate generation"
+                  and proof.get("cutoff_rejected") is False), (
+                  "Unexpected prospective first-add rejection (not certifiable): "+code)
           # Require currently deployed diagnostic contract, not a stale HTTP 200.
           assert all(key in d for key in ("archived_candidates","awaiting_result_races",
                                         "audit_rejected_races","audit_rejection_reasons"))

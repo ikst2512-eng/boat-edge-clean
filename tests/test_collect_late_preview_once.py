@@ -94,6 +94,39 @@ class Integration(unittest.TestCase):
             self.assertEqual(result["race_rows_total"],0)
             self.assertEqual(result["saved_total"],0)
 
+    def test_late_row_diagnostic_separates_source_from_http_without_saving(self):
+        # Both observations were received too late for the two-minute buffer;
+        # only one was already late at the source. Do not backdate receipts.
+        def fetch(url):
+            b=io.StringIO()
+            w=csv.DictWriter(b,fieldnames=["レースコード","締切時刻","取得日時"])
+            w.writeheader()
+            w.writerow({"レースコード":"202610310111","締切時刻":"19:00",
+                        "取得日時":"2026-10-31 18:40:00"})
+            w.writerow({"レースコード":"202610310112","締切時刻":"19:00",
+                        "取得日時":"2026-10-31 18:58:30"})
+            return b.getvalue().encode()
+        clock=lambda:datetime(2026,10,31,18,59,tzinfo=JST)
+        with tempfile.TemporaryDirectory() as folder:
+            result=collect(day="20261031",root=folder,fetch=fetch,clock=clock)
+            entry=result["kinds"]["stt"]
+            self.assertEqual(entry["pre_deadline_2min"]["too_late"],2)
+            self.assertEqual(entry["late_reasons_2min"]["http_receipt_late_only"],1)
+            self.assertEqual(entry["late_reasons_2min"]["source_and_http_late"],1)
+            self.assertEqual([x["reason"] for x in entry["late_examples_2min"]],
+                             ["http_receipt_late_only","source_and_http_late"])
+            self.assertEqual(result["saved_total"],0)
+            self.assertEqual(list(Path(folder).rglob("*.json")),[])
+
+    def test_late_classification_diagnostic_is_read_only(self):
+        from collect_late_preview_once import _late_row_reason
+        now=datetime(2026,10,31,18,40,tzinfo=JST)
+        row={"レースコード":"202610310111","締切時刻":"19:00",
+             "取得日時":"2026-10-31 18:35:00"}
+        self.assertIsNone(_late_row_reason(row,now))
+        row["取得日時"]="not-parseable"
+        self.assertIsNone(_late_row_reason(row,now))
+
     def test_late_race_not_written(self):
         now=lambda:datetime(2026,10,31,18,59,tzinfo=JST)
         with tempfile.TemporaryDirectory() as folder:

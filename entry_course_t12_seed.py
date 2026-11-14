@@ -14,6 +14,7 @@ import hashlib
 import io
 import json
 import re
+from time import sleep
 
 from entry_course_durable_ledger import github_ops
 from research_model import JST, predict, _record_path
@@ -51,10 +52,35 @@ def _title(now, *, fetch=None, fallback=None):
         # The daily *published archive* can be missing while races are open.
         # Use the same independent pre-race holding schedule accepted by
         # clean_racecard; never read a result or accept an untimed source.
+        allow_secondary=live_fetch and fallback is None
         if fallback is None:
             from clean_direct_sources import holding_rows
             fallback=holding_rows
-        rows,observed,digest=fallback(day)
+        try:
+            rows,observed,digest=fallback(day)
+        except (OSError,TimeoutError,URLError,HTTPError,ValueError) as primary_error:
+            # An unavailable published CSV AND an unavailable holding list
+            # should not end a viable early-morning T-12 window by itself.
+            # Reuse the already-supported independently timestamped, pre-race
+            # nonofficial six-racer OpenAPI; never consult results or previews.
+            # Injected test sources do NOT silently fall through to live I/O.
+            if not allow_secondary:
+                raise
+            from clean_openapi_sources import load
+            try:
+                rows,cards,observed,digest,source=load(day)
+            except (OSError,TimeoutError,URLError,HTTPError,ValueError,
+                    KeyError,TypeError) as secondary_error:
+                raise ValueError("t12_all_pre_race_schedules_unavailable") from secondary_error
+            if (not isinstance(rows,list) or not rows or
+                    not isinstance(cards,list) or not cards or
+                    not isinstance(observed,datetime) or observed.utcoffset() is None or
+                    observed>now+timedelta(seconds=30) or
+                    not SHA.fullmatch(str(digest or "")) or
+                    not isinstance(source,dict) or
+                    source.get("source")!="nonofficial_openapi_v1"):
+                raise ValueError("t12_alt_pre_race_schedule_receipt_invalid") from primary_error
+            return rows,day,digest,"nonofficial_openapi_v1"
         if (not isinstance(rows,list) or not rows or
                 not isinstance(observed,datetime) or observed.utcoffset() is None or
                 observed>now + timedelta(seconds=30) or
@@ -163,6 +189,13 @@ def validate_base(raw, code, *, now, expected_deadline=None):
             now.utcoffset() is None or now>=cutoff or
             max(generated,title,card)>now):
         raise ValueError("t12_archive_missed_cutoff")
+    # A pre-existing research_snapshots/<race>.json can be hours old:
+    # research_model.predict() reuses it verbatim. It must not masquerade
+    # as a forecast generated during this T-12 selection window.
+    if generated < cutoff-timedelta(minutes=ALLOWED_WINDOW[1]):
+        raise ValueError("t12_archive_generated_before_selection_window")
+    if title>generated or card>generated:
+        raise ValueError("t12_archive_source_received_after_generation")
     from research_model import probabilities
     rates=d.get("national_win_rates")
     if (type(rates) is not list or len(rates)!=6 or
@@ -173,6 +206,45 @@ def validate_base(raw, code, *, now, expected_deadline=None):
         if not SHA.fullmatch(str(d.get(key) or "")):
             raise ValueError("t12_archive_missing_digest")
     return f"t12_baselines/{code[:8]}/{code}.json"
+
+
+def _readback_with_brief_retry(path, expected, remote_read, *, clock, cutoff):
+    """GitHub Contents GET can briefly lag a successful create-only PUT.
+
+    Only a missing response or a transient ledger read error is retryable.
+    Conflicting bytes are ALWAYS rejected, and a cutoff overrun never proves
+    a timely first add. This helper never creates or modifies a Git file.
+    """
+    expected_digest=hashlib.sha256(expected).hexdigest()
+    for attempt in range(4):
+        observed_at=clock()
+        if observed_at>=cutoff:
+            raise ValueError("t12_baseline_remote_commit_after_cutoff")
+        read_error=False
+        try:
+            observed=remote_read(path)
+        except ValueError as exc:
+            if str(exc)!="course_ledger_read_failed":
+                raise
+            read_error=True
+            observed=None
+        state=("transient_get_error" if read_error else "missing" if observed is None
+               else "matched" if observed==expected else "bytes_mismatch")
+        print("T12_READBACK_TRACE="+json.dumps({
+            "path":path,"attempt":attempt+1,"state":state,
+            "expected_sha256":expected_digest,
+            "observed_sha256":hashlib.sha256(observed).hexdigest()
+                              if observed is not None else None,
+            "observed_at":observed_at.isoformat(),
+            "seconds_before_cutoff":round((cutoff-observed_at).total_seconds(),3),
+            "formal":False,"independent_first_seen_verified":False},sort_keys=True))
+        if observed==expected:
+            return
+        if observed is not None:
+            raise ValueError("t12_baseline_readback_failed")
+        if attempt<3:
+            sleep((0.2,0.4,0.8)[attempt])
+    raise ValueError("t12_baseline_readback_failed")
 
 
 def publish_base(raw, code, remote_read, remote_create, *, clock,
@@ -187,8 +259,8 @@ def publish_base(raw, code, remote_read, remote_create, *, clock,
         state="new_t12_baseline"
     else:
         state="existing_identical_t12_baseline"
-    if remote_read(path)!=raw:
-        raise ValueError("t12_baseline_readback_failed")
+    _readback_with_brief_retry(path,raw,remote_read,clock=clock,
+                               cutoff=_dt(json.loads(raw)["cutoff_jst"]))
     if clock()>=_dt(json.loads(raw)["cutoff_jst"]):
         raise ValueError("t12_baseline_remote_commit_after_cutoff")
     return {"status":state,"path":path,
@@ -198,7 +270,7 @@ def publish_base(raw, code, remote_read, remote_create, *, clock,
 
 
 def seed_once(*, now, fetch_title=None, fallback_title=None, predictor=predict,
-              record_path=_record_path, ledger_ops=None, max_per_run=5):
+              record_path=_record_path, ledger_ops=None, max_per_run=10):
     """Use unchanged predict() and its original on-disk T-12 evidence."""
     first=now()
     rows,day,title_digest,title_source=_title(first,fetch=fetch_title,fallback=fallback_title)
@@ -240,8 +312,13 @@ def seed_once(*, now, fetch_title=None, fallback_title=None, predictor=predict,
                                    expected_deadline=expected_deadlines[code])
                 if path!=remote_path:
                     raise ValueError("t12_existing_baseline_wrong_path")
-                if read(remote_path)!=existing:
-                    raise ValueError("t12_existing_baseline_readback_changed")
+                try:
+                    _readback_with_brief_retry(remote_path,existing,read,
+                        clock=now,cutoff=_dt(json.loads(existing)["cutoff_jst"]))
+                except ValueError as exc:
+                    if str(exc)=="t12_baseline_readback_failed":
+                        raise ValueError("t12_existing_baseline_readback_changed") from exc
+                    raise
                 states.append({"race_code":code,"status":"existing_identical_t12_baseline",
                                "path":remote_path,
                                "sha256":hashlib.sha256(existing).hexdigest(),
@@ -251,9 +328,22 @@ def seed_once(*, now, fetch_title=None, fallback_title=None, predictor=predict,
                 continue
             # Only the FIRST invocation may create a fresh original. The
             # immutable ledger's create-only write rejects concurrent races.
-            predictor(code[:8],code[8:10],code[10:12])
-            path=record_path(code)
-            raw=path.read_bytes()
+            if predictor is predict and record_path is _record_path:
+                # The ordinary research model intentionally returns cached
+                # research_snapshots unchanged. For a NEW T-12 baseline,
+                # acquire/compute fresh input in a separate throwaway folder.
+                # Do not delete, alter or retrospectively retimestamp the
+                # immutable ordinary research record.
+                from tempfile import TemporaryDirectory
+                with TemporaryDirectory(prefix="boat-edge-t12-") as isolated:
+                    predictor(code[:8],code[8:10],code[10:12],
+                              output_dir=isolated)
+                    raw=(Path(isolated)/(code+".json")).read_bytes()
+            else:
+                # Test/diagnostic injectors retain their three-argument
+                # predictor + record_path behavior.
+                predictor(code[:8],code[8:10],code[10:12])
+                raw=record_path(code).read_bytes()
             states.append(dict(race_code=code,
                                **publish_base(raw,code,read,create,clock=now,
                                               expected_deadline=expected_deadlines[code])))

@@ -166,7 +166,9 @@ def attempt(root, *, now=None, prefetch=historical_prefetch,
             break
         preview_attempts+=1
         try:
-            observed=card_reader(code[:8],code[8:10],code[10:12])
+            # Race identity stays 12-digit in the ledger; the shared CLEAN
+            # racecard function accepts 1..12 without a leading zero.
+            observed=card_reader(code[:8],code[8:10],str(int(code[10:12])))
             meta=observed.get("meta",{})
             if (observed.get("race_key")!=f"{code[:8]}-{code[8:10]}-{code[10:]}"
                     or meta.get("phase")!="PRE_RESULT"
@@ -194,14 +196,39 @@ def attempt(root, *, now=None, prefetch=historical_prefetch,
     # old daily downloads. Actual course-slot counts gate every boat.
     # This NEVER pretends the Waku10 frame-average ST is course-average ST.
     waku_reason="waku10_not_attempted"
+    waku_diagnostics={}
     if waku_enabled and now()<late-timedelta(seconds=10):
         try:
             waku=fetch_waku10(code,cutoff_at=late.isoformat(),
                               fetch=waku_fetch,clock=now)
+            waku_frozen_at=now().isoformat()
             candidate=prepare_waku10_pilot(
-                base,card,waku,frozen_at=now().isoformat(),min_course_starts=8)
+                base,card,waku,frozen_at=waku_frozen_at,min_course_starts=8)
         except (ValueError,OSError,KeyError,TypeError,TimeoutError,URLError,HTTPError) as exc:
             waku_reason=str(exc) or type(exc).__name__
+            if waku_reason=="waku10_pilot_insufficient_course_specific_frame_runs":
+                # Diagnose this pre-cutoff source's actual per-course sample
+                # counts. No new HTTP or model run, no minimum reduction,
+                # and never convert an invalid pilot into a stored forecast.
+                try:
+                    from entry_waku10_source import extract_waku10_course_evidence
+                    entry,_=_entry_from_preview(card,late)
+                    observed=extract_waku10_course_evidence(
+                        card,waku,entry,frozen_at=waku_frozen_at,min_course_starts=8)
+                    waku_diagnostics={
+                        "course_sample_counts":{
+                            str(row["boat"]):row["matchedCourseCompletedRuns"]
+                            for row in observed["rows"]},
+                        "insufficient_course_boats":[
+                            row["boat"] for row in observed["rows"]
+                            if not row["sufficient_sample"]],
+                        "minimum_course_starts_required":8,
+                        "sample_source":"third_party_waku10_frame_history",
+                    }
+                except (ValueError,OSError,KeyError,TypeError,TimeoutError):
+                    # An unverifiable diagnosis must not hide the real
+                    # capture failure or invent course samples.
+                    pass
         else:
             directory=Path(root)/"entry_waku10_attempts"
             path=freeze_capture(candidate,directory,clock=now)
@@ -225,7 +252,8 @@ def attempt(root, *, now=None, prefetch=historical_prefetch,
         return {"status":"ineligible_waku10_pilot","stored":False,
                 "race_code":code,"reason":waku_reason,
                 "preview_attempts":preview_attempts,
-                "historical_requests":0,"research_only":True}
+                "historical_requests":0,"research_only":True,
+                **waku_diagnostics}
     cache,fetch_errors=prefetch(code[:8])
     if now()>=late:
         return {"status":"history_fetch_crossed_late_cutoff","stored":False,"race_code":code,

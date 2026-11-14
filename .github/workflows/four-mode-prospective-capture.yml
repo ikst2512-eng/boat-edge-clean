@@ -8,9 +8,30 @@ on:
   pull_request:
     paths:
       - clean_four_mode_capture.py
+      - capture_restored_scenario.py
+      - capture_v133_policy.py
+      - v133_remote_readback.py
+      - test_v133_remote_readback.py
+      - test_capture_v133_policy.py
+      - test_capture_restored_scenario.py
+      - legacy_scenario_engine.py
+      - legacy_v133_reference_engine.py
+      - boat_edge_v254_third_tail.py
+      - test_legacy_v133_reference_engine.py
+      - test_v133_http_json_contract.py
+      - test_original_v133_primary_contract.py
       - clean_four_modes.py
       - test_clean_four_mode_capture_e2e.py
       - test_clean_four_modes.py
+      - research_model.py
+      - four_mode_archive_api.py
+      - research/forecast_strategy_guard_20261111.json
+      - test_forecast_strategy_contract.py
+      - AGENTS.md
+      - research/active_forecast_lock_20261114.json
+      - test_active_forecast_lock.py
+      - .github/workflows/active-forecast-lock.yml
+      - .github/workflows/active-forecast-protected-pr.yml
       - test_four_mode_receipts.py
       - four_mode_raw_receipt.py
       - test_four_mode_raw_receipt.py
@@ -62,7 +83,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Verify four-mode capture and receipts
-        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts test_four_mode_raw_receipt test_audit_four_mode_raw_receipts test_link_four_mode_raw_forecast test_audit_new_v2_staged test_hole_shadow_same_job_capture test_hole_shadow_prospective_gate test_third_rate_same_job_capture test_third_rate_evidence_ledger test_four_mode_github_server_observation test_four_mode_github_server_observation_ledger test_four_mode_remote_evidence_end_to_end test_verify_four_mode_capture_evidence test_four_mode_workflow_shell_syntax tests.test_four_mode_source_link_scope
+        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts test_four_mode_raw_receipt test_audit_four_mode_raw_receipts test_link_four_mode_raw_forecast test_audit_new_v2_staged test_hole_shadow_same_job_capture test_hole_shadow_prospective_gate test_third_rate_same_job_capture test_third_rate_evidence_ledger test_four_mode_github_server_observation test_four_mode_github_server_observation_ledger test_four_mode_remote_evidence_end_to_end test_verify_four_mode_capture_evidence test_four_mode_workflow_shell_syntax tests.test_four_mode_source_link_scope test_forecast_strategy_contract test_active_forecast_lock test_capture_restored_scenario test_capture_v133_policy test_v133_remote_readback test_legacy_v133_reference_engine test_original_v133_primary_contract test_v133_http_json_contract
   capture:
     # workflow_dispatch can target a feature branch. Never let it enter the
     # privileged forecast-publication path or attempt git push HEAD:main.
@@ -90,7 +111,7 @@ jobs:
           python clean_four_mode_capture.py 2>&1 | tee four-mode-evidence/capture.log
       - name: Verify four-mode capture and receipts before publishing
         id: before_publish_tests
-        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts
+        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts test_forecast_strategy_contract test_legacy_v133_reference_engine test_original_v133_primary_contract test_v133_http_json_contract
       - name: Stage only immutable new forecasts and check receipt window
         id: receipt_staging
         if: github.event_name != 'pull_request'
@@ -385,5 +406,112 @@ jobs:
             four-mode-evidence/github-server-observation-ledger.json
             four-mode-evidence/final-evidence-verdict.json
             four_mode_forecasts/capture_status.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  scenario_capture:
+    # Reuse this EXISTING research workflow schedule. This is a separate,
+    # append-only scenario experiment, never a replacement for frozen V2.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify original and new V133 source and frozen-provenance guards
+        run: python -m unittest -v test_legacy_scenario_engine test_capture_restored_scenario test_capture_v133_policy test_v133_remote_readback test_legacy_v133_reference_engine test_forecast_strategy_contract test_active_forecast_lock
+      - name: Freeze available near-deadline scenario evidence
+        run: python capture_restored_scenario.py
+      - name: Freeze new V133 policy predictions with verified actual racecard and exhibition
+        run: python capture_v133_policy.py
+      - name: Commit and publish only safe new scenario snapshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet -- scenario_forecasts/ v133_policy_forecasts/ || ! git diff --cached --quiet -- scenario_forecasts/ v133_policy_forecasts/; then
+            echo "Previously tracked scenario evidence changed; refusing write" >&2
+            exit 1
+          fi
+          python - <<'PY'
+          import subprocess
+          from capture_restored_scenario import verify_snapshot as verify_restored
+          from capture_v133_policy import verify_snapshot as verify_v133
+          staged = {"scenario_forecasts": 0, "v133_policy_forecasts": 0}
+          for folder, verifier in (
+              ("scenario_forecasts", verify_restored),
+              ("v133_policy_forecasts", verify_v133),
+          ):
+              names = subprocess.check_output(
+                  ["git", "ls-files", "--others", "--exclude-standard", "--", folder+"/"],
+                  text=True).splitlines()
+              for name in names:
+                  if not name.endswith(".json"):
+                      continue
+                  try:
+                      verifier(name)
+                  except (ValueError, OSError, KeyError, TypeError) as exc:
+                      print("research candidate held from publication:", name, str(exc)[:120])
+                      continue
+                  subprocess.run(["git", "add", "--", name], check=True)
+                  staged[folder] += 1
+          print("new scenario research safely staged:", staged)
+          PY
+          if git diff --cached --quiet; then
+            echo 'No safe new scenario/V133 policy forecasts; leave V2 and history unchanged.'
+            exit 0
+          fi
+          git config user.name 'scenario-capture-bot'
+          git config user.email 'scenario-capture-bot@users.noreply.github.com'
+          git commit -m 'data: freeze guarded V133 policy and scenario research (unvalidated)'
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git -c rebase.autoStash=true rebase origin/main
+            python - <<'PY'
+          import subprocess
+          from capture_restored_scenario import verify_snapshot as verify_restored
+          from capture_v133_policy import verify_snapshot as verify_v133
+          total = 0
+          for folder, verifier in (
+              ("scenario_forecasts", verify_restored),
+              ("v133_policy_forecasts", verify_v133),
+          ):
+              names = subprocess.check_output(
+                  ["git", "diff-tree", "--no-commit-id", "--name-only",
+                   "--diff-filter=A", "-r", "HEAD", "--", folder+"/"],
+                  text=True).splitlines()
+              for name in names:
+                  print("fresh pre-push receipt checked:", verifier(name))
+                  total += 1
+          if total == 0:
+              raise SystemExit("No newly added scenario or V133 evidence in commit")
+          PY
+            if git push origin HEAD:main; then
+              git fetch origin main
+              git merge-base --is-ancestor HEAD FETCH_HEAD
+              # Read back the exact newly added Git blob at the pushed SHA.
+              # Server Date is a bounded observation only, NEVER first receipt.
+              GH_TOKEN="${{ github.token }}" python v133_remote_readback.py
+              echo 'Original/V133 research published with readback; independent first-remote proof remains unverified.'
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Scenario push rejected; no backdated archive created" >&2
+              exit 1
+            fi
+            sleep "$attempt"
+          done
+      - name: Preserve source-timestamped V133 GitHub readback evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v133-policy-remote-readback-${{ github.run_id }}
+          path: v133-evidence/remote-readback.json
           if-no-files-found: warn
           retention-days: 30

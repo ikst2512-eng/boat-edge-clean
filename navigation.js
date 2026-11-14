@@ -8,9 +8,9 @@ document.documentElement.dataset.cleanNavigationInit='1';
 if(location.hostname.endsWith('.github.io')&&location.pathname.startsWith('/boat-edge-clean/')){
  const review=nav.querySelector('a[href="/review"]');
  if(review){const target=new URL(location.href);target.searchParams.set('screen','review');review.href=target.pathname+target.search;}
- // The candidate list is a Render route, not a GitHub Pages file.
+ // Candidate history is a static GitHub Pages document, not a sleeping Render redirect.
  const selection=document.querySelector('.site-head .header-candidate-tab[href="/selection"]');
- if(selection)selection.href='https://boat-edge-clean.onrender.com/selection';
+ if(selection)selection.href='/boat-edge-clean/candidates.html';
 }
 document.querySelectorAll('.site-global-nav a, .site-head .header-candidate-tab').forEach(link=>link.addEventListener('click',()=>{
  const destination=new URL(link.href);
@@ -37,21 +37,25 @@ if(typeof s==='undefined'||typeof activeView==='undefined')return;
 const back=document.getElementById('raceViewBack');
 const originalSetView=typeof setView==='function'?setView:null;
 const originalRender=typeof render==='function'?render:null;
+// Preserve the WebKit history ownership guard merged in #1706.
+if(originalSetView&&originalRender)window.__boatEdgeNavigationOwnsHistory=true;
 let restoring=false;
 let syncScheduled=false;
 const scheduleSync=()=>{if(syncScheduled||restoring)return;syncScheduled=true;queueMicrotask(()=>{syncScheduled=false;sync();});};
-const snapshot=()=>({date:s.date,venue:s.venue,race:s.race,view:activeView});
-const key=p=>[p.date,p.venue,p.race,p.view].join('|');
+const focusedPane=()=>activeView==='card'&&typeof raceCardPane!=='undefined'?raceCardPane:null;
+const snapshot=()=>({date:s.date,venue:s.venue,race:s.race,view:activeView,pane:activeView==='card'?focusedPane():null});
+const key=p=>[p.date,p.venue,p.race,p.view,p.pane||''].join('|');
 const requestedScreen=new URL(location.href).searchParams.get('screen');
 if((location.pathname==='/'||location.pathname.startsWith('/boat-edge-clean/'))&&['forecast','card','exhibit','result','review'].includes(requestedScreen)&&originalSetView&&originalRender){
  originalSetView(requestedScreen);
+ if(requestedScreen==='card'&&new URL(location.href).searchParams.get('pane')==='rates'&&typeof setRaceCardPane==='function')setRaceCardPane('rates');
  originalRender();
 }
 const initial=snapshot();
 const existing=history.state&&history.state.boatEdgeNav?history.state:null;
 let position=existing?existing.position:0;
 let current=existing?existing.snapshot:initial;
-history.replaceState({boatEdgeNav:true,position,snapshot:current},'',location.href);
+if(!existing)history.replaceState({boatEdgeNav:true,position,snapshot:current},'',location.href);
 const sync=()=>{
  if(restoring)return;
  const next=snapshot();if(key(next)===key(current))return;
@@ -61,14 +65,20 @@ const sync=()=>{
  u.searchParams.set('venue',String(next.venue+1));
  u.searchParams.set('race',String(next.race));
  u.searchParams.set('screen',next.view);
+ if(next.view==='card'&&next.pane==='rates')u.searchParams.set('pane','rates');else u.searchParams.delete('pane');
  history.pushState({boatEdgeNav:true,position,snapshot:next},'',u);
 
 };
+const restoreNavigationLocation=(url,state)=>{
+ const after=history.state;
+ if(location.href!==url||(after!==state&&JSON.stringify(after)!==JSON.stringify(state)))
+  history.replaceState(state,'',url);
+};
 if(originalSetView){
- setView=function(view){const url=location.href,state=history.state;const result=originalSetView(view);history.replaceState(state,'',url);scheduleSync();queueMicrotask(()=>{if(typeof updateDetails==='function')updateDetails();});return result;};
+ setView=function(view){const url=location.href,state=history.state;const result=originalSetView(view);restoreNavigationLocation(url,state);scheduleSync();queueMicrotask(()=>{if(typeof updateDetails==='function')updateDetails();});return result;};
 }
 if(originalRender){
- render=function(){const url=location.href,state=history.state;const result=originalRender();history.replaceState(state,'',url);scheduleSync();return result;};
+ render=function(){const url=location.href,state=history.state;const result=originalRender();restoreNavigationLocation(url,state);scheduleSync();return result;};
 }
 window.addEventListener('popstate',event=>{
  const state=event.state;
@@ -78,8 +88,13 @@ window.addEventListener('popstate',event=>{
  const v=current;
  s.date=v.date;s.venue=v.venue;s.race=v.race;
  if(originalSetView)originalSetView(v.view);
+ if(v.view==='card'&&typeof setRaceCardPane==='function')setRaceCardPane(v.pane==='rates'?'rates':'card');
+ if(v.view==='forecast'&&typeof setForecastPane==='function')setForecastPane('prediction');
  if(originalRender)originalRender();
- history.replaceState(state,'',location.href);
+ // popstate already restored the destination entry. Avoid an identical
+ // replaceState during back/forward to preserve WebKit's history quota.
+ if(history.state!==state&&JSON.stringify(history.state)!==JSON.stringify(state))
+  history.replaceState(state,'',location.href);
  restoring=false;
 });
 // The only back control is in index.html; browser history takes precedence.
@@ -91,7 +106,14 @@ const details=document.createElement('nav');details.className='race-detail-short
 details.setAttribute('aria-label','選択レースの情報');
 for(const [label,view] of [['予想','forecast'],['出走表','card'],['展示・直前','exhibit'],['結果','result']]){
  const b=document.createElement('button');b.type='button';b.textContent=label;b.dataset.raceView=view;
- b.addEventListener('click',()=>{if(typeof setView!=='function'||typeof render!=='function')return;if(view==='forecast'&&typeof setForecastPane==='function')setForecastPane('prediction');setView(view);render();document.querySelector(view==='forecast'?'#forecast':view==='result'?'#resultSection':'#raceDataSection')?.scrollIntoView({block:'start'});});
+ b.addEventListener('click',()=>{
+  if(typeof setView!=='function'||typeof render!=='function')return;
+  if(view==='forecast'&&typeof setForecastPane==='function')setForecastPane('prediction');
+  if(view==='card'&&typeof setRaceCardPane==='function')setRaceCardPane('card');
+  setView(view);
+  render();
+  document.querySelector(view==='forecast'?'#forecast':view==='result'?'#resultSection':'#raceDataSection')?.scrollIntoView({block:'start'});
+ });
  details.append(b);
 }
 document.querySelector('.active-race-strip')?.insertAdjacentElement('afterend',details);
@@ -104,10 +126,10 @@ const updateDetails=()=>{
  if(strip)strip.hidden=!showRaceControls;
  details.hidden=!showRaceControls;
  details.querySelectorAll('button').forEach(b=>{
-  const selected=b.dataset.raceView===activeView;
-  b.setAttribute('aria-current',String(selected));
-  b.classList.toggle('on',selected);
- });
+   const selected=b.dataset.raceView===activeView;
+   b.setAttribute('aria-current',String(selected));
+   b.classList.toggle('on',selected);
+  });
 };
 updateDetails();
 const raceHome=document.querySelector('[data-home-only]');
