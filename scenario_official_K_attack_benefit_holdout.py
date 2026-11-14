@@ -138,7 +138,7 @@ def summarize(records):
     return out
 
 
-def analyze_official_K_92day(path):
+def analyze_official_K_92day(path, *, return_internal_records=False):
     """Inspect pinned historical postrace results, NEVER a prospective predictor.
 
     The exact frozen #1692 module paths are made available by existing PR CI;
@@ -200,6 +200,10 @@ def analyze_official_K_92day(path):
                     excluded["not_all_six_finishers_or_unknown_method"] += 1
                     continue
                 clean += 1
+                # Venue/day are known pre-race in principle, but the actual
+                # finish courses and winning method are historical labels.
+                record["venue"] = race["venue"]
+                record["day"] = day
                 kept[cohort].append(record)
     if (total_raw, basic_eligible) != (EXPECTED_RAW, EXPECTED_BASIC_ELIGIBLE):
         raise ValueError("K_frozen_92day_cohort_changed")
@@ -247,7 +251,7 @@ def analyze_official_K_92day(path):
             ],
             "not_a_causal_effect": True,
         }
-    return {
+    output = {
         "study_id": STUDY_ID,
         "source_zip_sha256": original_zip,
         "official_K_days_verified": len(daily_sha),
@@ -278,3 +282,8 @@ def analyze_official_K_92day(path):
             "promotion_allowed": False,
         },
     }
+    if return_internal_records:
+        # Never persist or publish outcome rows as a prediction "source".
+        # Expose only to deterministic, result-blind historical holdout code.
+        output["internal_retrospective_records_only"] = kept
+    return output
