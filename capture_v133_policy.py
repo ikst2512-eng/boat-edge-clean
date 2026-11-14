@@ -157,6 +157,7 @@ def collect(root=ROOT, now=None, card_loader=None, max_races=8):
         target = dest / (code + ".json")
         if target.exists() or target.is_symlink():
             continue
+        created_here = False
         try:
             card = card_loader(code[:8], code[8:10], str(int(code[10:12])))
             if not isinstance(card, dict) or card.get("race_key") != (
@@ -188,6 +189,7 @@ def collect(root=ROOT, now=None, card_loader=None, max_races=8):
             path_temp = dest / (code + ".json")
             dest.mkdir(parents=True, exist_ok=True)
             with path_temp.open("x", encoding="utf-8") as stream:
+                created_here = True
                 json.dump(record, stream, ensure_ascii=False, sort_keys=True, indent=2)
                 stream.write("\n")
                 stream.flush()
@@ -197,7 +199,7 @@ def collect(root=ROOT, now=None, card_loader=None, max_races=8):
         except (OSError, ValueError, TypeError, KeyError) as err:
             # Invalid local candidates are never published; only the module's
             # own new file can be removed after an unsuccessful validation.
-            if target.exists() and not target.is_symlink() and code not in saved:
+            if created_here and target.exists() and not target.is_symlink():
                 target.unlink()
             key = str(err)[:100] or type(err).__name__
             rejected[key] = rejected.get(key, 0) + 1
