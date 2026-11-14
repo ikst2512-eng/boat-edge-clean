@@ -125,13 +125,22 @@ async function inspect(browser,ctx,engine,f){
    try{
     // Limit requests: too many parallel Render/CSV reads can create
     // false 502s and is unsuitable for a real production acceptance gate.
-    for(const fixture of fixtures)await inspect(browser,ctx,name,fixture);
+    for(const fixture of fixtures){
+     try{await inspect(browser,ctx,name,fixture);}
+     catch(error){
+      const failed={engine:name,venue:pad(fixture.venue),race:raceKey(fixture),
+       boats:0,error:String(error?.message||error).slice(0,300),noMocks:true};
+      report.push(failed);
+      console.error('PUBLIC_P2_24VENUE_CASE_ERROR '+JSON.stringify(failed));
+     }
+    }
    }finally{await browser.close();}
   }
-  const good=report.filter(x=>x.boats===6),missing=report.filter(x=>x.boats===0);
+  const good=report.filter(x=>x.boats===6);
+  const missing=report.filter(x=>x.boats!==6);
   const summary={venues:24,cases:report.length,browsers:['chromium','webkit'],
    sixBoatCases:good.length,unavailableCases:missing.length,
-   uncovered:missing.map(x=>({engine:x.engine,race:x.race,http:x.renderHttp})),
+   uncovered:missing.map(x=>({engine:x.engine,race:x.race,http:x.renderHttp||null,error:x.error||null})),
    noMocks:true,formalT12:false,liveOfficial24Certified:false};
   assert.equal(report.length,48,'Not all 24 venues inspected in both browsers');
   console.log('PUBLIC_P2_24VENUE_DIAGNOSTIC '+JSON.stringify(summary));
