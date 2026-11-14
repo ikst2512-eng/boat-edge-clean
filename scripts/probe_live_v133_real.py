@@ -18,7 +18,7 @@ MODEL = "V127_V133_SOURCE_PORT_INPUT_GUARDED_REFERENCE_V1"
 
 
 def upcoming(schedule, now):
-    if schedule.get("date") != now.strftime("%Y%m%d"):
+    if str(schedule.get("date") or "").replace("-", "") != now.strftime("%Y%m%d"):
         return []
     items = []
     for venue in schedule.get("venues") or []:
