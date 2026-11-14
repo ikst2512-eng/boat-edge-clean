@@ -72,6 +72,56 @@ class InteractionTests(unittest.TestCase):
         self.assertFalse(x["production_changed"])
         self.assertEqual(x["feature_matrix_sha256"], build_attack_benefit_matrix(fixture())["feature_matrix_sha256"])
 
+    def test_two_escape_x_three_attack_four_five_interactions(self):
+        output=build_attack_benefit_matrix(fixture())
+        self.assertEqual(output["model_id"],
+                         "EXPLORATORY_ONLY_ATTACK_BENEFIT_FEATURES_V2")
+        rows={item["ticket"]:item["features"] for item in output["rows"]}
+        self.assertAlmostEqual(
+            rows["1-4-5"]["one_survives_three_attack_four_sashi_second"], .06)
+        self.assertAlmostEqual(
+            rows["3-4-5"]["three_attacks_two_escape_assist_four_second"], .06)
+        self.assertAlmostEqual(
+            rows["3-5-4"]["three_attacks_two_escape_assist_five_second"], .04)
+        self.assertAlmostEqual(
+            rows["3-5-4"]["third_attack_four_sashi_third"], .075)
+        self.assertAlmostEqual(
+            rows["4-3-5"]["fourth_attack_five_makuri_sashi_third"], .05)
+        self.assertAlmostEqual(
+            rows["4-3-6"]["fourth_attack_six_makuri_sashi_third"], .05)
+        self.assertEqual(
+            rows["1-2-3"]["three_attacks_two_escape_assist_four_second"],0.)
+        self.assertFalse(output["predicted_probabilities"])
+        self.assertFalse(output["fitted_coefficients"])
+        self.assertFalse(output["promotion_allowed"])
+
+    def test_compound_features_refuse_imputed_wall_data(self):
+        case=fixture()
+        case["racers"][1]["signals"].pop("two_escape_assist_pct")
+        out=build_attack_benefit_matrix(case)
+        rows={item["ticket"]:item["features"] for item in out["rows"]}
+        self.assertIsNone(
+            rows["1-4-5"]["one_survives_three_attack_four_sashi_second"])
+        self.assertIsNone(
+            rows["3-4-5"]["three_attacks_two_escape_assist_four_second"])
+        self.assertIsNone(
+            rows["3-5-4"]["three_attacks_two_escape_assist_five_second"])
+        self.assertEqual(
+            rows["1-2-3"]["three_attacks_two_escape_assist_five_second"],0.)
+
+    def test_compound_uses_exhibition_course_after_entry_swap(self):
+        case=fixture()
+        case["racers"][0]["exhibition_course"]=3
+        case["racers"][2]["exhibition_course"]=1
+        rows={r["ticket"]:r["features"] for r in
+              build_attack_benefit_matrix(case)["rows"]}
+        self.assertAlmostEqual(
+            rows["3-4-5"]["one_survives_three_attack_four_sashi_second"],.06)
+        self.assertAlmostEqual(
+            rows["1-4-5"]["three_attacks_two_escape_assist_four_second"],.06)
+        self.assertEqual(
+            rows["3-4-5"]["three_attacks_two_escape_assist_four_second"],0.)
+
     def test_exhibition_course_not_boat_assumption(self):
         x = fixture()
         x["racers"][0]["exhibition_course"] = 3
