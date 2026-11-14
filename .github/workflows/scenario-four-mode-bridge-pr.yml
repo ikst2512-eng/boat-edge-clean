@@ -550,6 +550,63 @@ jobs:
               "model_run":False,"Git_written":False,"formal":False,
               "prospective_samples_admitted":0},sort_keys=True))
           PY
+      - name: Replay SHA-verified official K 92-day history into SYNTHETIC future roster (no forecast)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Reuse three exact original-K parser files from the EXISTING
+          # #1692 Draft commit; do not copy their decoder or math into #1710.
+          git fetch --no-tags --depth=1 origin d12b084a9b5c4ae608ac798a004e4dda4854ba5a
+          mkdir -p "$RUNNER_TEMP/K1692"
+          for file in research_official_k_one_day_compare.py research_official_k_c2_escape_conditional_92day.py research_official_k_c2_athlete_chronological_holdout.py; do
+            git show d12b084a9b5c4ae608ac798a004e4dda4854ba5a:scripts/"$file" > "$RUNNER_TEMP/K1692/$file"
+          done
+          test "$(git hash-object "$RUNNER_TEMP/K1692/research_official_k_one_day_compare.py")" = "d33c448d6be4a2bd1c41193d59bf5cb7450b884a"
+          test "$(git hash-object "$RUNNER_TEMP/K1692/research_official_k_c2_escape_conditional_92day.py")" = "2076804072462e41618e69ba8dc4e06b662ad2f0"
+          test "$(git hash-object "$RUNNER_TEMP/K1692/research_official_k_c2_athlete_chronological_holdout.py")" = "2616f8ea6888b4a185f82e50fb163e434516ec00"
+          python -c 'import ctypes; ctypes.CDLL("libarchive.so.13")'
+          curl --fail --location --silent --show-error --retry 2 \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/13607470249/zip" \
+            --output "$RUNNER_TEMP/official-K-92day-original.zip"
+          echo "c668f545bae54f8148616315e307ed2a2b04a77a0cb8abf88bf3ea078749ce8e  $RUNNER_TEMP/official-K-92day-original.zip" | sha256sum --check --status
+          test "$(stat -c %s "$RUNNER_TEMP/official-K-92day-original.zip")" -eq 3398466
+          OFFICIAL_K_ZIP="$RUNNER_TEMP/official-K-92day-original.zip" \
+          PYTHONPATH="$RUNNER_TEMP/K1692:$PWD" python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from research_official_k_c2_athlete_chronological_holdout import official_rows
+          from scenario_official_K_training_roster_bridge import replay_K_and_join_future_exhibition
+          from test_scenario_exhibition_course_head_research import input_case
+          case = input_case(2)  # SYNTHETIC target, NEVER count as a prospective sample.
+          joined = replay_K_and_join_future_exhibition(
+              Path(os.environ["OFFICIAL_K_ZIP"]), official_rows, *case[:4])
+          history = joined["history"]
+          prepared = joined["prepared_study"]
+          assert joined["original_K_local_SHA_verified"] is True
+          assert joined["original_K_92_daily_bytes_checked_by_external_parser"] is True
+          assert joined["training_eligible_races"] == 9241
+          assert joined["historical_holdout_races_not_used_to_train"] == 4574
+          assert history["historic_training_end_date_jst"] == "2026-09-30"
+          assert prepared["history_source_join"]["history_claimed_input_sha256"] == joined["history_claimed_input_sha256"]
+          assert prepared["history_source_join"]["exhibition_course1_boat"] == 2
+          assert joined["numeric_history_injected_into_four_mode_head"] is False
+          assert joined["future_official_HTTP_first_received_independently_verified"] is False
+          assert joined["future_first_remote_forecast_save_verified"] is False
+          assert joined["formal"] is False
+          assert joined["production_changed"] is False
+          print("REAL_K_92DAY_BYTES_TO_SYNTHETIC_FUTURE_ROSTER_REPLAY_PASS "+json.dumps({
+              "original_K_sha256":joined["original_K_ZIP_SHA256"],
+              "training":joined["training_eligible_races"],
+              "heldout_unused":joined["historical_holdout_races_not_used_to_train"],
+              "future_is_synthetic":True,
+              "exhibition1C_boat":prepared["history_source_join"]["exhibition_course1_boat"],
+              "athlete_training_sample_count":history["C1_athlete_training_race_count"],
+              "candidate_created":False,"formal":False,
+          },sort_keys=True))
+          PY
       - name: Confirm all-mode scenario composition uses actual reviewed #1698 conditional math
         env:
           RESEARCH_1698_PIN_REQUIRED: '1'
