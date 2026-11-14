@@ -1260,3 +1260,61 @@ jobs:
         env:
           RESEARCH_1698_PIN_REQUIRED: '1'
         run: PYTHONPATH="$RUNNER_TEMP/position1698:$PWD" python -m unittest -v test_scenario_exhibition_all_mode_runner test_scenario_mode_specific_exhibition_end_to_end test_scenario_future_three_original_gateway test_scenario_future_archived_receipts_to_candidate test_scenario_signed_st_four_mode_shadow test_scenario_signed_st_registered_shadow test_scenario_signed_st_future_pre_t12_handoff test_scenario_signed_st_future_pre_t12_cli test_scenario_signed_st_cross_ledger_audit test_scenario_signed_st_source_remote_witness test_scenario_signed_st_F_remote_candidate_witness test_scenario_escape_prior_first_head_sensitivity test_scenario_exhibition_course_head_research test_scenario_official_K_training_roster_bridge
+
+      - name: Verify actual first-add official bundle motor field from immutable ledger (research read only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64,hashlib,json,os
+          from datetime import datetime
+          from urllib.request import Request,urlopen
+          from scenario_official_motor_display_research import extract_motor_display_unqualified
+
+          race="202611140712"
+          path="official_source_forecast_bundles/20261114/"+race+".json"
+          endpoint="https://api.github.com/repos/ikst2512-eng/boat-edge-clean/contents/"+path+"?ref=entry-course-evidence-ledger"
+          req=Request(endpoint,headers={
+              "Authorization":"Bearer "+os.environ["GH_TOKEN"],
+              "Accept":"application/vnd.github+json",
+              "User-Agent":"BOAT-EDGE-CLEAN-readonly-1710",
+          })
+          with urlopen(req,timeout=15) as response:
+              assert response.status==200
+              metadata=json.loads(response.read(300000).decode())
+          raw=base64.b64decode(metadata["content"],validate=False)
+          assert hashlib.sha1(b"blob "+str(len(raw)).encode()+b"\0"+raw).hexdigest()==metadata["sha"]
+          assert metadata["sha"]=="b7670d32ad4dd642101087f6e23e63abedb3e770"
+          assert hashlib.sha256(raw).hexdigest()=="377bd543fbf0a95901728339ce2299cf921fb8d263261a8cc18bf2e5a96fee7d"
+          bundle=json.loads(raw)
+          assert bundle["race_code"]==race
+          assert bundle["capture_action_context"]["source_collection_action_run_id"]=="43589577842"
+          assert bundle["formal"] is False and bundle["independent_remote_first_seen_verified"] is False
+          assert bundle["official_research_shadow"]["model_consumed_official_exhibition_fields"] is True
+          assert bundle["official_research_shadow"]["model_accuracy_verified"] is False
+          manifest=bundle["official_input_manifest"]
+          source=bundle["official_raw_originals"]["racelist"]
+          html=base64.b64decode(source["base64"],validate=True)
+          assert len(html)==source["bytes"]==70072
+          assert hashlib.sha256(html).hexdigest()==source["sha256"]==manifest["official_sources"]["racelist"]["sha256"]
+          cutoff=datetime.fromisoformat(bundle["cutoff_jst"])
+          generated=datetime.fromisoformat(bundle["official_research_shadow"]["generated_at_jst"])
+          assert max(datetime.fromisoformat(s["received_at_jst"])
+                     for s in manifest["official_sources"].values())<=generated<cutoff
+          motor=extract_motor_display_unqualified(html)
+          assert motor["source_sha256"]==source["sha256"]
+          assert [m["registration_id"] for m in motor["rows"]]==[
+              v["registration"] for v in manifest["six_boat_inputs"]]
+          assert motor["sample_denominator_verified"] is False
+          assert motor["input_to_matrix_allowed"] is False
+          print("REAL_FIRST_ADD_BUNDLE_MOTOR_DISPLAY_INPUT_ONLY_PASS "+json.dumps({
+              "race_code":race,"source_sha256":motor["source_sha256"],
+              "motor_numbers":[m["motor_number"] for m in motor["rows"]],
+              "displayed_motor_2ren_pct":[m["displayed_motor_2ren_pct"] for m in motor["rows"]],
+              "official_bundle_git_blob_sha1":metadata["sha"],
+              "registered_six_match":True,"model_consumed_motor":False,
+              "motor_denominators_verified":False,"new_prediction_generated":False,
+              "formal":False,"independent_first_remote_receipt_verified":False,
+          },sort_keys=True))
+          PY
