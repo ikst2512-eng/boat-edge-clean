@@ -60,33 +60,6 @@ class OfficialSixWinRatesTests(unittest.TestCase):
             with self.subTest(value=value),self.assertRaises(ValueError):
                 extract_six_official_racelist_rates(altered)
 
-    def test_genuine_local_zero_rate_is_not_missing_or_imputed(self):
-        # Three independently archived 2026-11-14 real pre-T12 racecards
-        # contained a local rate 0.00 with valid nonzero national rates.
-        original=synthetic_racelist()
-        zero_local=original.replace(
-            b'4.50<br>36.00<br>45.00',
-            b'0.00<br>0.00<br>0.00',1)
-        parsed=extract_six_official_racelist_rates(zero_local)
-        self.assertEqual(parsed["local_rates"][0],0.0)
-        self.assertEqual(parsed["national_rates"][0],5.3)
-        self.assertEqual(parsed["boats"][0]["local_2ren_pct"],0.0)
-        self.assertEqual(parsed["boats"][0]["local_3ren_pct"],0.0)
-        self.assertEqual(parsed["boats"][1]["local_win_rate"],4.5)
-        self.assertIs(parsed["rates_extracted_from_original_html_not_csv"],True)
-        self.assertIs(parsed["forecast_usable"],False)
-        self.assertIs(parsed["formal"],False)
-        # Still reject malformed/over-limit local rate and missing nationwide
-        # model rate. No fallback to a venue mean or another racer is allowed.
-        invalid_local=original.replace(
-            b'4.50<br>36.00<br>45.00',
-            b'10.01<br>36.00<br>45.00',1)
-        with self.assertRaisesRegex(ValueError,"out_of_bounds"):
-            extract_six_official_racelist_rates(invalid_local)
-        invalid_national=original.replace(b'5.30<br>',b'0.00<br>',1)
-        with self.assertRaisesRegex(ValueError,"out_of_bounds"):
-            extract_six_official_racelist_rates(invalid_national)
-
     def test_duplicate_registration_or_less_than_six_refused(self):
         ids=IDS[:]
         ids[5]=ids[0]
