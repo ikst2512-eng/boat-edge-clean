@@ -1,0 +1,102 @@
+{
+  "schema_version": "boat-edge-site-course-stats-v117",
+  "venue_code": "05",
+  "venue": "多摩川",
+  "fetched_at": "2026-10-08T03:33:26+09:00",
+  "source": "BOAT RACE オフィシャルウェブサイト ボートレース場データ",
+  "source_url": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=05",
+  "scope": "venue_recent_3_months",
+  "period": {
+    "from": "2026/07/01",
+    "to": "2026/09/30"
+  },
+  "unit": "percent",
+  "prediction_logic_uses_course_stats": false,
+  "method_rate_meaning": "share_of_winning_methods_within_each_course",
+  "courses": {
+    "1": {
+      "first_rate": 54.7,
+      "second_rate": 15.6,
+      "third_rate": 9.8,
+      "fourth_rate": 7.0,
+      "fifth_rate": 7.9,
+      "sixth_rate": 4.7,
+      "escape": 93.9,
+      "makuri": 0.0,
+      "sashi": 0.0,
+      "makuri_sashi": 0.0,
+      "nuki": 5.7,
+      "megumare": 0.2
+    },
+    "2": {
+      "first_rate": 11.9,
+      "second_rate": 24.6,
+      "third_rate": 18.2,
+      "fourth_rate": 17.4,
+      "fifth_rate": 13.5,
+      "sixth_rate": 14.1,
+      "escape": 0.0,
+      "makuri": 23.7,
+      "sashi": 63.7,
+      "makuri_sashi": 0.0,
+      "nuki": 11.2,
+      "megumare": 1.2
+    },
+    "3": {
+      "first_rate": 13.7,
+      "second_rate": 23.0,
+      "third_rate": 17.1,
+      "fourth_rate": 19.8,
+      "fifth_rate": 13.1,
+      "sixth_rate": 13.0,
+      "escape": 0.0,
+      "makuri": 42.3,
+      "sashi": 11.9,
+      "makuri_sashi": 36.9,
+      "nuki": 8.6,
+      "megumare": 0.0
+    },
+    "4": {
+      "first_rate": 10.9,
+      "second_rate": 16.9,
+      "third_rate": 21.5,
+      "fourth_rate": 17.8,
+      "fifth_rate": 18.0,
+      "sixth_rate": 14.5,
+      "escape": 0.0,
+      "makuri": 53.4,
+      "sashi": 12.3,
+      "makuri_sashi": 24.6,
+      "nuki": 9.5,
+      "megumare": 0.0
+    },
+    "5": {
+      "first_rate": 6.3,
+      "second_rate": 13.6,
+      "third_rate": 16.9,
+      "fourth_rate": 20.1,
+      "fifth_rate": 22.5,
+      "sixth_rate": 20.4,
+      "escape": 0.0,
+      "makuri": 9.5,
+      "sashi": 9.5,
+      "makuri_sashi": 66.6,
+      "nuki": 11.9,
+      "megumare": 2.3
+    },
+    "6": {
+      "first_rate": 2.8,
+      "second_rate": 6.6,
+      "third_rate": 17.1,
+      "fourth_rate": 18.3,
+      "fifth_rate": 25.4,
+      "sixth_rate": 29.4,
+      "escape": 0.0,
+      "makuri": 52.6,
+      "sashi": 5.2,
+      "makuri_sashi": 36.8,
+      "nuki": 5.2,
+      "megumare": 0.0
+    }
+  }
+}
