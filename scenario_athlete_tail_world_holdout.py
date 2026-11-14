@@ -140,15 +140,6 @@ def fit_training(records, allowed_months):
                 raise ValueError("world_tail_probability_mass_changed")
             tail_by_world[(h, m)] = world
     # All style estimates come from PREVIOUS winning races; no target method.
-    fighter_styles = {
-        reg: {
-            m: (wins[m] + STYLE_PRIOR_WINS *
-                world_p[h][m]) / (total_athlete_wins[reg] + STYLE_PRIOR_WINS)
-            for m in METHODS
-        }
-        for h in BOATS
-        for reg, wins in by_athlete_method.items()
-    }
     # Do not store per-head style in a flattened reg-only dict. A racer
     # racing at a different DRAW needs a different world prior.
     athlete_method_count = {reg: dict(v) for reg,v in by_athlete_method.items()}
