@@ -43,6 +43,13 @@ class LegacyV133ReferenceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             v133_reference_preview(card, NOW)
 
+    def test_non_inner_exhibition_course_refuses_old_boat_one_escape(self):
+        card = current_card()
+        card["beforeinfo"]["start_exhibition"][0]["course"] = 4.0
+        card["beforeinfo"]["start_exhibition"][3]["course"] = 1.0
+        with self.assertRaisesRegex(ValueError, "legacy_escape_world_requires_boat1_exhibition_course1"):
+            v133_reference_preview(card, NOW)
+
     def test_server_route_reads_current_one_race_only(self):
         calls = []
         def source(hd,jcd,rno):
