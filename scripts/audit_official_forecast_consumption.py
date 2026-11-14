@@ -39,7 +39,7 @@ def jst(value):
     return ts
 
 
-def snapshot_timing(directory, race, official):
+def snapshot_timing(directory, race, official, *, independent_beforeinfo_sha256=None):
     """Inspect exact archived forecast only. Never use result, payout or new HTTP."""
     directory = Path(directory)
     kind = directory.name
@@ -106,6 +106,14 @@ def snapshot_timing(directory, race, official):
             if (audit["race_card"].get("sha256") !=
                     row.get("source_racecard_sha256")):
                 raise ValueError("scenario_racecard_digest_mismatch")
+            # The model-reported beforeinfo digest is not independently
+            # attested, but we can explicitly compare it with a separately
+            # hash-rechecked official original from the SAME race. A match
+            # alone cannot establish that the model actually consumed it.
+            model_beforeinfo_sha = audit["beforeinfo"].get("sha256")
+            if (not isinstance(model_beforeinfo_sha, str)
+                    or re.fullmatch(r"[a-f0-9]{64}", model_beforeinfo_sha) is None):
+                raise ValueError("scenario_beforeinfo_digest_invalid")
             title = jst(audit["race_card"]["fetched_at"])
             cards = jst(audit["beforeinfo"]["fetched_at"])
         if is_candidate or kind == "four_mode_forecasts":
@@ -125,11 +133,33 @@ def snapshot_timing(directory, race, official):
             # Even complete, pre-forecast official originals and a matching race
             # do NOT prove that this particular frozen model consumed them.
             status = "official_model_input_consumption_unverified"
+        input_digest_check = {
+            "status": "not_applicable_to_this_forecast_type",
+            "model_reported_beforeinfo_sha256": None,
+            "independent_original_beforeinfo_sha256": None,
+            "identical_original_proven_used": False,
+        }
+        if kind in ("scenario_forecasts", "v133_policy_forecasts"):
+            input_digest_check["model_reported_beforeinfo_sha256"] = model_beforeinfo_sha
+            if independent_beforeinfo_sha256 is None:
+                input_digest_check["status"] = "independent_original_digest_unavailable"
+            else:
+                if (not isinstance(independent_beforeinfo_sha256, str)
+                        or re.fullmatch(r"[a-f0-9]{64}", independent_beforeinfo_sha256) is None):
+                    raise ValueError("independent_beforeinfo_digest_invalid")
+                input_digest_check["independent_original_beforeinfo_sha256"] = (
+                    independent_beforeinfo_sha256)
+                input_digest_check["status"] = (
+                    "reported_hash_equal_consumption_unverified"
+                    if model_beforeinfo_sha == independent_beforeinfo_sha256
+                    else "reported_hash_differs_from_independent_original"
+                )
         return {"status": status, "generated_at_jst": generated.isoformat(),
                 "latest_official_received_jst": latest.isoformat(),
                 "input_source_kind": str(row.get("input_source_kind",
                     row.get("source_audit", {}).get("beforeinfo", {}).get("source",
                             "not_recorded")))[:80],
+                "independent_beforeinfo_digest_comparison": input_digest_check,
                 "formal_attested": False}
     except (ValueError, KeyError, TypeError, OSError, OverflowError, UnicodeError):
         return {"status": "forecast_record_unverified", "generated_at_jst": None}
@@ -437,7 +467,10 @@ def audit_batch(batch_dir, forecast_root, *, official_auditor=audit_three_origin
                 row["official_original_status"] = "three_originals_reaudited_research_only"
                 row["latest_official_received_jst"] = audited["latest_original_received_jst"]
                 row["forecast_statuses"] = {
-                    name: snapshot_timing(forecast_root / name, race, audited)
+                    name: snapshot_timing(
+                        forecast_root / name, race, audited,
+                        independent_beforeinfo_sha256=row["official_input_manifest"]
+                            ["official_sources"]["beforeinfo"]["sha256"])
                     for name in ("prospective_predictions", "four_mode_forecasts",
                                  "scenario_forecasts", "v133_policy_forecasts")
                 }

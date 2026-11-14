@@ -315,6 +315,71 @@ class OfficialForecastConsumptionTests(unittest.TestCase):
         self.assertEqual(result["status"], "official_originals_arrived_after_forecast")
         self.assertFalse(result["formal_attested"])
 
+    def test_independent_official_sha_comparison_never_proves_model_consumption(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for kind in ("scenario_forecasts", "v133_policy_forecasts"):
+                path = self.write_scenario_research(
+                    tmp, kind, "2026-11-02T21:22:00+09:00")
+                official = self.simulated_official()
+                compared = snapshot_timing(
+                    Path(tmp) / kind, RACE, official,
+                    independent_beforeinfo_sha256="c"*64)
+                item = compared["independent_beforeinfo_digest_comparison"]
+                self.assertEqual(item["status"],
+                                 "reported_hash_differs_from_independent_original")
+                self.assertEqual(item["model_reported_beforeinfo_sha256"], "b"*64)
+                self.assertEqual(item["independent_original_beforeinfo_sha256"], "c"*64)
+                self.assertFalse(item["identical_original_proven_used"])
+                self.assertEqual(compared["status"],
+                                 "official_model_input_consumption_unverified")
+                self.assertFalse(compared["formal_attested"])
+
+                same = snapshot_timing(
+                    Path(tmp) / kind, RACE, official,
+                    independent_beforeinfo_sha256="b"*64)
+                self.assertEqual(
+                    same["independent_beforeinfo_digest_comparison"]["status"],
+                    "reported_hash_equal_consumption_unverified")
+                self.assertFalse(
+                    same["independent_beforeinfo_digest_comparison"]
+                        ["identical_original_proven_used"])
+                missing = snapshot_timing(Path(tmp) / kind, RACE, official)
+                self.assertEqual(
+                    missing["independent_beforeinfo_digest_comparison"]["status"],
+                    "independent_original_digest_unavailable")
+                invalid = snapshot_timing(Path(tmp) / kind, RACE, official,
+                    independent_beforeinfo_sha256="not-a-digest")
+                self.assertEqual(invalid["status"], "forecast_record_unverified")
+
+                record = json.loads(path.read_text())
+                record["source_audit"]["beforeinfo"]["sha256"] = "invalid"
+                path.write_text(json.dumps(record))
+                bad = snapshot_timing(Path(tmp) / kind, RACE, official,
+                                      independent_beforeinfo_sha256="c"*64)
+                self.assertEqual(bad["status"], "forecast_record_unverified")
+
+    def test_wakamatsu12_independent_sha_is_not_previously_used_scenario_source(self):
+        root = Path(__file__).resolve().parent.parent
+        race = "202611142012"
+        official = {
+            "official_deadline_jst": "2026-11-14T20:30:00+09:00",
+            "cutoff_jst": "2026-11-14T20:18:00+09:00",
+            "latest_original_received_jst": "2026-11-14T20:13:29.038247+09:00",
+        }
+        # The source run's own raw SHA256 was d572..., versus the already
+        # frozen scenario's separate, earlier official SHA 37d1....
+        result = snapshot_timing(
+            root / "scenario_forecasts", race, official,
+            independent_beforeinfo_sha256=(
+                "d57242845700947971f5b6de3437113bc3b93a4db005ad1b8177e196eb20ccfc"))
+        self.assertEqual(result["status"], "official_originals_arrived_after_forecast")
+        digest = result["independent_beforeinfo_digest_comparison"]
+        self.assertEqual(digest["status"], "reported_hash_differs_from_independent_original")
+        self.assertEqual(digest["model_reported_beforeinfo_sha256"],
+                         "37d1cbcdeaf843f852919474e7d0126e3041ea51de9ef33ee9974f739f15e7af")
+        self.assertFalse(digest["identical_original_proven_used"])
+        self.assertFalse(result["formal_attested"])
+
     def test_actual_three_original_bytes_are_reaudited_before_timing(self):
         with tempfile.TemporaryDirectory() as tmp:
             batch = Path(tmp) / "official_joint_evidence"
