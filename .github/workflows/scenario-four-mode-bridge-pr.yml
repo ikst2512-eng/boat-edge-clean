@@ -635,7 +635,7 @@ jobs:
           assert replay["formal"] is False
           by_ticket={x["ticket"]:x["features"] for x in replay["matrix"]["rows"]}
           assert by_ticket["1-2-3"]["head_meeting_2ren"]==0.7
-          assert by_ticket["1-2-3"]["second_meeting_2ren"]==6/9
+          assert abs(by_ticket["1-2-3"]["second_meeting_2ren"]-6/9)<1e-6
           assert by_ticket["1-2-3"]["third_meeting_2ren"]==0.6
           assert by_ticket["1-2-3"]["head_meeting_st_s"]==0.142
           assert by_ticket["1-2-3"]["head_motor_2ren"] is None
