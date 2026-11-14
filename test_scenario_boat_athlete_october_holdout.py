@@ -68,6 +68,10 @@ class HistoricalBoatAthleteTests(unittest.TestCase):
             self.assertGreaterEqual(m["top10"],m["top5"])
             self.assertGreaterEqual(m["top5"],m["top3"])
         self.assertEqual(sum(result["paired_topn"]["athlete_vs_venue"][10].values()),100)
+        self.assertEqual(result["day_diagnostic"]["total_days"],25)
+        self.assertEqual(sum(v["n"] for v in result["venue_diagnostic"].values()),100)
+        self.assertEqual(sum(result["known_training_athletes_in_october_roster_distribution"].values()),100)
+        self.assertEqual(len(result["global_athlete_vs_global_top10_pctpoint_day_bootstrap_95"]),2)
 
     def test_tampered_periods_or_labels_rejected(self):
         bad=copy.deepcopy(self.training)
