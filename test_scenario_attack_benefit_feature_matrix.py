@@ -2,17 +2,22 @@
 import copy
 import unittest
 
-from scenario_attack_benefit_feature_matrix import build_attack_benefit_matrix
+from scenario_attack_benefit_feature_matrix import (
+    build_attack_benefit_matrix, DENOMINATORS, RATES,
+)
 
 
-def receipt(value=None, size=20):
+def receipt(value=None, size=20, kind=None):
     base = {
         "source_sha256": "a" * 64,
         "received_at_jst": "2026-11-15T09:45:00+09:00",
         "source_url": "https://www.boatrace.jp/",
     }
     if value is not None:
-        base.update(value=value, sample_size=size)
+        base.update(value=value, sample_size=size,
+                    denominator_kind=DENOMINATORS[kind])
+        if kind in RATES:
+            base["success_count"] = round(value * size / 100)
     return base
 
 
@@ -20,16 +25,16 @@ def fixture():
     racers = []
     for i in range(1, 7):
         signals = {
-            "motor_2ren_pct": receipt(45 + i, 60),
-            "meeting_2ren_pct": receipt(35 + i, 5),
-            "average_st_s": receipt(0.15, 100),
-            "meeting_st_s": receipt(0.12, 5),
-            "makuri_pct": receipt(25, 30),
-            "makuri_sashi_pct": receipt(20, 30),
-            "sashi_pct": receipt(30, 30),
+            "motor_2ren_pct": receipt(45 + i, 100, "motor_2ren_pct"),
+            "meeting_2ren_pct": receipt(40, 5, "meeting_2ren_pct"),
+            "average_st_s": receipt(0.15, 100, "average_st_s"),
+            "meeting_st_s": receipt(0.12, 5, "meeting_st_s"),
+            "makuri_pct": receipt(25, 40, "makuri_pct"),
+            "makuri_sashi_pct": receipt(20, 30, "makuri_sashi_pct"),
+            "sashi_pct": receipt(30, 30, "sashi_pct"),
         }
         if i == 2:
-            signals["two_escape_assist_pct"] = receipt(80, 30)
+            signals["two_escape_assist_pct"] = receipt(80, 30, "two_escape_assist_pct")
         comment = dict(receipt(), annotation_method="manual_verified_quote",
                        quote="旋回足に手応え", tags=["turn_positive"])
         racers.append({
@@ -107,6 +112,18 @@ class InteractionTests(unittest.TestCase):
         x = fixture()
         x["racers"][0]["comment"]["annotation_method"] = "llm_guess"
         with self.assertRaisesRegex(ValueError, "manual_comment"):
+            build_attack_benefit_matrix(x)
+
+    def test_wrong_rate_denominator_or_winner_share_rejected(self):
+        x = fixture()
+        x["racers"][2]["signals"]["makuri_pct"]["denominator_kind"] = "wins_only"
+        with self.assertRaisesRegex(ValueError, "denominator_kind"):
+            build_attack_benefit_matrix(x)
+
+    def test_rate_numerator_must_match_source_denominator(self):
+        x = fixture()
+        x["racers"][4]["signals"]["makuri_sashi_pct"]["success_count"] = 29
+        with self.assertRaisesRegex(ValueError, "numerator_denominator"):
             build_attack_benefit_matrix(x)
 
     def test_invalid_denominator_rejected(self):
