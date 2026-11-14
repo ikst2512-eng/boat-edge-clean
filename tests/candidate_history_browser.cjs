@@ -5,15 +5,15 @@ const { chromium } = require('playwright');
  const browser = await chromium.launch({headless:true});
  try {
   const page = await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
-  const errors=[],renderCalls=[];
+  const errors=[],renderCalls=[],rawGithubCalls=[];
   page.on('pageerror',error=>errors.push(error.message));
   page.on('request',request=>{
    if(request.url().includes('boat-edge-clean.onrender.com'))renderCalls.push(request.url());
+   if(request.url().includes('raw.githubusercontent.com'))rawGithubCalls.push(request.url());
   });
-  // Expanded raw four-mode files are optional; test immutable candidate manifest,
-  // not external network availability or an alleged formal accuracy result.
-  await page.route('https://raw.githubusercontent.com/**',route=>
-   route.fulfill({status:404,contentType:'application/json',body:'{}'}));
+  // Archived four-mode detail is bundled with Pages. A cross-origin raw
+  // fetch must not be required just to re-open a saved prediction.
+  await page.route('https://raw.githubusercontent.com/**',route=>route.abort());
   const url='http://127.0.0.1:8765/candidates.html?date=2026-11-08';
   const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:20000});
   if(response?.status()!==200)throw Error('candidate_static_page_http_'+response?.status());
@@ -50,6 +50,13 @@ const { chromium } = require('playwright');
    return {open:card?.open,saved:card?.querySelector('.candidate-tickets')?.textContent,
     links:[...card.querySelectorAll('.candidate-links a')].map(x=>x.href)};
   });
+  // Four frozen modes must load from the same-origin bundled archive;
+  // a temporary GitHub Raw outage cannot erase recorded picks.
+  await page.waitForFunction(()=>
+    document.querySelectorAll('#candidateCards > details:first-child .candidate-modes .candidate-mode').length===4,
+    null,{timeout:15000});
+  const modeCount=await page.locator('#candidateCards > details:first-child .candidate-modes .candidate-mode').count();
+  if(modeCount!==4)throw Error('saved_four_modes_not_rendered_'+modeCount);
   const review=await page.locator('#candidateCards > details').first().locator('.candidate-detail').innerText();
   if(!review.includes('研究入力の紐付け：'))throw Error('research_source_link_not_displayed');
   if(!review.includes('購入判断：見送り')||
@@ -70,7 +77,7 @@ const { chromium } = require('playwright');
     throw Error('previous_day_restricted_history_filter');
   const yesterday=await page.locator('#candidateCards > details.candidate-history-card').count();
   if(yesterday<=6)throw Error('historical_day_candidate_rows_missing_'+yesterday);
-  if(errors.length||renderCalls.length)throw Error('browser_error_or_render_dependency_'+JSON.stringify({errors,renderCalls}));
-  console.log('CANDIDATE_STATIC_BROWSER_PASS '+JSON.stringify({nov8:first.count,nov7:yesterday,saved_forecast:true,shortlist:shortlist.count,full_history_preserved:true,results_and_links:true,no_render_dependency:true}));
+  if(errors.length||renderCalls.length||rawGithubCalls.length)throw Error('archive_external_dependency_'+JSON.stringify({errors,renderCalls,rawGithubCalls}));
+  console.log('CANDIDATE_STATIC_BROWSER_PASS '+JSON.stringify({nov8:first.count,nov7:yesterday,saved_forecast:true,shortlist:shortlist.count,full_history_preserved:true,results_and_links:true,four_modes_same_origin:true,no_render_dependency:true}));
  } finally {await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
