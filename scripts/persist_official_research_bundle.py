@@ -249,9 +249,16 @@ def readback(path, token, *, getter=api_request):
         return None
     if code != 200 or not isinstance(data, dict) or data.get("encoding") != "base64":
         raise RuntimeError("remote_readback_unverified")
+    # GitHub folds Base64 across newline boundaries. Ignore only those
+    # documented line breaks, never arbitrary non-Base64 garbage: permissive
+    # decoding could otherwise accept a malformed remote readback as genuine.
+    encoded = data.get("content")
+    if not isinstance(encoded, str):
+        raise RuntimeError("remote_readback_invalid_base64")
     try:
-        body = base64.b64decode(data["content"], validate=False)
-    except (ValueError, KeyError) as exc:
+        import binascii
+        body = base64.b64decode(encoded.replace(chr(13) + chr(10), "").replace(chr(10), ""), validate=True)
+    except (ValueError, binascii.Error) as exc:
         raise RuntimeError("remote_readback_invalid_base64") from exc
     if blob_sha(body) != data.get("sha"):
         raise RuntimeError("remote_readback_blob_sha_mismatch")

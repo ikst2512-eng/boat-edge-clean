@@ -32,6 +32,22 @@ class OriginalReferencePriorityTests(unittest.TestCase):
         self.assertIn("loadFourModeArchives(raceKey,token)", html)
         self.assertIn("後付け生成はしません", html)
 
+    def test_missing_v133_evidence_never_substitutes_other_algorithm(self):
+        html = INDEX.read_text(encoding="utf-8")
+        begin = html.index("async function loadOriginalV133Frozen(key,token,status,root){")
+        end = html.index("async function loadRestoredScenarioPreview(key,token){", begin)
+        primary = html[begin:end]
+        # The old 120-way restored-scenario model must never appear when
+        # the user's explicitly selected V127/V133 reference is unavailable.
+        self.assertNotIn("return false", primary)
+        self.assertIn("if(response.status===422)", primary)
+        self.assertIn("if(response.status===404)", primary)
+        self.assertIn("status.textContent='V127/V133の通信またはJSON検証に失敗。未検証モデルに自動切替しません。'", primary)
+        self.assertIn("別の未検証モデルに自動切替しません。", primary)
+        self.assertIn("締切済みのレースは新規計算しません", primary)
+        self.assertIn("if(await loadOriginalV133Frozen(key,token,status,root))return;", html)
+        self.assertIn("V2全国勝率基準｜保存済み4モード", html)
+
     def test_model_provenance_is_labeled_as_reference_not_formal(self):
         html = INDEX.read_text(encoding="utf-8")
         self.assertIn("正式的中率・独立初回保存認定ではありません", html)

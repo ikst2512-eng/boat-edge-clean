@@ -160,6 +160,28 @@ class BundleTests(unittest.TestCase):
             self.assertIsNone(get.get_header('Content-type'))
             self.assertIn('?ref=entry-course-evidence-ledger', get.full_url)
 
+    def test_github_contents_readback_rejects_malformed_base64(self):
+        """A signed Git blob hash cannot excuse a malformed transport body."""
+        from scripts.persist_official_research_bundle import readback
+
+        original = b"immutable-raw-contents"
+        encoded = base64.b64encode(original).decode("ascii")
+        sha = blob_sha(original)
+        def response(body):
+            return lambda method, path, token, data=None: (
+                200, {"encoding": "base64", "content": body, "sha": sha})
+        self.assertEqual(
+            readback("official_source_forecast_bundles/20261114/good.json",
+                     "token", getter=response(encoded[:16] + chr(10) + encoded[16:])),
+            original)
+        for malformed in ("!" + encoded, encoded + "@", encoded[:-2], None,
+                          123, "   " + encoded):
+            with self.subTest(malformed=str(malformed)[:18]):
+                with self.assertRaisesRegex(
+                        RuntimeError, "remote_readback_invalid_base64"):
+                    readback("official_source_forecast_bundles/20261114/bad.json",
+                             "token", getter=response(malformed))
+
     def test_write_once_readback_and_identical_reuse(self):
         path, body, cutoff = build_bundle(self.row, self.dirs)
         files = {}
