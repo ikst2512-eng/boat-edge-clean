@@ -95,6 +95,7 @@ def _wilson(count, n):
 def summarize(records):
     """Descriptive group fractions. No trained coefficient or causal uplift."""
     accum = {name: Counter() for name in GROUPS}
+    pair_counts = {name: Counter() for name in GROUPS}
     for record in records:
         if type(record) is not dict or record.get("no_causal_attack_observed") is not True:
             raise ValueError("retrospective_course_record_required")
@@ -106,6 +107,7 @@ def summarize(records):
             raise ValueError("invalid_actual_course_finish")
         a = accum[key]
         a["n"] += 1
+        pair_counts[key][f"{courses[1]}-{courses[2]}"] += 1
         for c in (2, 3, 4, 5, 6):
             a[f"course{c}_second"] += int(courses[1] == c)
             a[f"course{c}_third"] += int(courses[2] == c)
@@ -114,9 +116,25 @@ def summarize(records):
     out = {}
     for group in GROUPS:
         n = accum[group]["n"]
+        # The pair table retains 2C/3C dependency instead of multiplying
+        # marginal "4 second" and "5 third" percentages independently.
+        head = 1 if group == "one_escape" else (
+            3 if group.startswith("three_") else (
+                4 if group.startswith("four_") else (
+                    5 if group.startswith("five_") else None)))
+        possible = [
+            f"{second}-{third}"
+            for second in range(1, 7) for third in range(1, 7)
+            if second != third and
+            (head is None or (second != head and third != head))
+        ]
+        pairs = {p: _wilson(pair_counts[group][p], n) for p in possible}
+        if sum(v["count"] for v in pairs.values()) != n:
+            raise ValueError("joint_second_third_count_not_conserved")
         out[group] = {"races": n, "rates": {
             key: _wilson(accum[group][key], n) for key in STAT_KEYS
-        }}
+        }, "joint_second_third_by_actual_course": pairs,
+        "joint_position_not_product_of_independent_marginals": True}
     return out
 
 
@@ -199,6 +217,36 @@ def analyze_official_K_92day(path):
             "six_course_top3": rows["rates"]["course6_top3"],
             "insufficient_for_stable_point_estimate": rows["races"] < 30,
         }
+    # Separate chronological summary: compare descriptions of the SAME
+    # recorded winner-method strata in different periods, never train on Oct
+    # to alter a saved or prospective model.
+    contrasts = {}
+    for group in ("three_makuri", "three_makuri_sashi",
+                  "four_makuri", "four_makuri_sashi",
+                  "five_makuri_sashi", "one_escape"):
+        train = groups["train_aug_sep"][group]
+        octo = groups["historical_holdout_oct"][group]
+        keys = ("course4_second", "course5_second", "course5_third",
+                "course6_top3")
+        contrasts[group] = {
+            "aug_sep_n": train["races"], "oct_n": octo["races"],
+            "course_fraction_by_period": {
+                key: {"aug_sep_pct": train["rates"][key]["percent"],
+                      "oct_pct": octo["rates"][key]["percent"],
+                      "difference_oct_minus_aug_sep_ppt":
+                          (None if train["races"] == 0 or octo["races"] == 0
+                           else round(octo["rates"][key]["percent"]
+                                      - train["rates"][key]["percent"], 3))}
+                for key in keys
+            },
+            "top_joint_second_third_oct": [
+                {"courses": key, **value}
+                for key, value in sorted(
+                    octo["joint_second_third_by_actual_course"].items(),
+                    key=lambda kv: (-kv[1]["count"], kv[0]))[:5]
+            ],
+            "not_a_causal_effect": True,
+        }
     return {
         "study_id": STUDY_ID,
         "source_zip_sha256": original_zip,
@@ -213,6 +261,7 @@ def analyze_official_K_92day(path):
         "train_n": len(kept["train_aug_sep"]),
         "historical_october_n": len(kept["historical_holdout_oct"]),
         "october_focus": contrast,
+        "train_vs_oct_descriptive": contrasts,
         "by_period": groups,
         "limitations": {
             "only_winning_decisive_method_observed": True,
