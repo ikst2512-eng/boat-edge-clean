@@ -777,6 +777,21 @@ jobs:
                       "full120_board_sha_changed":(
                           controls[mode]["full_120_mixture_sha256"]!=
                           tests[mode]["full_120_mixture_sha256"])}
+              # Exactly ONE pinned post-event ORIGINAL-source ablation
+              # regression: prevent an accidental rule/code change from
+              # silently changing the 4-mode result-blind numerical contrast.
+              # These checks do NOT certify TopN accuracy or forecast usage.
+              expected={"narrow":(5,0),"hit":(10,0),
+                        "balance":(16,2),"hole":(22,0)}
+              assert set(mode_summary)==set(expected)
+              for mode,(count,rank_changes) in expected.items():
+                  row=mode_summary[mode]
+                  assert row["selection_budget"]==count
+                  assert row["selected_ticket_set_overlap"]==count
+                  assert row["ticket_rank_positions_changed"]==rank_changes
+                  assert row["top1_changed"] is False
+                  assert row["full120_board_sha_changed"] is True
+              print("REAL_NOV14_FOUR_MODE_RESULT_BLIND_ABLATION_REGRESSION_PASS")
               print("REAL_ARCHIVED_K92_FOUR_MODE_NUMERIC_SENSITIVITY_ONLY "+json.dumps({
                   "race_code":race,"official_3_original_source_audit":True,
                   "original_K_training_n":9241,
