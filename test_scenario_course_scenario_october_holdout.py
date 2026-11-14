@@ -92,6 +92,18 @@ class VenueScenarioHoldout(unittest.TestCase):
         self.assertEqual(one["study_id"], STUDY)
         self.assertFalse(one["prospective_accuracy_established"])
         self.assertFalse(one["future_prediction_allowed"])
+        gate = one["frozen_adoption_gate"]
+        self.assertFalse(gate["all_checks_passed"])
+        self.assertFalse(gate["model_switch_allowed"])
+        self.assertFalse(gate["checks"]["independent_T12_first_remote_receipt"])
+        self.assertFalse(gate["checks"]["300_plus_300_prospective_pass"])
+        self.assertEqual(set(gate["checks"]),
+            {f"top{k}_nonregression" for k in (1,3,5,10)} |
+            {"paired_logloss_upper95_below_zero", "paired_brier120_nonregression",
+             "known_before_deadline_actual_entry",
+             "independent_T12_first_remote_receipt",
+             "300_plus_300_prospective_pass",
+             "preregistered_before_future_predictions"})
         for name, stats in one["baselines"].items():
             self.assertEqual(stats["n"], 3)
             self.assertTrue(0 < stats["logloss"] < 30)
