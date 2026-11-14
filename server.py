@@ -504,10 +504,10 @@ class Handler(BaseHTTPRequestHandler):
             body = (ROOT / "entry_scenario.js").read_bytes()
             status, kind = 200, "application/javascript; charset=utf-8"
         elif path == "/secondary_navigation.js":
-            body = (ROOT / "secondary_navigation.js").read_bytes()
+            body = (ROOT / "navigation.js").read_bytes()
             status, kind = 200, "application/javascript; charset=utf-8"
         elif path == "/daily-findings":
-            body = (ROOT / "daily_findings.html").read_bytes().replace(b"</body>", b'<script src="/secondary_navigation.js" defer></script></body>')
+            body = (ROOT / "daily_findings.html").read_bytes().replace(b"</body>", b'<script src="/navigation.js" defer></script></body>')
             status, kind = 200, "text/html; charset=utf-8"
         elif path == "/api/daily-findings":
             try:
@@ -519,7 +519,7 @@ class Handler(BaseHTTPRequestHandler):
             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
             kind = "application/json; charset=utf-8"
         elif path == "/selection":
-            body = (ROOT / "selection.html").read_bytes().replace(b"</body>", b'<script src="/secondary_navigation.js" defer></script></body>')
+            body = (ROOT / "selection.html").read_bytes().replace(b"</body>", b'<script src="/navigation.js" defer></script></body>')
             status, kind = 200, "text/html; charset=utf-8"
         elif path == "/api/signal70-holdout-status":
             status, response = holdout_status()

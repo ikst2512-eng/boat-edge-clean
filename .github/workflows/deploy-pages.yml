@@ -4,7 +4,6 @@ on:
     branches: [main]
     paths:
       - index.html
-      - selection.html
       - candidates.html
       - candidate_history.js
       - candidate_history.py
@@ -92,20 +91,17 @@ jobs:
               total += record['candidate_count']
           print(f'CLEAN_CANDIDATE_PAGES_MANIFEST days={len(days)} candidates={total}')
           PY
-          # Preserve all four frozen modes as same-origin historical files.
-          # A browser must never depend on GitHub Raw being reachable later.
+          # Copy all frozen 4-mode originals to same-origin Pages.
           cp -R four_mode_forecasts public/four_mode_forecasts
           python3 - <<'PY'
           from pathlib import Path
-          source=Path('four_mode_forecasts')
-          deployed=Path('public/four_mode_forecasts')
-          originals=sorted(source.glob('*.json'))
-          copies=sorted(deployed.glob('*.json'))
-          if not originals or len(originals)!=len(copies):
-              raise SystemExit('Incomplete archived four-mode Pages copy')
-          for a,b in zip(originals,copies):
+          originals=sorted(Path('four_mode_forecasts').glob('*.json'))
+          copied=sorted(Path('public/four_mode_forecasts').glob('*.json'))
+          if not originals or len(originals)!=len(copied):
+              raise SystemExit('Four-mode Pages original count mismatch')
+          for a,b in zip(originals,copied):
               if a.name!=b.name or a.read_bytes()!=b.read_bytes():
-                  raise SystemExit('Four-mode Pages original bytes differ: '+a.name)
+                  raise SystemExit('Four-mode Pages original bytes mismatch: '+a.name)
           print('CLEAN_FOUR_MODE_SAME_ORIGIN_ARCHIVE_PASS',len(originals))
           PY
           cp -R confirmed_results public/confirmed_results
