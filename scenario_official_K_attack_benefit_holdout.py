@@ -80,6 +80,34 @@ def _record(r):
     }
 
 
+
+def _record_with_historical_roster(race):
+    """Add only *historical* boat -> registration and six-place result labels.
+
+    Athlete and drawn boat identities would be knowable on a proper pre-race
+    racelist, but this K archive is POSTRACE. We cannot certify actual T-12
+    receipt, meeting membership or changed starters from this historical K.
+    """
+    rec = _record(race)
+    if rec is None:
+        return None
+    entries = race["entries"]
+    mapping = {e["boat"]: e.get("athlete_registration") for e in entries}
+    if (set(mapping) != set(range(1, 7))
+            or any(type(reg) is not str or len(reg) != 4 or not reg.isdigit()
+                   for reg in mapping.values())
+            or len(set(mapping.values())) != 6):
+        raise ValueError("K_historical_roster_registration_invalid")
+    ordered = sorted(entries, key=lambda e: int(e["status"]))
+    boat_finish = tuple(e["boat"] for e in ordered)
+    if len(boat_finish) != 6 or set(boat_finish) != set(range(1, 7)):
+        raise ValueError("K_historical_boat_finish_not_permutation")
+    rec["historical_boat_to_registration"] = tuple(mapping[b] for b in range(1, 7))
+    rec["historical_boat_finish_6"] = boat_finish
+    rec["roster_was_extracted_from_postrace_K_not_a_predeadline_receipt"] = True
+    return rec
+
+
 def _wilson(count, n):
     if n == 0:
         return {"count": count, "denominator": 0, "percent": None, "wilson_95_pct": None}
@@ -195,7 +223,7 @@ def analyze_official_K_92day(path, *, return_internal_records=False):
                     excluded["basic_course_or_result_eligibility"] += 1
                     continue
                 basic_eligible += 1
-                record = _record(race)
+                record = _record_with_historical_roster(race)
                 if record is None:
                     excluded["not_all_six_finishers_or_unknown_method"] += 1
                     continue
