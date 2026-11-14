@@ -213,8 +213,31 @@ def score_october_holdout(fit, records, *, expected_oct_n=None):
     hi = draws[int(.975 * (BOOTSTRAP_REPS - 1))]
     logdelta = (combined["venue_scenario"]["sum_logloss"] -
                 combined["baseline_global"]["sum_logloss"]) / len(records)
+    baseline_summary = _summarize(combined["baseline_global"])
+    candidate_summary = _summarize(combined["venue_scenario"])
+    historical_checks = {
+        f"top{k}_nonregression":
+            combined["venue_scenario"][f"top{k}"] >=
+            combined["baseline_global"][f"top{k}"]
+        for k in TOPS
+    }
+    # Not "significant" merely because the tiny point estimate is negative.
+    historical_checks["paired_logloss_upper95_below_zero"] = hi < 0
+    historical_checks["paired_brier120_nonregression"] = (
+        candidate_summary["brier120"] <= baseline_summary["brier120"])
+    historical_checks["known_before_deadline_actual_entry"] = False
+    historical_checks["independent_T12_first_remote_receipt"] = False
+    historical_checks["300_plus_300_prospective_pass"] = False
+    historical_checks["preregistered_before_future_predictions"] = False
     return {
         "study_id": STUDY,
+        "frozen_adoption_gate": {
+            "checks": historical_checks,
+            "all_checks_passed": all(historical_checks.values()),
+            "reason": ("historical_only_and_prospective_evidence_missing"
+                       if not all(historical_checks.values()) else "review_required"),
+            "model_switch_allowed": False,
+        },
         "train_n": fit["n"], "historical_holdout_oct_n": len(records),
         "train_aggregate_sha256": fit["frozen_training_sha256"],
         "feature_used_before_october_outcome": ["venue_code_only"],
