@@ -37,6 +37,23 @@ BLOCKED = {"result", "payout", "finish_order", "winning_ticket",
            "confirmed_result", "final_entry", "post_race_weather", "outcome"}
 
 
+def _reject_nested_outcomes(value):
+    """Reject post-race payload keys even inside source/feature/comment wrappers.
+
+    Caller-supplied provenance is not independent first-seen proof. Ignoring an
+    unknown nested key silently could permit finish-order leakage into a
+    subsequently exported research record; reject it before building features.
+    """
+    if isinstance(value, dict):
+        if BLOCKED.intersection(value):
+            raise ValueError("nested_post_race_or_final_entry_leakage_denied")
+        for child in value.values():
+            _reject_nested_outcomes(child)
+    elif isinstance(value, (list, tuple)):
+        for child in value:
+            _reject_nested_outcomes(child)
+
+
 def _clock(raw):
     if type(raw) is not str:
         raise ValueError("timestamp_required")
@@ -134,12 +151,16 @@ def build_attack_benefit_matrix(record):
     """
     if type(record) is not dict or record.get("schema") != "SCENARIO_PRE_RACE_FEATURE_CLAIMS_V1":
         raise ValueError("research_record_schema_required")
-    if BLOCKED.intersection(record):
-        raise ValueError("post_race_or_final_entry_leakage_denied")
+    _reject_nested_outcomes(record)
     generated = _clock(record.get("generated_at_jst"))
     deadline = _clock(record.get("deadline_at_jst"))
+    # Preserve the user's research T-12 boundary. A computed feature vector
+    # at T-11 must never be used as an eligible T-12 input in a future study.
+    # This is an untrusted caller clock check, not an attested Git receipt.
     if generated >= deadline:
         raise ValueError("post_deadline_recomputation_denied")
+    if generated >= deadline - timedelta(minutes=12):
+        raise ValueError("post_T12_feature_generation_denied")
     race_code = record.get("race_code")
     if type(race_code) is not str or not re.fullmatch(r"20\d{10}", race_code):
         raise ValueError("race_code_required")
