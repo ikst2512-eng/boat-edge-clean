@@ -1,0 +1,280 @@
+name: Hole future pair precommit research (nonformal)
+on:
+  pull_request:
+    paths:
+      - hole_future_pair_precommit.py
+      - hole_pair_remote_receipt_evidence.py
+      - hole_pair_write_once_candidate_ledger.py
+      - research/hole_pair_first_receipt_worker.mjs
+      - research/hole_pair_first_receipt_schema.sql
+      - research/test_hole_pair_first_receipt_worker.mjs
+      - research/hole_pair_signed_first_receipt_audit.mjs
+      - research/test_hole_pair_signed_first_receipt_audit.mjs
+      - research/test_hole_pair_first_receipt_sql.py
+      - docs/research/hole_pair_cloudflare_first_acceptance_draft.md
+      - test_hole_pair_write_once_candidate_ledger.py
+      - research/hole_pair_capture_launch_audit.py
+      - research/test_hole_pair_capture_launch_audit.py
+      - research/hole_pair_d1_receipt_chain_audit.py
+      - research/test_hole_pair_d1_receipt_chain_audit.py
+      - research/hole_pair_universe_coverage.py
+      - research/test_hole_pair_universe_coverage.py
+      - research/hole_pair_cross_batch_roster.py
+      - research/test_hole_pair_cross_batch_roster.py
+      - research/hole_pair_snapshot_id_drift_audit.py
+      - research/test_hole_pair_snapshot_id_drift_audit.py
+      - research/hole_pair_source_blob_drift_audit.py
+      - research/test_hole_pair_source_blob_drift_audit.py
+      - research/hole_pair_prospective_evidence_gap_ledger.py
+      - research/test_hole_pair_prospective_evidence_gap_ledger.py
+      - research/hole_pair_real_main_snapshot_gate.py
+      - research/test_hole_pair_real_main_snapshot_gate.py
+      - research/hole_pair_t12_polling_cadence_simulator.py
+      - research/test_hole_pair_t12_polling_cadence_simulator.py
+      - research/hole_pair_official_event_veto_audit.py
+      - research/test_hole_pair_official_event_veto_audit.py
+      - docs/research/hole_pair_nov10_official_source_event_veto_20261110.md
+      - docs/research/hole_pair_t12_polling_cadence_sensitivity_20261110.md
+      - docs/research/hole_pair_nov10_150_original_source_readiness_20261110.md
+      - research/hole_pair_manual_capture.py
+      - research/test_hole_pair_manual_capture.py
+      - test_hole_pair_remote_receipt_evidence.py
+      - research/hole_pair_future_holdout_protocol_20261109.json
+      - test_hole_future_pair_precommit.py
+      - hole_future_pair_pinned92_score.py
+      - test_hole_future_pair_pinned92_score.py
+      - .github/workflows/hole-future-pair-precommit.yml
+  workflow_dispatch:
+    inputs:
+      capture_day_jst:
+        description: 'Current JST YYYYMMDD only; 20261109+; no retrospective backfill'
+        required: true
+        type: string
+      acknowledgement:
+        description: 'Type CAPTURE_UNVERIFIED_RESEARCH; never formal or production'
+        required: true
+        type: string
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify new predeclared research policies
+        run: python -m unittest -v test_hole_future_pair_precommit.py test_hole_future_pair_pinned92_score.py test_hole_pair_remote_receipt_evidence.py test_hole_pair_write_once_candidate_ledger.py
+      - name: Validate un-deployed Cloudflare D1 first-acceptance receiver offline
+        run: |
+          node --test research/test_hole_pair_first_receipt_worker.mjs
+          python -m unittest -v research/test_hole_pair_first_receipt_sql.py
+      - name: Verify signed external-first-receipt claims (ephemeral key, nonformal)
+        run: node --test research/test_hole_pair_signed_first_receipt_audit.mjs
+      - name: Fail closed on purported D1 receipt chain (offline, nonformal)
+        run: python -m unittest -v research/test_hole_pair_d1_receipt_chain_audit.py
+      - name: Audit immutable-main source snapshot ID coverage (synthetic, read-only)
+        run: python -m unittest -v research/test_hole_pair_universe_coverage.py
+      - name: Audit overlapping research runs and repeated race IDs (synthetic, read-only)
+        run: python -m unittest -v research/test_hole_pair_cross_batch_roster.py
+      - name: Audit later main snapshot race-ID drift (synthetic, never formal)
+        run: python -m unittest -v research/test_hole_pair_snapshot_id_drift_audit.py
+      - name: Audit same-ID original source blob drift (synthetic, no outcomes)
+        run: python -m unittest -v research/test_hole_pair_source_blob_drift_audit.py
+      - name: Audit frozen hole candidate first-receipt and official evidence gaps (offline)
+        run: python -m unittest -v research/test_hole_pair_prospective_evidence_gap_ledger.py
+      - name: Test real-main original Git blob census (synthetic only)
+        run: python -m unittest -v research/test_hole_pair_real_main_snapshot_gate.py
+      - name: Test hypothetical per-race T-12 polling windows (offline, never dispatch)
+        run: python -m unittest -v research/test_hole_pair_t12_polling_cadence_simulator.py
+      - name: Validate same-race official-event handoff veto (synthetic, result-blind)
+        run: python -m unittest -v research/test_hole_pair_official_event_veto_audit.py
+      - name: Test manual-only research capture driver (no real dispatch)
+        run: python -m unittest -v research/test_hole_pair_manual_capture.py
+      - name: Audit default-branch manual-dispatch registration (read-only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest -v research/test_hole_pair_capture_launch_audit.py
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          python research/hole_pair_capture_launch_audit.py --default-ref origin/main > research_capture_launch_readiness.json
+          python - <<'PY'
+          import json
+          r=json.load(open('research_capture_launch_readiness.json'))
+          assert r['formal'] is False
+          assert r['production_promotion_allowed'] is False
+          assert r['capture_run_executed_by_this_audit'] is False
+          assert r['candidate_artifact_created_by_this_audit'] is False
+          assert r['main_or_production_modified'] is False
+          print('DISPATCH_PREREQUISITE',r['default_branch_dispatch_prerequisite_satisfied'])
+          print('BLOCKERS',r['blockers'])
+          PY
+      - name: Audit actual pinned Nov 10 main source original 150 forecasts (read only)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The object ID is deliberately fixed, never selected from a mutable tip.
+          # Fetch only source Git objects; no result data, secrets or repo writes.
+          git fetch --no-tags --depth=1 origin c4d39245cbc96b6c680585a68c3b9adf6ddeb921
+          python -m research.hole_pair_real_main_snapshot_gate \
+            --day 20261110 \
+            --source-commit c4d39245cbc96b6c680585a68c3b9adf6ddeb921 \
+            --reference-clock-jst "2026-11-10T16:33:00+09:00" \
+            --output research_main_20261110_original_sources_nonformal.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('research_main_20261110_original_sources_nonformal.json').read_text())
+          assert data['original_main_forecast_ids_examined'] == 150
+          assert data['original_git_blob_sha1_verified_count'] == 150
+          assert data['original_source_sha256_computed_count'] == 150
+          assert data['result_files_read'] is False
+          assert data['formal'] is False
+          assert data['prospective_pilot_formally_eligible'] == 0
+          assert data['prospective_confirmation_formally_eligible'] == 0
+          assert data['whole_day_official_schedule_verified'] is False
+          assert data['first_independent_signed_candidate_receipts_authenticated'] == 0
+          print('ACTUAL_MAIN_SOURCE_AUDIT_REPORT_NONFORMAL', {
+              k:v for k,v in data.items() if k.endswith('_count') or
+              k in ('original_main_forecast_ids_examined','declared_t12_elapsed_at_reference',
+                    'declared_t12_still_future_at_reference',
+                    'optional_beforeinfo_absent_from_forecast')
+          })
+          PY
+      - name: Veto all 150 real source rows absent independently authenticated official events
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m research.hole_pair_official_event_veto_audit \
+            --original-report research_main_20261110_original_sources_nonformal.json \
+            --output research_20261110_official_event_handoff_veto_nonformal.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('research_20261110_official_event_handoff_veto_nonformal.json')
+          d=json.loads(p.read_text())
+          assert d['original_source_races_examined'] == 150
+          assert len(d['rows']) == 150
+          assert d['official_handoff_claim_missing'] == 150
+          assert d['source_handoff_claims_supplied_unverified'] == 0
+          assert d['source_forecast_missing_beforeinfo'] == 150
+          assert d['declared_t12_window_elapsed_at_reference'] == 125
+          assert d['declared_t12_window_open_at_reference'] == 25
+          assert d['authorized_dispatch_events'] == 0
+          assert d['independent_official_source_originals_verified'] == 0
+          assert d['independent_first_candidate_receipts_verified'] == 0
+          assert d['prospective_pilot_formally_eligible'] == 0
+          assert d['prospective_confirmation_formally_eligible'] == 0
+          assert d['results_opened'] is False
+          assert d['formal'] is False
+          assert d['production_promotion_allowed'] is False
+          print('OFFICIAL_EVENT_VETO_150_REAL_ORIGINALS', {
+              k:v for k,v in d.items() if k not in ('rows','warning')})
+          PY
+      - name: Counterfactual cadence versus 150 REAL original cutoffs (no live polling)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m research.hole_pair_t12_polling_cadence_simulator \
+            --original-report research_main_20261110_original_sources_nonformal.json \
+            --source-lead-seconds 180 \
+            --processing-reserve-seconds 30 \
+            --first-git-source-sighting-hint-jst "2026-11-10T07:44:30+09:00" \
+            --output research_20261110_t12_polling_counterfactual_nonformal.json
+          # Sensitivity: official inputs are assumed available only 2m or
+          # 1m before T-12. No claim these releases were observed.
+          python -m research.hole_pair_t12_polling_cadence_simulator \
+            --original-report research_main_20261110_original_sources_nonformal.json \
+            --source-lead-seconds 120 \
+            --processing-reserve-seconds 30 \
+            --first-git-source-sighting-hint-jst "2026-11-10T07:44:30+09:00" \
+            --output research_20261110_lead120_phase0_nonformal.json
+          python -m research.hole_pair_t12_polling_cadence_simulator \
+            --original-report research_main_20261110_original_sources_nonformal.json \
+            --source-lead-seconds 60 \
+            --processing-reserve-seconds 30 \
+            --first-git-source-sighting-hint-jst "2026-11-10T07:44:30+09:00" \
+            --output research_20261110_lead60_phase0_nonformal.json
+          python -m research.hole_pair_t12_polling_cadence_simulator \
+            --original-report research_main_20261110_original_sources_nonformal.json \
+            --source-lead-seconds 60 \
+            --processing-reserve-seconds 30 \
+            --poll-phase-offset-seconds 45 \
+            --first-git-source-sighting-hint-jst "2026-11-10T07:44:30+09:00" \
+            --output research_20261110_lead60_phase45_nonformal.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('research_20261110_t12_polling_counterfactual_nonformal.json').read_text())
+          assert r['original_races_from_verified_git_snapshot'] == 150
+          assert [x['hypothetical_poll_period_minutes'] for x in r['scenarios']] == [1,2,3,5,10,15]
+          assert all(0 <= x['clock_only_races_with_at_least_one_hypothetical_slot'] <= 150 for x in r['scenarios'])
+          assert r['actual_workflow_or_candidates_dispatched'] is False
+          assert r['official_source_arrival_authenticated'] is False
+          assert r['first_independent_receipt_verified'] is False
+          assert r['prospective_pilot_formally_eligible'] == 0
+          assert r['prospective_confirmation_formally_eligible'] == 0
+          assert r['results_opened'] is False
+          assert r['formal'] is False
+          assert r['production_promotion_allowed'] is False
+          for suffix in ('lead120_phase0','lead60_phase0','lead60_phase45'):
+              rr=json.loads(Path('research_20261110_'+suffix+'_nonformal.json').read_text())
+              assert rr['original_races_from_verified_git_snapshot'] == 150
+              assert rr['formal'] is False and rr['production_promotion_allowed'] is False
+              assert rr['actual_workflow_or_candidates_dispatched'] is False
+              assert rr['official_source_arrival_authenticated'] is False
+              assert rr['prospective_pilot_formally_eligible'] == 0
+              assert rr['prospective_confirmation_formally_eligible'] == 0
+          PY
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'pull_request'
+        with:
+          name: hole-pair-actual-nov10-main-source-audit-nonformal
+          path: |
+            research_main_20261110_original_sources_nonformal.json
+            research_20261110_t12_polling_counterfactual_nonformal.json
+            research_20261110_lead120_phase0_nonformal.json
+            research_20261110_lead60_phase0_nonformal.json
+            research_20261110_lead60_phase45_nonformal.json
+            research_20261110_official_event_handoff_veto_nonformal.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Prove Nov 5 is excluded before opening any forecast
+        run: |
+          python hole_future_pair_precommit.py 202611050101 > research_not_eligible.json
+          python - <<'PY'
+          import json
+          data=json.load(open('research_not_eligible.json'))
+          assert data['status']=='not_yet_eligible_or_invalid_code'
+          assert data['formal'] is False
+          assert data['production_forecast_changed'] is False
+          print(data['status'])
+          PY
+      - name: Freeze future race candidates from immutable main forecasts (research only)
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          HOLE_RESEARCH_CAPTURE_DAY: ${{ inputs.capture_day_jst }}
+          HOLE_RESEARCH_MANUAL_ACK: ${{ inputs.acknowledgement }}
+        run: |
+          set -euo pipefail
+          # Manual gateway on the default branch requires separate review.
+          # Read immutable main forecasts only. Never read race results or push.
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          python research/hole_pair_manual_capture.py --capture-day "$HOLE_RESEARCH_CAPTURE_DAY" --output research_candidate_freeze.json
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          name: hole-future-pair-precutoff-candidates
+          path: research_candidate_freeze.json
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-future-pair-precommit-readiness
+          path: |
+            research_not_eligible.json
+            research_capture_launch_readiness.json
