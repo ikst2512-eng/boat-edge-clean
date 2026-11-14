@@ -138,6 +138,72 @@ def add_record(total, modes, winning):
                 d["topn_hits"][str(n)] += int(rank <= n)
 
 
+STAGES = ("exact", "head_absent", "second_absent_given_head", "third_absent_given_head_second")
+RANK_BUCKETS = ("rank_1", "rank_2_3", "rank_4_5", "rank_6_10", "outside_top10")
+
+
+def classify_saved_ticket_stage(picks, winning, topn):
+    """Hierarchical miss reason from *selected frozen ticket strings*, not latent model odds.
+
+    This does not establish if the actual first-place boat had nonzero probability
+    outside the mode's saved tickets, nor does it test an alternative ranking.
+    """
+    selected = picks[:topn]
+    head, second, _ = winning.split("-")
+    if winning in selected:
+        return "exact"
+    if not any(ticket.split("-")[0] == head for ticket in selected):
+        return "head_absent"
+    if not any(ticket.split("-")[:2] == [head, second] for ticket in selected):
+        return "second_absent_given_head"
+    return "third_absent_given_head_second"
+
+
+def blank_rank_diagnostics():
+    return {
+        "evaluated": 0,
+        "by_mode": {
+            mode: {
+                "rank_buckets": {k: 0 for k in RANK_BUCKETS},
+                "topn_stages": {str(n): {k: 0 for k in STAGES} for n in TOP},
+            } for mode in MODES
+        },
+    }
+
+
+def add_rank_diagnostics(total, modes, winning):
+    total["evaluated"] += 1
+    per_race = {}
+    for mode in MODES:
+        picks = modes[mode]
+        rank = picks.index(winning) + 1 if winning in picks else None
+        bucket = ("outside_top10" if rank is None or rank > 10 else
+                  "rank_1" if rank == 1 else "rank_2_3" if rank <= 3 else
+                  "rank_4_5" if rank <= 5 else "rank_6_10")
+        total["by_mode"][mode]["rank_buckets"][bucket] += 1
+        stages = {str(n): classify_saved_ticket_stage(picks, winning, n) for n in TOP}
+        for n, stage in stages.items():
+            total["by_mode"][mode]["topn_stages"][n][stage] += 1
+        per_race[mode] = {"winning_rank": rank, "rank_bucket": bucket, "topn_stages": stages}
+    return per_race
+
+
+def validate_rank_diagnostics(diagnostics, overall):
+    """Refuse reports inconsistent with existing immutable Top-N accounting."""
+    if diagnostics["evaluated"] != overall["evaluated"]:
+        raise ValueError("diagnostic_denominator_mismatch")
+    for mode in MODES:
+        d = diagnostics["by_mode"][mode]
+        if sum(d["rank_buckets"].values()) != diagnostics["evaluated"]:
+            raise ValueError("diagnostic_rank_bucket_mismatch")
+        for n in TOP:
+            stages = d["topn_stages"][str(n)]
+            if (sum(stages.values()) != diagnostics["evaluated"]
+                    or stages["exact"] != overall["modes"][mode]["topn_hits"][str(n)]):
+                raise ValueError("diagnostic_topn_mismatch")
+    return diagnostics
+
+
 def blank_group():
     return {"evaluated": 0, "modes": {}}
 
@@ -168,6 +234,7 @@ def audit_legacy(root=ROOT, fetch=None):
     overall = blank_group()
     by_day, by_venue = defaultdict(blank_group), defaultdict(blank_group)
     excluded, evaluated = Counter(), []
+    rank_diagnostics = blank_rank_diagnostics()
     for path in names:
         key = path.stem
         try:
@@ -186,11 +253,13 @@ def audit_legacy(root=ROOT, fetch=None):
         add_record(overall, modes, winning)
         add_record(by_day[key[:8]], modes, winning)
         add_record(by_venue[key[9:11]], modes, winning)
+        stage_analysis = add_rank_diagnostics(rank_diagnostics, modes, winning)
         evaluated.append({"race_key": key, "forecast_blob": blob_sha(raw),
                           "result_blob": result_blob, "winning_ticket": winning,
                           "legacy_mode_sizes": {m: len(v) for m,v in modes.items()},
                           "winning_rank": {m: (v.index(winning) + 1 if winning in v else None)
-                                            for m,v in modes.items()}})
+                                            for m,v in modes.items()},
+                          "saved_ticket_stage_diagnostics": stage_analysis})
     return {"status": "legacy_v133_frozen_historical_only",
             "registered_before_results_independently_proven": False,
             "model": "legacy_V127_V133_3_10_10_12_15_18",
@@ -199,6 +268,7 @@ def audit_legacy(root=ROOT, fetch=None):
             "all_preserved_archive_count": len(names),
             "excluded": dict(excluded),
             "overall": summarize(overall),
+            "saved_ticket_rank_diagnostics": validate_rank_diagnostics(rank_diagnostics, overall),
             "by_day": {k: summarize(v) for k,v in sorted(by_day.items())},
             "by_venue": {k: summarize(v) for k,v in sorted(by_venue.items())},
             "race_audit": evaluated}
@@ -268,7 +338,8 @@ def report(root=ROOT, fetch=None):
             "CLEAN V1/V2 national-rate models are separate, not scenario forecasts.",
             "Different dates and budgets cannot establish scenario-model superiority.",
             "No retroactive predictions from post-race cards, and no 300+300 prospective pass.",
-            "ROI unavailable without trustworthy race-aligned actual stakes and payout records."
+            "ROI unavailable without trustworthy race-aligned actual stakes and payout records.",
+            "Stage attribution describes only the frozen selected tickets; it cannot infer unseen 120-combination probabilities or prove a causal model defect."
         ]}
     return final
 
