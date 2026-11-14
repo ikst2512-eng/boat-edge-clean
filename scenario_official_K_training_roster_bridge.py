@@ -48,11 +48,11 @@ def _training_history(eligible_rows, daily_sha, race_code, projection):
             or projection.get("race_code") != race_code):
         raise ValueError("K_replay_target_or_full_cohort_invalid")
     days = [TRAIN_FIRST + timedelta(days=i) for i in range(DAY_COUNT)]
-    if (type(x) is not dict or x.get("day") != d.strftime("%Y%m%d")
-            or not all(type(x.get(k)) is str and _SHA.fullmatch(x[k])
-                       for k in ("official_raw_lzh_sha256",
-                                 "decoded_text_sha256"))
-            for x, d in zip(daily_sha, days)):
+    if any(type(x) is not dict or x.get("day") != d.strftime("%Y%m%d")
+           or not all(type(x.get(k)) is str and _SHA.fullmatch(x[k])
+                      for k in ("official_raw_lzh_sha256",
+                                "decoded_text_sha256"))
+           for x, d in zip(daily_sha, days)):
         raise ValueError("K_replay_original_day_SHA_incomplete")
     train = []
     holdout_count = 0
