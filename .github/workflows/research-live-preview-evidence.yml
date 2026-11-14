@@ -7,6 +7,8 @@ on:
       - 'scripts/collect_live_preview_evidence.py'
       - 'scripts/capture_joint_preview_batch.py'
       - 'scripts/audit_official_forecast_consumption.py'
+      - 'scripts/persist_official_research_bundle.py'
+      - 'tests/test_persist_official_research_bundle.py'
       - 'tests/test_audit_official_forecast_consumption.py'
       - 'tests/test_research_preview_native_schedule.py'
       - 'tests/test_capture_joint_preview_batch.py'
@@ -34,6 +36,7 @@ on:
         required: false
         type: string
 permissions:
+  # Untrusted PR tests and official collection MUST remain read-only.
   contents: read
 concurrency:
   group: independent-late-preview-${{ github.ref }}
@@ -41,9 +44,17 @@ concurrency:
 jobs:
   capture:
     runs-on: ubuntu-latest
+    outputs:
+      official_bundle_ready: ${{ steps.bundle_ready.outputs.ready }}
+      official_tests_passed: ${{ steps.official_tests_passed.outputs.passed }}
+      official_capture_outcome: ${{ steps.official_pair_capture.outcome }}
+      official_audit_outcome: ${{ steps.official_forecast_clock.outcome }}
+      official_handoff_outcome: ${{ steps.official_handoff_upload.outcome }}
     timeout-minutes: 4
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -63,17 +74,81 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_capture_joint_preview_batch.py' -v
       - name: Test strict official-original-to-forecast chronology (read-only)
         run: python -m unittest discover -s tests -p 'test_audit_official_forecast_consumption.py' -v
+      - name: Test official research raw+shadow append-only store (no network)
+        run: python -m unittest discover -s tests -p 'test_persist_official_research_bundle.py' -v
       - name: Verify a single offpeak five-minute research Cron (config only)
         run: python -m unittest discover -s tests -p 'test_research_preview_native_schedule.py' -v
+      # Runs only after ALL required source, research and writer regression tests
+      # passed; subsequent unrelated CSV collection must not erase this proof.
+      - name: Record completed pre-handoff regression test gate
+        id: official_tests_passed
+        run: echo "passed=true" >> "$GITHUB_OUTPUT"
       - name: Preserve official preview and odds originals before CSV collection
         id: official_pair_capture
+        # PR validates pinned offline tests; public source HTTP is a scheduled-run gate.
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         continue-on-error: true  # Keep the existing CSV collection independent.
         run: python -m scripts.capture_joint_preview_batch
       - name: Independently recheck official originals against frozen prediction clocks
         id: official_forecast_clock
-        if: always()
+        if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         continue-on-error: true
         run: python -m scripts.audit_official_forecast_consumption
+      # This is a local source audit only, NOT permission to write from PR code.
+      - name: Identify genuinely pre-cutoff official shadow for privileged handoff
+        id: bundle_ready
+        if: always()
+        env:
+          OFFICIAL_CAPTURE_OUTCOME: ${{ steps.official_pair_capture.outcome }}
+          OFFICIAL_AUDIT_OUTCOME: ${{ steps.official_forecast_clock.outcome }}
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=Path("official_joint_evidence/forecast_temporal_link_report.json")
+          batch_path=Path("official_joint_evidence/batch_report.json")
+          ready=False
+          if (os.environ.get("OFFICIAL_CAPTURE_OUTCOME")=="success"
+                  and os.environ.get("OFFICIAL_AUDIT_OUTCOME")=="success"
+                  and p.is_file() and batch_path.is_file()):
+              try:
+                  batch=json.loads(batch_path.read_text(encoding="utf-8"))
+                  report=json.loads(p.read_text(encoding="utf-8"))
+                  ready=(
+                      isinstance(batch,dict)
+                      and isinstance(report,dict)
+                      and batch.get("status")=="complete_pairs_observed"
+                      and type(batch.get("three_originals_complete_before_t12")) is int
+                      and batch["three_originals_complete_before_t12"] > 0
+                      and report.get("status")=="read_only_research_audited"
+                      and report.get("formal_t12_certified")==0
+                      and report.get("official_consumed_forecasts")==0
+                      and isinstance(report.get("rows"),list)
+                      and any(
+                          row.get("official_original_status")=="three_originals_reaudited_research_only"
+                          and isinstance(row.get("official_research_shadow"),dict)
+                          and row["official_research_shadow"].get("generated") is True
+                          for row in report["rows"] if isinstance(row,dict)
+                      )
+                  )
+              except (OSError, UnicodeError, ValueError, TypeError):
+                  # A corrupted/unreadable official report forbids writer handoff,
+                  # but must NOT block the unrelated existing CSV research work.
+                  print("OFFICIAL_RESEARCH_HANDOFF_UNVERIFIED invalid_official_report")
+                  ready=False
+          with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as out:
+              out.write(f"ready={'true' if ready else 'false'}\n")
+          print("OFFICIAL_RESEARCH_BUNDLE_READY "+str(ready).lower()+" (not Git saved)")
+          PY
+      - name: Hand off already received official originals + shadow (no new HTTP)
+        id: official_handoff_upload
+        if: steps.bundle_ready.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-raw-shadow-handoff-${{ github.run_id }}-${{ github.run_attempt }}
+          path: official_joint_evidence/
+          if-no-files-found: error
+          retention-days: 7
       - name: Capture eligible predeadline preview rows
         run: python scripts/collect_live_preview_evidence.py
       - name: Report strict twelve-minute source-and-receipt pair coverage
@@ -165,3 +240,50 @@ jobs:
             late_research_topn_report.json
           retention-days: 90
           if-no-files-found: ignore
+
+  # Privileged job never executes PR code and never modifies the source collector.
+  # Its separate job token keeps the source-auditing capture job read-only.
+  # A later CSV comparison failure can mark the capture job failed without
+  # erasing an already-successful pre-handoff source/test/artifact chain.
+  # No write if earlier tests, source collection, source audit, or handoff failed.
+  persist-official-research:
+    needs: capture
+    if: >-
+      always() && !cancelled() &&
+      (needs.capture.result == 'success' || needs.capture.result == 'failure') &&
+      needs.capture.outputs.official_tests_passed == 'true' &&
+      needs.capture.outputs.official_capture_outcome == 'success' &&
+      needs.capture.outputs.official_audit_outcome == 'success' &&
+      needs.capture.outputs.official_handoff_outcome == 'success' &&
+      needs.capture.outputs.official_bundle_ready == 'true' &&
+      github.repository == 'ikst2512-eng/boat-edge-clean' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download the same-run immutable official raw/manifest/shadow bytes
+        uses: actions/download-artifact@v4
+        with:
+          name: official-raw-shadow-handoff-${{ github.run_id }}-${{ github.run_attempt }}
+          path: official_joint_evidence/
+      - name: Validate and create only NEW pre-cutoff research Git path
+        run: python -m scripts.persist_official_research_bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Retain immutable Git write/readback receipt as independent Action artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-research-git-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: official-source-git-receipt/receipt.json
+          retention-days: 90
+          if-no-files-found: warn
