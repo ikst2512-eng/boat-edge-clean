@@ -1507,3 +1507,82 @@ jobs:
               "forecast_or_archive_written":False,"formal":False,
           },sort_keys=True))
           PY
+
+      - name: Attribute pinned K92 C2 escape and C3/C4 winning methods to real Nov14 six exhibition racers (research only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Original K frozen by upstream #1692, actual official first-add
+          # racelist frozen by #1746. No network crawl or new Git writes.
+          test -f "$RUNNER_TEMP/official-K-92day-original.zip"
+          echo "c668f545bae54f8148616315e307ed2a2b04a77a0cb8abf88bf3ea078749ce8e  $RUNNER_TEMP/official-K-92day-original.zip" | sha256sum --check --status
+          OFFICIAL_K_ZIP="$RUNNER_TEMP/official-K-92day-original.zip" \
+          PYTHONPATH="$RUNNER_TEMP/K1692:$PWD" python - <<'PY'
+          import base64,hashlib,json,os
+          from datetime import datetime
+          from urllib.request import Request,urlopen
+          from scenario_official_K_athlete_attack_rates import analyze_k_method_athlete
+          race="202611140712" # target already finished; replay ONLY
+          path="official_source_forecast_bundles/20261114/"+race+".json"
+          endpoint="https://api.github.com/repos/ikst2512-eng/boat-edge-clean/contents/"+path+"?ref=entry-course-evidence-ledger"
+          req=Request(endpoint,headers={
+              "Authorization":"Bearer "+os.environ["GH_TOKEN"],
+              "Accept":"application/vnd.github+json",
+              "User-Agent":"BOAT-EDGE-CLEAN-official-K-motor-method-readonly",
+          })
+          with urlopen(req,timeout=20) as response:
+              assert response.status==200
+              meta=json.loads(response.read(300000))
+          raw=base64.b64decode(meta["content"])
+          assert hashlib.sha1(b"blob "+str(len(raw)).encode()+b"\\0"+raw).hexdigest()==meta["sha"]
+          assert meta["sha"]=="b7670d32ad4dd642101087f6e23e63abedb3e770"
+          assert hashlib.sha256(raw).hexdigest()=="377bd543fbf0a95901728339ce2299cf921fb8d263261a8cc18bf2e5a96fee7d"
+          bundle=json.loads(raw)
+          assert bundle["race_code"]==race
+          assert bundle["formal"] is False
+          assert bundle["independent_remote_first_seen_verified"] is False
+          manifest=bundle["official_input_manifest"]
+          assert manifest["race_code"]==race
+          source=bundle["official_raw_originals"]["racelist"]
+          html=base64.b64decode(source["base64"],validate=True)
+          assert source["sha256"]==hashlib.sha256(html).hexdigest()=="7441ca0ca4b69fa04815281ca06fac70ffba80950f84f5bb6ea722ee34054e40"
+          assert source["sha256"]==manifest["official_sources"]["racelist"]["sha256"]
+          assert max(datetime.fromisoformat(x["received_at_jst"])
+                     for x in manifest["official_sources"].values())<datetime.fromisoformat(bundle["cutoff_jst"])
+          roster=[{"boat":x["lane"],"registration":x["registration"],
+                   "exhibition_course":x["exhibition_course"]}
+                  for x in manifest["six_boat_inputs"]]
+          assert [r["boat"] for r in roster]==list(range(1,7))
+          # No result of this target is passed to any model, K historical
+          # source is entirely earlier and each daily original verified.
+          result=analyze_k_method_athlete(os.environ["OFFICIAL_K_ZIP"],race,roster)
+          assert result["source_zip_sha256"]=="c668f545bae54f8148616315e307ed2a2b04a77a0cb8abf88bf3ea078749ce8e"
+          assert result["verified_92_original_K_days"]==92
+          assert (result["raw_races"],result["eligible_C1_C2_pair_races"],
+                  result["complete_six_numeric_finishers"])==(14249,13815,13301)
+          assert result["national_historical_only"]["aug_sep_training"]["C2_eligible_pairs"]["eligible"]==9241
+          assert result["national_historical_only"]["october_historical_holdout"]["C2_eligible_pairs"]["eligible"]==4574
+          assert result["national_historical_only"]["aug_sep_training"]["C3_complete_six_finishers"]["eligible_starts"]==8919
+          assert result["national_historical_only"]["october_historical_holdout"]["C3_complete_six_finishers"]["eligible_starts"]==4382
+          assert result["not_all_course_starts_denominator"] is True
+          assert result["future_actual_entry_not_verified"] is True
+          assert result["use_as_predeadline_model_rate_allowed"] is False
+          assert result["model_predictions_generated"] is False
+          assert result["production_changed"] is False
+          print("REAL_K92_ATHLETE_COURSE_ATTACK_EVIDENCE_INPUT_ONLY_PASS "+json.dumps({
+              "race":race,
+              "K_original_SHA256":result["source_zip_sha256"],
+              "racelist_SHA256":source["sha256"],
+              "training_C2_entry":result["joined_real_exhibition_course2"]["aug_sep_training"],
+              "training_C3_C4":{c:v["aug_sep_training"] for c,v in result["joined_real_exhibition_course3_4"].items()},
+              "oct_C2_entry":result["joined_real_exhibition_course2"]["october_historical_holdout"],
+              "oct_C3_C4":{c:v["october_historical_holdout"] for c,v in result["joined_real_exhibition_course3_4"].items()},
+              "national_train":result["national_historical_only"]["aug_sep_training"],
+              "source_coverage": {"raw_races":result["raw_races"],
+                  "C1_C2_pairs":result["eligible_C1_C2_pair_races"],
+                  "six_numeric_finishers":result["complete_six_numeric_finishers"]},
+              "comment_source_verified":False,"full_course_start_denominator":False,
+              "predeadline_prediction_generated":False,"formal":False,
+          },ensure_ascii=False,sort_keys=True))
+          PY
