@@ -15,8 +15,10 @@ class LegacyV133ReferenceTests(unittest.TestCase):
         self.assertEqual(record["race_code"], "202611120501")
         self.assertEqual(len(SOURCE_BLOB), 40)
         self.assertEqual(record["source_model_git_blob"], SOURCE_BLOB)
-        self.assertEqual({mode: len(info["tickets"]) for mode, info in record["modes"].items() if mode != "hole"},
+        self.assertEqual({mode: len(info["tickets"]) for mode, info in record["modes"].items() if mode not in ("hole", "tail")},
                          {"narrow": 3, "hit": 10, "balance": 10})
+        self.assertIn("tail", record["modes"])
+        self.assertEqual(len(record["modes"]["tail"]["tickets"]), 10)
         self.assertIn(len(record["modes"]["hole"]["tickets"]), (12, 15, 18))
         self.assertFalse(record["formal"])
         self.assertFalse(record["calibrated"])
