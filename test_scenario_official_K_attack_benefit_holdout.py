@@ -78,7 +78,7 @@ class HistoricalOutcomeRules(unittest.TestCase):
 
     def test_group_values_are_registered(self):
         self.assertEqual(len(GROUPS), 10)
-        self.assertEqual(_record(race(first_course=4, method="まくり"))["group"], "four_makuri")
+        self.assertEqual(_record(race(first_course=4, second=3, method="まくり"))["group"], "four_makuri")
 
 
 if __name__ == "__main__":
