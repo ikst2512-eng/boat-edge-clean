@@ -4,6 +4,7 @@ A fake in-memory 92-day archive checks the wiring contract, not authenticity.
 The existing PR-only CI independently replays the REAL pinned primary ZIP.
 """
 from datetime import date,timedelta
+from collections import Counter
 from hashlib import sha256
 from unittest.mock import patch
 import json
@@ -71,7 +72,7 @@ class FakeZip:
 
 class RateTests(unittest.TestCase):
     def test_zero_denominator_stays_null_and_no_ghost_wins(self):
-        a=study._safe_summary({},"method_","eligible")
+        a=study._safe_summary(Counter(),"method_","eligible")
         self.assertIsNone(a["まくり"]["rate_pct"])
         self.assertEqual(a["まくり"]["wins"],0)
         self.assertEqual(a["まくり差し"]["wins"],0)
