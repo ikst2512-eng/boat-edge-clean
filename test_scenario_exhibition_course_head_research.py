@@ -164,6 +164,49 @@ class CourseHolderStructuralTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,"frozen_1710_protocol_changed"):
                 prepare(*case)
 
+    def test_prepared_source_handoff_digest_is_stable_and_rejects_splices(self):
+        case = input_case(5)
+        prepared = prepare(*case)
+        control = prepare(*copy.deepcopy(case))
+        self.assertEqual(prepared["handoff_digest_sha256"],
+                         control["handoff_digest_sha256"])
+        self.assertRegex(prepared["handoff_digest_sha256"], r"^[0-9a-f]{64}$")
+        # A locally consistent regenerated head board cannot silently be
+        # attributed to the SAME originally parsed official racelist.
+        def change_rate(s):
+            s["national_rates_from_same_racelist_original"][0] += 0.25
+        def change_roster(s):
+            s["exhibition_course_to_boat"]["1"] = 1
+        def change_history(s):
+            s["history_source_join"]["history_claimed_athlete_denominator"] += 1
+        def fake_provenance(s):
+            s["history_source_join"]["official_K_original_replayed_here"] = True
+        def fake_accuracy(s):
+            s["accuracy_improvement_proven"] = True
+        def change_head(s):
+            s["head_models"]["escape_wall"]["hypothesis_first_mass"]["1"] += 0.01
+        def remove_digest(s):
+            del s["handoff_digest_sha256"]
+        def forge_digest(s):
+            s["handoff_digest_sha256"] = "0" * 64
+        for name, mutator in (
+            ("source_rate", change_rate), ("holder", change_roster),
+            ("history_count", change_history), ("fake_K_receipt", fake_provenance),
+            ("fake_accuracy", fake_accuracy), ("head_math", change_head),
+            ("digest_missing", remove_digest), ("digest_forged", forge_digest),
+        ):
+            with self.subTest(name=name):
+                mutated = copy.deepcopy(prepared)
+                mutator(mutated)
+                with self.assertRaisesRegex(
+                        ValueError,
+                        "course_holder_handoff_modified_since_source_join"):
+                    run_course_holder_four_mode_sensitivity(
+                        mutated, case[3], lambda *args: None)
+        self.assertFalse(prepared["formal"])
+        self.assertFalse(prepared["history_source_join"][
+            "official_K_original_replayed_here"])
+
     def test_history_weak_provenance_is_not_promoted_into_model(self):
         a=prepare(*input_case(2))
         bcase=list(input_case(2))
