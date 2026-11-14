@@ -1,0 +1,10 @@
+{
+  "schema_version": "boat-edge-site-course-stats-index-v117",
+  "updated_at": "2026-10-08T03:36:21+09:00",
+  "venues_ok": 24,
+  "venues_total": 24,
+  "errors": [],
+  "source": "BOAT RACE official stadium pages",
+  "scope": "recent_3_months",
+  "prediction_logic_uses_course_stats": false
+}
