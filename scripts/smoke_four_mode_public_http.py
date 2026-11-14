@@ -16,7 +16,8 @@ def get(path):
 def main():
     html = get("/forecast").decode("utf-8")
     required = (
-        "AI予想｜4モード",
+        "展開重視予想｜4モード",
+        "/api/v133-reference-preview",
         'id="restoredScenarioPanel"',
         'id="restoredScenarioStatus"',
         "/api/legacy-scenario-preview",
@@ -52,6 +53,21 @@ def main():
             raise AssertionError("restored scenario API response mismatch")
         if error.headers.get("Access-Control-Allow-Origin") != "https://ikst2512-eng.github.io":
             raise AssertionError("restored scenario API lacks Pages CORS")
+    # New V127/V133 reference route is valid only on a deployed matching
+    # backend; an invalid request must reject without reading race data.
+    req = Request(BASE + "/api/v133-reference-preview?hd=invalid&jcd=01&rno=1",
+                  headers={"User-Agent": "BOAT-EDGE-CLEAN-public-smoke/1"})
+    try:
+        with urlopen(req, timeout=30) as response:
+            raise AssertionError("invalid V133 request unexpectedly accepted: "+str(response.status))
+    except HTTPError as error:
+        if error.code != 400:
+            raise AssertionError("V133 API not deployed or wrong status: "+str(error.code))
+        payload = json.loads(error.read(5000))
+        if payload != {"ok": False, "status": "invalid_race"}:
+            raise AssertionError("V133 API response mismatch")
+        if error.headers.get("Access-Control-Allow-Origin") != "https://ikst2512-eng.github.io":
+            raise AssertionError("V133 API lacks Pages CORS")
     print(json.dumps({"public_forecast_http": 200, "public_archive_http": 200,
                       "restored_scenario_api_rejects_invalid": 400,
                       "four_modes_present": True, "legacy_topn_collapsed": True,

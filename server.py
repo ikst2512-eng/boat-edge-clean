@@ -287,6 +287,46 @@ def get_restored_scenario_preview(params, *, card_loader=None, now=None):
         return 503, {"ok": False, "status": "source_temporarily_unavailable"}
 
 
+
+def get_v133_reference_preview(params, *, card_loader=None, now=None):
+    """Original V127/V133 calculation on verified live inputs, never post-result."""
+    hd = params.get("hd", [""])[0]
+    jcd = params.get("jcd", [""])[0]
+    rno = params.get("rno", [""])[0]
+    if (not re.fullmatch(r"20[0-9]{6}", hd)
+            or not re.fullmatch(r"0[1-9]|1[0-9]|2[0-4]", jcd)
+            or not re.fullmatch(r"[1-9]|1[0-2]", rno)):
+        return 400, {"ok": False, "status": "invalid_race"}
+    try:
+        datetime.strptime(hd, "%Y%m%d")
+    except ValueError:
+        return 400, {"ok": False, "status": "invalid_race"}
+    if card_loader is None:
+        from clean_racecard import racecard
+        card_loader = racecard
+    from legacy_v133_reference_engine import v133_reference_preview
+    try:
+        output = v133_reference_preview(card_loader(hd, jcd, rno), now=now)
+        if (output.get("race_code") != hd+jcd+str(int(rno)).zfill(2)
+                or output.get("formal") is not False
+                or output.get("production_buy_approved") is not False):
+            raise ValueError("unsafe_v133_reference")
+        return 200, output
+    except ValueError as exc:
+        reason = str(exc)
+        if reason in ("race_deadline_already_passed", "not_a_live_pre_result_race",
+                      "race_already_closed"):
+            return 422, {"ok": False, "status": "past_race_not_recomputed"}
+        if reason in ("race_card_not_available", "deadline_not_available",
+                      "six_racers_unavailable"):
+            return 404, {"ok": False, "status": "source_not_published"}
+        logging.info("v133_reference_rejected reason=%s", reason[:100])
+        return 422, {"ok": False, "status": "unverified_source", "reason": reason[:100]}
+    except (OSError, TimeoutError, KeyError, TypeError, AttributeError) as exc:
+        logging.warning("v133_reference_unavailable reason=%s", type(exc).__name__)
+        return 503, {"ok": False, "status": "source_temporarily_unavailable"}
+
+
 # The historical holdout evaluator reads and validates many saved races.
 # Never perform that computation inside a public request handler.
 _HOLDOUT_LOCK = threading.Lock()
@@ -573,6 +613,10 @@ class Handler(BaseHTTPRequestHandler):
                 data = {"ok": False, "status": "unavailable", "reason": reason[:100]}
             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
             kind = "application/json; charset=utf-8"
+        elif path == "/api/v133-reference-preview":
+            status, data = get_v133_reference_preview(parse_qs(parsed.query))
+            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            kind = "application/json; charset=utf-8"
         elif path == "/api/legacy-scenario-preview":
             status, data = get_restored_scenario_preview(parse_qs(parsed.query))
             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
@@ -596,7 +640,7 @@ class Handler(BaseHTTPRequestHandler):
             revision = deployed_commit()
             if revision:
                 self.send_header("X-Boat-Edge-Deploy-Commit", revision)
-        if path in ("/api/clean-schedule", "/api/predictions", "/api/clean-result", "/api/clean-racecard", "/api/prospective-topn", "/api/odds", "/api/four-mode-archive", "/api/candidate-history", "/api/legacy-scenario-preview"):
+        if path in ("/api/clean-schedule", "/api/predictions", "/api/clean-result", "/api/clean-racecard", "/api/prospective-topn", "/api/odds", "/api/four-mode-archive", "/api/candidate-history", "/api/legacy-scenario-preview", "/api/v133-reference-preview"):
             # Read-only CLEAN data is consumed by the GitHub Pages origin.
             self.send_header("Access-Control-Allow-Origin", "https://ikst2512-eng.github.io")
         self.end_headers()
