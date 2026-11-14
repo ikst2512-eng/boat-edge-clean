@@ -19,6 +19,18 @@ RATES = {"motor_2ren_pct", "meeting_2ren_pct", "two_escape_assist_pct",
          "makuri_pct", "makuri_sashi_pct", "sashi_pct"}
 SECONDS = {"average_st_s", "meeting_st_s"}
 SIGNALS = RATES | SECONDS
+# These are rates per actual course START, not "share of wins by winning method".
+# 逃がし率 and 逃がし2着率 must never be conflated.
+DENOMINATORS = {
+    "motor_2ren_pct": "motor_starts",
+    "meeting_2ren_pct": "meeting_starts",
+    "two_escape_assist_pct": "actual_course2_starts",
+    "makuri_pct": "actual_course_starts",
+    "makuri_sashi_pct": "actual_course_starts",
+    "sashi_pct": "actual_course_starts",
+    "average_st_s": "start_observations",
+    "meeting_st_s": "meeting_start_observations",
+}
 TAGS = {"turn_positive", "turn_negative", "straight_positive",
         "straight_negative", "start_positive", "start_negative"}
 BLOCKED = {"result", "payout", "finish_order", "winning_ticket",
@@ -53,19 +65,28 @@ def _receipt(source, generated):
 def _signal(raw, name, generated):
     if raw is None:
         return None
-    if type(raw) is not dict or "value" not in raw or "sample_size" not in raw:
-        raise ValueError("numeric_feature_value_and_denominator_required")
+    if (type(raw) is not dict or "value" not in raw or "sample_size" not in raw
+            or raw.get("denominator_kind") != DENOMINATORS[name]):
+        raise ValueError("numeric_feature_value_and_denominator_kind_required")
     _receipt(raw, generated)
     val, sample = raw["value"], raw["sample_size"]
     if (type(sample) is not int or not 1 <= sample <= 1_000_000
             or type(val) not in (float, int) or not math.isfinite(val)):
         raise ValueError("invalid_numeric_feature_or_sample")
-    if name in RATES and not 0 <= val <= 100:
-        raise ValueError("rate_out_of_bounds")
+    if name in RATES:
+        if not 0 <= val <= 100:
+            raise ValueError("rate_out_of_bounds")
+        numerator = raw.get("success_count")
+        if (type(numerator) is not int or not 0 <= numerator <= sample
+                or abs(100.0 * numerator / sample - float(val)) > 0.051):
+            raise ValueError("rate_numerator_denominator_inconsistent")
     if name in SECONDS and not 0 <= val <= 0.5:
         raise ValueError("start_out_of_bounds")
     return {"value": float(val) / 100 if name in RATES else float(val),
-            "sample_size": sample, "source_sha256": raw["source_sha256"]}
+            "sample_size": sample,
+            "denominator_kind": DENOMINATORS[name],
+            "success_count": raw["success_count"] if name in RATES else None,
+            "source_sha256": raw["source_sha256"]}
 
 
 def _comment(raw, generated):
