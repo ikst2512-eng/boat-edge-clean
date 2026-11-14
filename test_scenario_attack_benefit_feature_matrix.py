@@ -211,6 +211,14 @@ class InteractionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "numerator_denominator"):
             build_attack_benefit_matrix(x)
 
+    def test_escape_assist_requires_eligible_two_course_cohort(self):
+        x = fixture()
+        # The primary vendor's 1C retirement/accident exclusions are not
+        # established by a raw count of all 2C starts.
+        x["racers"][1]["signals"]["two_escape_assist_pct"]["denominator_kind"] = "actual_course2_starts"
+        with self.assertRaisesRegex(ValueError, "denominator_kind"):
+            build_attack_benefit_matrix(x)
+
     def test_invalid_denominator_rejected(self):
         x = fixture()
         x["racers"][2]["signals"]["makuri_pct"]["sample_size"] = 0
