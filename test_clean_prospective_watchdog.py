@@ -371,7 +371,7 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
         # 2026-11-04 23:25 JST four-mode schedule (run 41847531763).
         # Its expiry is not a failure of the healthy future collector.
         flow = Path(
-            ".github/workflows/t12-kiryu12-upstream-recovery-20261103.yml"
+            "tests/fixtures/retired_workflows/t12-kiryu12-upstream-recovery-20261103.yml"
         ).read_text(encoding="utf-8")
         self.assertIn(
             "startsWith(github.event.workflow_run.run_started_at, "
