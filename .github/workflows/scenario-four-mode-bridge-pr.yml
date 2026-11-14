@@ -943,15 +943,17 @@ jobs:
                                   "accuracy_improvement_proven"))
                               modes={}
                               for mode,budget in result["same_mode_budgets"].items():
-                                  base=[v["combo"] for v in
+                                  control_combos=[v["combo"] for v in
                                         result["control_four_mode_tickets"][mode]["tickets"]]
                                   adj=[v["combo"] for v in
                                        result["hypothesis_four_mode_tickets"][mode]["tickets"]]
-                                  assert len(base)==len(adj)==budget
+                                  assert len(control_combos)==len(adj)==budget
                                   modes[mode]={
-                                      "budget":budget,"set_overlap":len(set(base)&set(adj)),
-                                      "top1_changed":base[0]!=adj[0],
-                                      "rank_positions_changed":sum(a!=b for a,b in zip(base,adj))}
+                                      "budget":budget,
+                                      "set_overlap":len(set(control_combos)&set(adj)),
+                                      "top1_changed":control_combos[0]!=adj[0],
+                                      "rank_positions_changed":sum(
+                                          lhs!=rhs for lhs,rhs in zip(control_combos,adj))}
                               report.update(status="math_ablation_completed",mode_diffs=modes,
                                             F_count=signed["flag_F_count"])
                       except (ValueError,AssertionError,KeyError,TypeError) as exc:
