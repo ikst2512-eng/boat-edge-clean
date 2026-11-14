@@ -7,6 +7,8 @@ on:
       - 'test_scenario_four_mode_bridge.py'
       - 'scenario_full_pathway_catalog.py'
       - 'test_scenario_full_pathway_catalog.py'
+      - 'scenario_official_K_attack_benefit_holdout.py'
+      - 'test_scenario_official_K_attack_benefit_holdout.py'
       - 'scenario_attack_benefit_feature_matrix.py'
       - 'test_scenario_attack_benefit_feature_matrix.py'
       - 'scenario_first_head_research.py'
@@ -104,7 +106,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Check scenario bridge safety and all four mode contracts
-        run: python -m unittest -v test_scenario_full_pathway_catalog test_scenario_attack_benefit_feature_matrix test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway test_scenario_official_racelist_rates test_scenario_official_motor_display_research test_scenario_official_local_zero_research_adapter test_scenario_future_protocol_freeze test_scenario_future_local_candidate_handoff test_scenario_future_github_research_adapter test_scenario_future_archived_receipts_to_candidate test_scenario_official_st_intake_diagnostic test_scenario_flagged_st_feature_study test_scenario_signed_st_four_mode_shadow test_scenario_signed_st_registered_shadow test_scenario_signed_st_future_pre_t12_handoff test_scenario_signed_st_future_pre_t12_cli test_scenario_signed_st_cross_ledger_audit test_scenario_signed_st_source_remote_witness test_scenario_signed_st_F_remote_candidate_witness test_scenario_escape_prior_first_head_sensitivity test_scenario_exhibition_course_head_research test_scenario_official_K_training_roster_bridge
+        run: python -m unittest -v test_scenario_official_K_attack_benefit_holdout test_scenario_full_pathway_catalog test_scenario_attack_benefit_feature_matrix test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway test_scenario_official_racelist_rates test_scenario_official_motor_display_research test_scenario_official_local_zero_research_adapter test_scenario_future_protocol_freeze test_scenario_future_local_candidate_handoff test_scenario_future_github_research_adapter test_scenario_future_archived_receipts_to_candidate test_scenario_official_st_intake_diagnostic test_scenario_flagged_st_feature_study test_scenario_signed_st_four_mode_shadow test_scenario_signed_st_registered_shadow test_scenario_signed_st_future_pre_t12_handoff test_scenario_signed_st_future_pre_t12_cli test_scenario_signed_st_cross_ledger_audit test_scenario_signed_st_source_remote_witness test_scenario_signed_st_F_remote_candidate_witness test_scenario_escape_prior_first_head_sensitivity test_scenario_exhibition_course_head_research test_scenario_official_K_training_roster_bridge
       - name: Materialize pinned existing #1698 conditional lab for integration (read-only)
         run: |
           set -euo pipefail
@@ -614,6 +616,47 @@ jobs:
               "athlete_training_sample_count":history["C1_athlete_training_race_count"],
               "candidate_created":False,"formal":False,
           },sort_keys=True))
+          PY
+      - name: Measure historical K92 winner-method companion finishes (postrace research ONLY)
+        run: |
+          set -euo pipefail
+          # Use SHA-frozen original ZIP and previously pinned #1692 parser,
+          # but NEVER ingest these finished results as a future model feature.
+          test -f "$RUNNER_TEMP/official-K-92day-original.zip"
+          echo "c668f545bae54f8148616315e307ed2a2b04a77a0cb8abf88bf3ea078749ce8e  $RUNNER_TEMP/official-K-92day-original.zip" | sha256sum --check --status
+          OFFICIAL_K_ZIP="$RUNNER_TEMP/official-K-92day-original.zip" \
+          PYTHONPATH="$RUNNER_TEMP/K1692:$PWD" python - <<'PY'
+          import json,os
+          from scenario_official_K_attack_benefit_holdout import analyze_official_K_92day
+          report=analyze_official_K_92day(os.environ["OFFICIAL_K_ZIP"])
+          assert report["source_zip_sha256"]=="c668f545bae54f8148616315e307ed2a2b04a77a0cb8abf88bf3ea078749ce8e"
+          assert report["official_K_days_verified"]==92
+          assert report["original_raw_races"]==14249
+          assert report["basic_eligible_races"]==13815
+          assert report["train_n"]+report["historical_october_n"]==report["clean_six_finishers"]
+          assert all(report["limitations"][k] is True for k in (
+              "only_winning_decisive_method_observed",
+              "failed_attack_attempt_not_observed",
+              "beneficiary_causality_not_observed",
+              "historical_october_is_not_prospective_validation",
+              "not_predeadline_model_input"))
+          assert all(report["limitations"][k] is False for k in (
+              "forecast_probabilities_generated","production_changed","promotion_allowed"))
+          compact={
+              "study_id": report["study_id"],
+              "source_zip_sha256": report["source_zip_sha256"],
+              "raw_races": report["original_raw_races"],
+              "basic_eligible": report["basic_eligible_races"],
+              "clean_six_finishers": report["clean_six_finishers"],
+              "aug_sep_train_n": report["train_n"],
+              "oct_historical_holdout_n": report["historical_october_n"],
+              "oct_focus": report["october_focus"],
+              "not_attack_failure_observations": True,
+              "not_causal_benefit": True,
+              "not_prospective_accuracy": True,
+              "forecast_or_main_changed": False,
+          }
+          print("REAL_K92_HISTORICAL_ATTACK_WIN_COMPANIONS "+json.dumps(compact,ensure_ascii=False,sort_keys=True))
           PY
       - name: Replay REAL Nov14 pre-T12 triple and original K 92-day roster (input-only)
         env:
