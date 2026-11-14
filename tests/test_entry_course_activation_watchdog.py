@@ -485,6 +485,56 @@ class ActivationTests(unittest.TestCase):
         self.assertFalse(result["trigger_is_schedule"])
         self.assertFalse(result["saved_forecast_verified"])
 
+    def test_native_exhibition_probe_can_wake_after_four_minute_preview_gap(self):
+        # 11/14: rescue at 20:20:44, independent native exhibition tick
+        # at 20:24:40, and another race's T-12 cutoff at 20:33.
+        now=datetime(2026,11,14,20,24,50,tzinfo=JST)
+        previous={"event":"workflow_dispatch",
+                  "created_at":"2026-11-14T20:20:44+09:00",
+                  "head_branch":"main","status":"completed"}
+        requested=[]
+        result=preview_fallback(now,
+            lambda file,kind:[previous] if kind=="workflow_dispatch" else [],
+            lambda file:requested.append(file))
+        self.assertEqual(requested,[PREVIEW_WORKFLOW])
+        self.assertEqual(result["decision"],"dispatch_missing_research_job")
+        self.assertTrue(result["dispatch_requested"])
+        self.assertFalse(result["trigger_is_schedule"])
+        self.assertFalse(result["saved_forecast_verified"])
+        # The critical T12/T2 workflows retain their 5-minute cooldown.
+        for kind in ("t12","t2"):
+            self.assertEqual(dispatch_decision(now,[previous],kind=kind),
+                             "research_run_recently_started")
+
+    def test_preview_four_minute_gate_blocks_recent_and_active_runs(self):
+        now=datetime(2026,11,14,20,24,50,tzinfo=JST)
+        cases=(
+            ("2026-11-14T20:21:50+09:00","completed",
+             "research_run_recently_started"),
+            ("2026-11-14T20:20:44+09:00","in_progress",
+             "research_job_already_active"),
+        )
+        for created,status,expected in cases:
+            with self.subTest(expected=expected):
+                previous={"event":"workflow_dispatch","created_at":created,
+                          "head_branch":"main","status":status}
+                outcome=preview_fallback(now,
+                    lambda file,kind:[previous] if kind=="workflow_dispatch" else [],
+                    lambda file:self.fail("duplicate preview capture"))
+                self.assertEqual(outcome["decision"],expected)
+                self.assertFalse(outcome["dispatch_requested"])
+
+    def test_existing_native_exhibition_parent_does_not_add_cron_or_write(self):
+        from pathlib import Path
+        workflow=(Path(__file__).resolve().parents[1]/
+            ".github/workflows/entry-course-activation-watchdog.yml").read_text()
+        self.assertIn('- "CLEAN today\'s predeadline exhibition source probe"',workflow)
+        self.assertIn("github.event.workflow_run.event == 'schedule'",workflow)
+        self.assertIn("github.event.workflow_run.head_branch == 'main'",workflow)
+        self.assertEqual(workflow.count("- cron:"),1)
+        self.assertIn("contents: read",workflow)
+        self.assertNotIn("contents: write",workflow)
+
     def test_preview_fallback_does_not_run_at_8_or_after_22(self):
         for hour in (7,8,22,23):
             with self.subTest(hour=hour):

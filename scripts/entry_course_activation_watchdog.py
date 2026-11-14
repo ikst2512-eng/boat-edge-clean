@@ -18,6 +18,9 @@ TARGETS={
     "t2":"entry-course-late-capture.yml",
 }
 COOLDOWN=timedelta(minutes=5)
+# A preview rescue can run at a later existing native wakeup once 4 minutes
+# have elapsed; source T12/T2 rescue keeps the original 5-minute cooldown.
+PREVIEW_COOLDOWN=timedelta(minutes=4)
 ACTIVE_PROTECTION=timedelta(minutes=30)
 PREVIEW_WORKFLOW="research-live-preview-evidence.yml"
 PREVIEW_WATCHDOG_MARK="entry-course-activation-watchdog"
@@ -48,7 +51,7 @@ def dispatch_decision(now, runs, *, kind="t2"):
         raise ValueError("entry_watchdog_clock_invalid")
     if not isinstance(runs,list):
         raise ValueError("entry_watchdog_runs_invalid")
-    if kind not in TARGETS:
+    if kind not in (*TARGETS, "preview"):
         raise ValueError("entry_watchdog_target_invalid")
     local=now.astimezone(JST)
     first_hour=8 if kind=="t12" else 9
@@ -79,7 +82,8 @@ def dispatch_decision(now, runs, *, kind="t2"):
                                 "requested") and age<ACTIVE_PROTECTION
            for age,run in eligible):
         return "research_job_already_active"
-    if any(age<COOLDOWN for age,_ in eligible):
+    cooldown=PREVIEW_COOLDOWN if kind=="preview" else COOLDOWN
+    if any(age<cooldown for age,_ in eligible):
         return "research_run_recently_started"
     return "dispatch_missing_research_job"
 
@@ -194,7 +198,7 @@ def preview_fallback(now, fetch_runs, dispatch):
         if not isinstance(observed,list):
             raise ValueError("entry_preview_watchdog_api_runs_invalid")
         runs.extend(observed)
-    decision=dispatch_decision(now,runs,kind="t2")
+    decision=dispatch_decision(now,runs,kind="preview")
     # The per-workflow GitHub API returns the last 30 events of each type,
     # including historic days. "observed_schedule_runs" is NOT today's count.
     # A watchdog dispatch must never masquerade as a native schedule event.

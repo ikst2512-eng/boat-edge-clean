@@ -31,6 +31,10 @@ on:
       # delayed at 19:43 JST. Its successful completion can wake the same
       # existing 19:40-19:59 rescue, but is not the 19:35 official Cron.
       - "CLEAN live official trifecta odds probe"
+      # Existing official exhibition source probe had a native success at
+      # 20:24 JST, within a missed 20:33 T-12 preview research window.
+      # Its completion wakes only the bounded fallback; never native proof.
+      - "CLEAN today's predeadline exhibition source probe"
       - "CLEAN independent confirmed result collection"
       # Existing unrelated read-only schedules give independent wakeups if
       # the T12/watchdog own cron does not fire; dispatch remains cooldown-
