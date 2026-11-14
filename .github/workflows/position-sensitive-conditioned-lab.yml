@@ -1,0 +1,274 @@
+name: Isolated conditional 2nd-3rd feature lab (research only)
+on:
+  pull_request:
+    paths:
+      - 'position_sensitive_conditioned_lab.py'
+      - 'test_position_sensitive_conditioned_lab.py'
+      - 'position_sensitive_source_packet_audit.py'
+      - 'test_position_sensitive_source_packet_audit.py'
+      - 'position_sensitive_feature_ablation.py'
+      - 'test_position_sensitive_feature_ablation.py'
+      - 'position_sensitive_conditional_decomposition.py'
+      - 'test_position_sensitive_conditional_decomposition.py'
+      - 'position_sensitive_cross_pr_t12_bridge.py'
+      - 'test_position_sensitive_cross_pr_t12_bridge.py'
+      - 'position_sensitive_pinned_1694_artifact_handoff.py'
+      - 'test_position_sensitive_pinned_1694_artifact_handoff.py'
+      - 'position_sensitive_cross_mode_overlap_audit.py'
+      - 'test_position_sensitive_cross_mode_overlap_audit.py'
+      - 'docs/research/conditioned_second_third_feature_lab_20261109.md'
+      - '.github/workflows/position-sensitive-conditioned-lab.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  isolated-conditional-lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Synthetic only; no outcome, network or external runner dependencies
+        run: python -m unittest -v test_position_sensitive_conditioned_lab test_position_sensitive_source_packet_audit test_position_sensitive_feature_ablation test_position_sensitive_conditional_decomposition test_position_sensitive_cross_pr_t12_bridge test_position_sensitive_pinned_1694_artifact_handoff test_position_sensitive_cross_mode_overlap_audit
+      - name: Ensure preregistered 300+300 model and baseline blobs unchanged
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          p=json.loads(Path('research/four_mode_position_sensitive_forward_protocol_20261108.json').read_text())
+          for field,path in {
+              'candidate_selector_git_blob_sha1':'four_mode_position_sensitive_shadow.py',
+              'original_model_git_blob_sha1':'research_model.py',
+              'mode_selector_git_blob_sha1':'clean_four_modes.py'
+          }.items():
+              data=Path(path).read_bytes()
+              observed=hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()
+              if p[field] != observed:
+                  raise SystemExit('preregistered_frozen_blob_changed:'+path)
+          if p['promotion_allowed'] is not False or p['formal'] is not False:
+              raise SystemExit('promotion_guard_changed')
+          print('PREREGISTERED_FROZEN_BLOBS_UNCHANGED')
+          PY
+      - name: Reproduce saved Nov 8 original board without looking at results
+        run: |
+          python four_mode_position_sensitive_shadow.py --day 20261108 > input_only_replay.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('input_only_replay.json').read_text())
+          if (d.get('compared') != 116 or d.get('excluded') != 0
+                  or d.get('formal') is not False
+                  or d.get('model_improvement_proven') is not False):
+              raise SystemExit('116_original_replay_drift')
+          print('ORIGINAL_INPUT_ONLY_REPLAY_116_OF_116')
+          PY
+      - name: Audit available Nov09 archived race fields without results or source claims
+        run: |
+          python position_sensitive_feature_inventory.py --day 20261109 > input_only_nov09_coverage.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d = json.loads(Path('input_only_nov09_coverage.json').read_text())
+          if (d.get('excluded') or d.get('compared') != d.get('archived_files')
+                  or d.get('formal') is not False
+                  or d.get('model_improvement_proven') is not False
+                  or d.get('formal_official_beforeinfo_six_odds120_verified') is not False):
+              raise SystemExit('nov09_archive_schema_or_replay_failed')
+          print('NOV09_RESEARCH_ARCHIVE_FIELD_INVENTORY_ONLY', json.dumps({
+              'records': d.get('archived_files'),
+              'fields': d.get('recorded_top_level_feature_counts'),
+              'official_T12_proof': False,
+          }, sort_keys=True))
+          PY
+
+      - name: Compare 2026-11-10 exact main V2 originals vs frozen selector, input only
+        run: |
+          set -euo pipefail
+          main_sha="$(git rev-parse --verify refs/remotes/origin/main^{commit})"
+          mkdir -p "$RUNNER_TEMP/position1698-original-main"
+          git worktree add --detach "$RUNNER_TEMP/position1698-original-main" "$main_sha"
+          export PINNED_MAIN_SNAPSHOT="$RUNNER_TEMP/position1698-original-main"
+          export PINNED_MAIN_SHA="$main_sha"
+          python - <<'PY'
+          from datetime import datetime, timedelta
+          from pathlib import Path
+          import json
+          import os
+          from four_mode_position_sensitive_shadow import audit_day
+          from position_sensitive_feature_inventory import audit_feature_day
+          from position_sensitive_topk_exposure_audit import audit_topk_day
+
+          root=Path(os.environ["PINNED_MAIN_SNAPSHOT"])
+          source_sha=os.environ["PINNED_MAIN_SHA"]
+          day="20261110"
+          feature=audit_feature_day(day, root=root)
+          replay=audit_day(day, root=root)
+          turnover=audit_topk_day(day, root=root)
+          n=feature["archived_files"]
+          if (n < 1 or any(x["compared"] != n or x["excluded"] != 0
+                           or x.get("formal") is not False
+                           or x.get("model_improvement_proven") is not False
+                           for x in (feature, replay, turnover))):
+              raise SystemExit("nov10_main_baseline_replay_or_coverage_incomplete")
+          paths=sorted((root/"four_mode_forecasts").glob(day+"[0-9][0-9][0-9][0-9].json"))
+          recorded_before_t12=0
+          recorded_after_or_at_t12=0
+          for file in paths:
+              d=json.loads(file.read_bytes())
+              generated=datetime.fromisoformat(d["generated_at_jst"])
+              deadline=datetime.fromisoformat(d["deadline_jst"])
+              if (generated.utcoffset()!=timedelta(hours=9)
+                      or deadline.utcoffset()!=timedelta(hours=9)):
+                  raise SystemExit("invalid_nov10_original_jst_clock")
+              if generated < deadline-timedelta(minutes=12):
+                  recorded_before_t12+=1
+              else:
+                  recorded_after_or_at_t12+=1
+          summary={
+              "schema":"POSITION_SENSITIVE_NOV10_MAIN_INPUT_ONLY_PAIRED_AUDIT_V1",
+              "status":"read_only_original_rates_and_position_ranking_no_outcomes",
+              "source_repo_main_git_sha_at_ci_snapshot":source_sha,
+              "day_jst":day,
+              "original_records":n,
+              "exact_v2_replays":replay["compared"],
+              "self_recorded_generated_before_t12":recorded_before_t12,
+              "self_recorded_generated_at_or_after_t12":recorded_after_or_at_t12,
+              "features_recorded_in_original_json":feature["recorded_top_level_feature_counts"],
+              "by_mode_rank_exposure":turnover["by_mode"],
+              "by_mode_top1_diversity":replay["by_mode"],
+              "official_pre_t12_originals_independently_verified":False,
+              "initial_forecast_git_remote_receipt_verified":False,
+              "candidate_feature_model_included":False,
+              "confirmed_finish_or_payout_read":False,
+              "topk_hit_rate_measured":False,
+              "formal":False,
+              "promotion_allowed":False,
+              "production_changed":False,
+              "warning":"Only stored V2 original rates and rank turnover. A generated timestamp is self-reported, not Git remote first acceptance. No actual 6/120 source or prospective 300+300 certification."
+          }
+          Path("nov10-main-input-only-topk.json").write_text(
+              json.dumps(summary, ensure_ascii=False, sort_keys=True, indent=2)+"\n",
+              encoding="utf-8")
+          compact={
+              "main_sha":source_sha,"records":n,
+              "stored_before_t12":recorded_before_t12,
+              "stored_at_or_after_t12":recorded_after_or_at_t12,
+              "top1_changes_by_mode":{
+                  m:x["top1_changed"] for m,x in turnover["by_mode"].items()},
+              "top5_membership_changes_by_mode":{
+                  m:x["topn"]["5"]["membership_changed_races"]
+                  for m,x in turnover["by_mode"].items()},
+              "top10_membership_changes_by_mode":{
+                  m:(x["topn"]["10"]["membership_changed_races"]
+                     if x["topn"]["10"]["applicable"] else None)
+                  for m,x in turnover["by_mode"].items()},
+              "formal":False,
+          }
+          print("NOV10_MAIN_INPUT_ONLY_POSITION_RANKING="+json.dumps(compact, sort_keys=True))
+          PY
+          python position_sensitive_cross_mode_overlap_audit.py \
+            --day 20261110 \
+            --root "$PINNED_MAIN_SNAPSHOT" \
+            --output nov10-within-four-mode-overlap.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path("nov10-main-input-only-topk.json").read_text())
+          b=json.loads(Path("nov10-within-four-mode-overlap.json").read_text())
+          n=a["original_records"]
+          if (n != 150 or b["original_records"] != n or
+                  b["exact_v2_replays"] != n or
+                  b["within_race_overlap"]["original"]["narrow_subset_hit_races"] != n or
+                  b["within_race_overlap"]["frozen_candidate"]["narrow_subset_hit_races"] != n or
+                  b["formal"] is not False or b["production_changed"] is not False
+                  or b["independently_scored_results"] != 0):
+              raise SystemExit("cross_mode_nested_overlap_drift")
+          print("NOV10_NARROW_HIT_ALWAYS_NESTED", json.dumps({
+              "records":n,"original_nested":n,"candidate_nested":n,
+              "formal":False,
+          },sort_keys=True))
+          PY
+      - name: Preserve Nov10 pinned main rate-only turnover audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: position-sensitive-nov10-main-input-only-${{ github.run_id }}
+          path: |
+            nov10-main-input-only-topk.json
+            nov10-within-four-mode-overlap.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Download EXACT pinned successful #1694 read-only audit artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: official-pair-schedule-audit-42620400791
+          run-id: 42620400791
+          github-token: ${{ github.token }}
+          path: pinned-1694
+      - name: Inspect immutable run/artifact API metadata and whole candidate ledger
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # No official HTTP sources are fetched. Pin the exact audit run,
+          # original artifact ID and SHA256 metadata (not source-HTTP proof).
+          gh api "repos/${{ github.repository }}/actions/runs/42620400791" > pinned-1694-run.json
+          gh api "repos/${{ github.repository }}/actions/artifacts/13676360800" > pinned-1694-artifact.json
+          # Existing whole-ledger verifier validates candidate/original V2
+          # bytes at the CURRENT fetched research-branch tip, no result reads.
+          python position_sensitive_live_roster_audit.py --output pinned-1698-roster.json
+          python - <<'PY'
+          from pathlib import Path
+          candidates = [
+              Path("pinned-1694/official_t12_same_race_proof_chain.json"),
+              Path("pinned-1694/reports/official_t12_same_race_proof_chain.json"),
+          ]
+          found = [p for p in candidates if p.is_file() and not p.is_symlink()]
+          if len(found) != 1:
+              raise SystemExit("pinned_1694_source_report_not_unique_or_missing")
+          Path("pinned-1694-report-path.txt").write_text(str(found[0]))
+          PY
+          python position_sensitive_pinned_1694_artifact_handoff.py \
+            --source-run-json pinned-1694-run.json \
+            --source-artifact-json pinned-1694-artifact.json \
+            --source-report "$(cat pinned-1694-report-path.txt)" \
+            --candidate-roster pinned-1698-roster.json \
+            --output pinned-1694-to-1698-handoff.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("pinned-1694-to-1698-handoff.json").read_text())
+          if (d.get("candidate_rows") < 16
+                  or d.get("matched_same_race_rows") != 0
+                  or d.get("source_races_in_pinned_report") != 3
+                  or d.get("new_candidate_independent_first_remote_receipts") != 0
+                  or d.get("formal_pilot") != 0
+                  or d.get("formal_confirmation") != 0
+                  or d.get("formal") is not False
+                  or d.get("promotion_allowed") is not False):
+              raise SystemExit("pinned_source_candidate_join_drift_requires_manual_review")
+          print("REAL_PINNED_1694_SOURCE_TO_FULL_1698_ROSTER", json.dumps({
+              "historical_source_races": d["source_races_in_pinned_report"],
+              "research_candidate_rows": d["candidate_rows"],
+              "same_race_matches": d["matched_same_race_rows"],
+              "unmatched": d["unmatched_candidate_rows"],
+              "formal_certifications": 0,
+          }, sort_keys=True))
+          PY
+      - name: Preserve nonformal pinned race-to-source gap diagnostic
+        uses: actions/upload-artifact@v4
+        with:
+          name: position-sensitive-pinned-source-gap-${{ github.run_id }}
+          path: |
+            pinned-1694-to-1698-handoff.json
+            pinned-1698-roster.json
+            pinned-1694-run.json
+            pinned-1694-artifact.json
+          if-no-files-found: error
+          retention-days: 14

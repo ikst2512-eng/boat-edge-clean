@@ -1,0 +1,581 @@
+name: Position-sensitive 4-mode research shadow checks
+
+on:
+  pull_request:
+    paths:
+      - 'four_mode_position_sensitive_shadow.py'
+      - 'test_four_mode_position_sensitive_shadow.py'
+      - 'four_mode_position_sensitive_forward.py'
+      - 'position_sensitive_topk_exposure_audit.py'
+      - 'position_sensitive_paired_guard.py'
+      - 'position_sensitive_paired_inference.py'
+      - 'position_sensitive_feature_inventory.py'
+      - 'position_sensitive_receipt_intake.py'
+      - 'position_sensitive_remote_observer.py'
+      - 'position_sensitive_live_roster_audit.py'
+      - 'position_sensitive_public_comment_witness.py'
+      - 'position_sensitive_future_topk_exposure.py'
+      - 'position_sensitive_candidate_delivery_gap.py'
+      - 'position_sensitive_candidate_batch_export.py'
+      - 'position_sensitive_schedule_run_inventory.py'
+      - 'position_sensitive_run_job_reconcile.py'
+      - 'position_sensitive_original_publication_audit.py'
+      - 'test_position_sensitive_original_publication_audit.py'
+      - 'test_position_sensitive_run_job_reconcile.py'
+      - 'test_position_sensitive_schedule_run_inventory.py'
+      - 'test_position_sensitive_candidate_batch_export.py'
+      - 'test_position_sensitive_candidate_delivery_gap.py'
+      - 'test_position_sensitive_future_topk_exposure.py'
+      - 'test_position_sensitive_public_comment_witness.py'
+      - 'test_position_sensitive_live_roster_audit.py'
+      - 'position_sensitive_manual_publisher.py'
+      - 'test_position_sensitive_manual_publisher.py'
+      - 'test_position_sensitive_manual_server_chronology.py'
+      - 'test_position_sensitive_manual_ancestry.py'
+      - 'test_position_sensitive_remote_observer.py'
+      - 'position_sensitive_append_only_research.py'
+      - 'position_sensitive_ledger_history_audit.py'
+      - 'test_position_sensitive_ledger_history_audit.py'
+      - 'test_position_sensitive_append_only_research.py'
+      - 'position_sensitive_t12_window_audit.py'
+      - 'test_position_sensitive_t12_window_audit.py'
+      - 'test_position_sensitive_receipt_intake.py'
+      - 'test_position_sensitive_feature_inventory.py'
+      - 'test_position_sensitive_paired_inference.py'
+      - 'test_position_sensitive_paired_guard.py'
+      - 'test_position_sensitive_topk_exposure_audit.py'
+      - 'test_four_mode_position_sensitive_forward.py'
+      - 'research/four_mode_position_sensitive_forward_protocol_20261108.json'
+      - 'docs/research/four_mode_position_sensitive_shadow_20261108.md'
+      - '.github/workflows/position-sensitive-four-mode-shadow.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  research-only-shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify registered selector and baseline source blobs
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          policy = json.loads(Path("research/four_mode_position_sensitive_forward_protocol_20261108.json").read_bytes())
+          def git_blob_sha(path):
+              raw = Path(path).read_bytes()
+              header = b"blob " + str(len(raw)).encode("ascii") + b"\0"
+              return hashlib.sha1(header + raw).hexdigest()
+
+          checks = {
+              "candidate_selector_git_blob_sha1": "four_mode_position_sensitive_shadow.py",
+              "original_model_git_blob_sha1": "research_model.py",
+              "mode_selector_git_blob_sha1": "clean_four_modes.py",
+          }
+          for key, path in checks.items():
+              registered = policy.get(key)
+              observed = git_blob_sha(path)
+              if registered != observed:
+                  raise SystemExit(f"selector_blob_drift:{path}:registered={registered}:actual={observed}")
+          if (policy.get("schema") != "FOUR_MODE_POSITION_SENSITIVE_FORWARD_PREREGISTRATION_V1"
+                  or policy.get("registered_jst_date") != "2026-11-08"
+                  or policy.get("candidate_model") != "RESEARCH_POSITION_SENSITIVE_V1_UNCALIBRATED"
+                  or policy.get("factor_second_beta") != 0.5
+                  or policy.get("factor_third_beta") != 0.25
+                  or policy.get("eligible_deadline_start_jst") != "2026-11-09T00:00:00+09:00"
+                  or policy.get("eligible_deadline_end_jst") != "2026-12-31T23:59:59+09:00"
+                  or policy.get("pilot_races") != 300
+                  or policy.get("confirmation_races") != 300
+                  or policy.get("formal") is not False
+                  or policy.get("model_improvement_proven") is not False
+                  or policy.get("promotion_allowed") is not False):
+              raise SystemExit("position_sensitive_protocol_drift")
+          print("POSITION_SENSITIVE_PREREGISTRATION_BLOBS_VERIFIED")
+          PY
+      - name: Unit and negative regression tests
+        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference test_position_sensitive_feature_inventory test_position_sensitive_receipt_intake test_position_sensitive_t12_window_audit test_position_sensitive_append_only_research test_position_sensitive_ledger_history_audit test_position_sensitive_remote_observer test_position_sensitive_manual_publisher test_position_sensitive_manual_server_chronology test_position_sensitive_manual_ancestry test_position_sensitive_live_roster_audit test_position_sensitive_public_comment_witness test_position_sensitive_future_topk_exposure test_position_sensitive_candidate_delivery_gap test_position_sensitive_candidate_batch_export test_position_sensitive_schedule_run_inventory test_position_sensitive_run_job_reconcile test_position_sensitive_original_publication_audit
+      - name: Confirm forward protocol has no eligible captures or certification
+        run: python four_mode_position_sensitive_forward.py
+      - name: Explicit zero-future-data paired guard is NOT certification
+        run: |
+          python position_sensitive_paired_guard.py | tee position_paired_guard_unstarted.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('position_paired_guard_unstarted.json').read_text())
+          if (report.get('confirmed_forward_reference_samples') != 0
+                  or report.get('promotion_allowed') is not False
+                  or report.get('model_improvement_proven') is not False
+                  or report.get('formal') is not False):
+              raise SystemExit('paired_guard_must_be_noncertifying')
+          print('POSITION_SENSITIVE_PAIRED_GUARD_UNSTARTED_SAFE')
+          PY
+      - name: Exact paired hypothesis diagnostic cannot certify empty forward cohort
+        run: |
+          python position_sensitive_paired_inference.py | tee position_paired_inference_unstarted.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('position_paired_inference_unstarted.json').read_text())
+          if (report.get('reference_confirmed_confirmation_races') != 0
+                  or report.get('formal') is not False
+                  or report.get('promotion_allowed') is not False
+                  or report.get('model_improvement_proven') is not False):
+              raise SystemExit('paired_inference_must_be_noncertifying')
+          print('POSITION_SENSITIVE_EXACT_PAIRED_INFERENCE_NOT_CERTIFIED')
+          PY
+      - name: Intake preflight cannot certify nonexistent next-day remote candidate
+        run: |
+          python position_sensitive_receipt_intake.py | tee position_receipt_intake_unstarted.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(Path('position_receipt_intake_unstarted.json').read_text())
+          if (p.get('status') != 'no_actual_future_candidate_or_remote_observation_supplied'
+                  or p.get('verified_future_candidate_receipts') != 0
+                  or p.get('formal') is not False
+                  or p.get('production_changed') is not False
+                  or p.get('promotion_allowed') is not False):
+              raise SystemExit('false_future_candidate_remote_receipt')
+          print('POSITION_SENSITIVE_REMOTE_CANDIDATE_INTAKE_FAIL_CLOSED')
+          PY
+      - name: Candidate append-only remote adapter must remain disabled
+        run: |
+          python position_sensitive_append_only_research.py | tee position_append_only_unstarted.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('position_append_only_unstarted.json').read_text())
+          if (data.get("status") != "adapter_uninstalled_no_live_publisher" or
+                  data.get("actual_candidate_publications") != 0 or
+                  data.get("formal") is not False or
+                  data.get("promotion_allowed") is not False or
+                  data.get("production_changed") is not False):
+              raise SystemExit("research_append_only_adapter_must_not_be_live")
+          print("POSITION_SENSITIVE_APPEND_ONLY_ADAPTER_NOT_INSTALLED")
+          PY
+      - name: Audit isolated research ledger remote Git history (read only)
+        run: |
+          python position_sensitive_ledger_history_audit.py --branch-ref refs/remotes/origin/position-sensitive-forward-evidence-ledger --original-ref refs/remotes/origin/main | tee position_ledger_history_audit.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d = json.loads(Path("position_ledger_history_audit.json").read_text())
+          if (d.get("status") != "linear_create_only_history_local_git_view_only"
+                  or d.get("base_commit_sha") != "6b371040fd2fc4398bfa882e6557c333cc0800c8"
+                  or d.get("candidate_original_exact_replays") != d.get("candidate_files")
+                  or d.get("candidate_first_remote_receipts_independently_verified") != 0
+                  or d.get("formal") is not False
+                  or d.get("model_improvement_proven") is not False
+                  or d.get("promotion_allowed") is not False
+                  or d.get("production_changed") is not False):
+              raise SystemExit("research_ledger_history_invalid_or_falsely_certified")
+          print(f"POSITION_SENSITIVE_REMOTE_LEDGER_HISTORY_AUDITED:files={d['candidate_files']}")
+          PY
+      - name: No future candidate HTTP witness when not invoked
+        run: |
+          python position_sensitive_remote_observer.py | tee position_remote_observer_unstarted.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('position_remote_observer_unstarted.json').read_text())
+          if (p.get('status') != 'not_invoked_no_candidate_observation' or
+                  p.get('independent_candidate_first_remote_receipt_verified') is not False or
+                  p.get('formal') is not False or
+                  p.get('promotion_allowed') is not False or
+                  p.get('production_changed') is not False):
+              raise SystemExit('remote_witness_falsely_attested')
+          print('POSITION_SENSITIVE_REMOTE_HTTP_OBSERVER_NOT_INVOKED')
+          PY
+      - name: Actual read-only GitHub server-Date observations for all saved pre-T12 research candidates
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python position_sensitive_live_roster_audit.py --live --output position_candidate_live_roster_observation.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          history=json.loads(Path("position_ledger_history_audit.json").read_text())
+          report=json.loads(Path("position_candidate_live_roster_observation.json").read_text())
+          counts=report.get("status_counts",{})
+          if (report.get("status") != "whole_remote_ledger_snapshot_observed_nonformal"
+                  or report.get("candidate_files") != history["candidate_files"]
+                  or report.get("candidate_original_exact_replays") != history["candidate_original_exact_replays"]
+                  or report.get("fetched_research_branch_tip") != history["observed_branch_commit_sha"]
+                  or sum(counts.values()) != report["candidate_files"]
+                  or report.get("candidate_first_remote_receipts_independently_verified") != 0
+                  or report.get("formal") is not False
+                  or report.get("promotion_allowed") is not False
+                  or report.get("model_improvement_proven") is not False
+                  or report.get("production_changed") is not False):
+              raise SystemExit("whole_research_ledger_observation_not_safe")
+          print("POSITION_SENSITIVE_WHOLE_LEDGER_ROWS_NONFORMAL=" +
+                json.dumps([{
+                    "race_code": row["race_code"],
+                    "status": row["status"],
+                    "observed_at_utc": row.get("observed_at_utc"),
+                    "candidate_sha256": row["candidate_sha256"],
+                } for row in report["rows"]], sort_keys=True))
+          print("POSITION_SENSITIVE_WHOLE_LEDGER_LIVE_HTTP_OBSERVED=" +
+                json.dumps({"candidates": report["candidate_files"],
+                            "status_counts": counts,
+                            "first_remote_attested": 0}, sort_keys=True))
+          PY
+      - name: Cross-check public GitHub comment checkpoint pre-T12, never first receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python position_sensitive_public_comment_witness.py --live --output position_public_comment_checkpoint.json
+          python - <<'PY'
+          import json
+          from datetime import datetime, timedelta
+          from pathlib import Path
+          row=json.loads(Path("position_public_comment_checkpoint.json").read_text())
+          report=json.loads(Path("position_candidate_live_roster_observation.json").read_text())
+          rows={r["race_code"]:r for r in report["rows"]}
+          race="202611091912"
+          if (row.get("status") != "github_public_comment_claim_time_before_T12_nonformal"
+                  or race not in rows
+                  or row.get("candidate_sha256") != rows[race]["candidate_sha256"]
+                  or row.get("comment_currently_unedited") is not True
+                  or row.get("comment_is_immutable") is not False
+                  or row.get("independent_candidate_first_remote_receipts_verified") != 0
+                  or row.get("formal") is not False
+                  or row.get("promotion_allowed") is not False
+                  or row.get("production_changed") is not False):
+              raise SystemExit("public_comment_checkpoint_invalid_or_false_certification")
+          if not datetime.fromisoformat(row["comment_created_at_utc"]) < datetime.fromisoformat(row["T_minus_12_jst"]):
+              raise SystemExit("public_comment_not_created_before_T12")
+          print("POSITION_SENSITIVE_UNEDITED_PUBLIC_CHECKPOINT_PRET12_NONFORMAL=" + race)
+          PY
+      - name: Live ledger per-race Top1 3 5 10 paired ticket exposure WITHOUT results
+        run: |
+          python position_sensitive_future_topk_exposure.py --ledger-ref refs/remotes/origin/position-sensitive-forward-evidence-ledger --original-ref refs/remotes/origin/main --output position_future_paired_exposure.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("position_future_paired_exposure.json").read_text())
+          history=json.loads(Path("position_ledger_history_audit.json").read_text())
+          live=json.loads(Path("position_candidate_live_roster_observation.json").read_text())
+          checkpoint=json.loads(Path("position_public_comment_checkpoint.json").read_text())
+          by_code={x["race_code"]:x for x in p["rows"]}
+          if (p.get("status") != "future_research_candidate_outcome_blind_exposure_only"
+                  or p.get("candidate_files") != history["candidate_files"]
+                  or p.get("candidate_files") != live["candidate_files"]
+                  or p.get("same_race_pairs_validated") != p["candidate_files"]
+                  or checkpoint["race_code"] not in by_code
+                  or by_code[checkpoint["race_code"]]["candidate_sha256"] != checkpoint["candidate_sha256"]
+                  or p.get("outcome_files_read") != 0
+                  or p.get("actual_hit_rates_calculated") is not False
+                  or p.get("candidate_first_remote_receipts_independently_verified") != 0
+                  or p.get("formal") is not False
+                  or p.get("model_improvement_proven") is not False
+                  or p.get("promotion_allowed") is not False
+                  or p.get("production_changed") is not False):
+              raise SystemExit("future_paired_exposure_false_proof_or_roster_drift")
+          print("POSITION_SENSITIVE_FUTURE_PAIR_OUTCOME_BLIND=" + json.dumps(
+              {"candidates":p["candidate_files"], "mode":p["by_mode"]},sort_keys=True))
+          PY
+      - name: Full-day original-to-candidate delivery gap is not a forward sample
+        run: |
+          python position_sensitive_candidate_delivery_gap.py --day 20261109 --output position_candidate_delivery_gap.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("position_candidate_delivery_gap.json").read_text())
+          history=json.loads(Path("position_ledger_history_audit.json").read_text())
+          if (d.get("status") != "pinned_local_git_original_to_candidate_gap_nonformal"
+                  or d.get("day_jst") != "20261109"
+                  or d.get("main_git_snapshot_sha") is None
+                  or d.get("ledger_git_snapshot_sha") != history.get("observed_branch_commit_sha")
+                  or d.get("candidate_files_on_day") > history.get("candidate_files", -1)
+                  or d.get("candidate_exact_original_replays") != d.get("candidate_files_on_day")
+                  or d.get("eligible_original_exact_replays", -1) < d.get("candidate_files_on_day", 0)
+                  or d.get("candidate_first_remote_receipts_independently_verified") != 0
+                  or d.get("formal_forward_eligible_races") != 0
+                  or d.get("official_beforeinfo_exhibition_six_odds120_verified") is not False
+                  or d.get("complete_capture_and_rescue_run_inventory_verified") is not False
+                  or d.get("model_improvement_proven") is not False
+                  or d.get("promotion_allowed") is not False
+                  or d.get("production_changed") is not False):
+              raise SystemExit("false_candidate_delivery_to_formal_promotion")
+          n=d["eligible_original_exact_replays"]
+          c=d["candidate_exact_original_replays"]
+          print("POSITION_SENSITIVE_NOV09_DELIVERY_STATUSES="+json.dumps(d["status_counts"],sort_keys=True))
+          print("POSITION_SENSITIVE_NOV09_OPEN_MISSING_CODES="+json.dumps(d["open_missing_race_examples"]))
+          print("POSITION_SENSITIVE_NOV09_INVALID_ORIGINALS="+str(len(d["invalid_original_files"])))
+          print(f"POSITION_SENSITIVE_NOV09_ORIGINAL_TO_CANDIDATE_DELIVERY:{c}/{n};NOT_FORMAL")
+          PY
+      - name: Prepare safe non-publishing batch candidate exports from eligible saved originals
+        run: |
+          python position_sensitive_candidate_batch_export.py --day 20261109 --output position_candidate_batch_local.json --emit-candidate-lines
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("position_candidate_batch_local.json").read_text())
+          d=json.loads(Path("position_candidate_delivery_gap.json").read_text())
+          if (p.get("schema") != "POSITION_SENSITIVE_BATCH_LOCAL_EXPORT_V1"
+                  or p.get("main_git_snapshot_sha") != d.get("main_git_snapshot_sha")
+                  or p.get("ledger_git_snapshot_sha") != d.get("ledger_git_snapshot_sha")
+                  or p.get("source_to_candidate_roster_sha256") != d.get("pinned_snapshot_roster_sha256")
+                  # The CI clock may advance across the two independent
+                  # snapshots; original and previously saved counts must not.
+                  or p.get("original_exact_replays") != d.get("eligible_original_exact_replays")
+                  or p.get("previously_saved_candidates") != d.get("candidate_exact_original_replays")
+                  or p.get("candidate_first_remote_receipts_independently_verified") != 0
+                  or p.get("formal_forward_eligible_races") != 0
+                  or p.get("formal") is not False
+                  or p.get("promotion_allowed") is not False
+                  or p.get("production_changed") is not False):
+              raise SystemExit("unsafe_batch_export_or_snapshot_drift")
+          for row in p.get("candidates", []):
+              if row["race_code"] not in {
+                  r["race_code"] for r in d["per_race_complete_saved_original_roster"]
+                  if r["status"] == "missing_candidate_local_window_still_open"
+              }:
+                  raise SystemExit("unexpected_batch_candidate_outside_open_roster")
+          print("POSITION_SENSITIVE_OFFLINE_BATCH_CANDIDATES="+str(p["planned_local_only"])+";NO_GITHUB_WRITE")
+          PY
+      - name: Verify source cron slots against read-only pinned main without remote Actions queries
+        run: |
+          python - <<'PY'
+          import subprocess
+          from position_sensitive_schedule_run_inventory import _source_schedule
+          raw=subprocess.check_output([
+            "git","show",
+            "refs/remotes/origin/main:.github/workflows/four-mode-prospective-capture.yml"
+          ])
+          _source_schedule(raw)
+          print("POSITION_SENSITIVE_MAIN_CRON_56_SLOTS_READONLY")
+          PY
+          python position_sensitive_schedule_run_inventory.py | tee position_schedule_inventory_unstarted.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("position_schedule_inventory_unstarted.json").read_text())
+          if (d.get("status") != "schedule_run_inventory_not_invoked" or
+                  d.get("first_remote_candidate_receipts_verified") != 0 or
+                  d.get("complete_scheduled_and_rescue_run_inventory_verified") is not False or
+                  d.get("formal") is not False or
+                  d.get("promotion_allowed") is not False or
+                  d.get("production_changed") is not False):
+              raise SystemExit("false_cron_gap_to_actual_failure_or_formal_proof")
+          print("POSITION_SENSITIVE_SCHEDULE_READONLY_NOT_CLAIMING_MISSED_RUNS")
+          PY
+      - name: Live read-only scheduled and manual Actions run plus job evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python position_sensitive_schedule_run_inventory.py --live --output position_schedule_run_live.json
+          python position_sensitive_run_job_reconcile.py --inventory position_schedule_run_live.json --live --output position_schedule_jobs_live.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path("position_schedule_run_live.json").read_text())
+          b=json.loads(Path("position_schedule_jobs_live.json").read_text())
+          if (a.get("live_readonly_github_api_invoked") is not True
+                  or a.get("api_result_pagination_complete_for_supplied_window") is not True
+                  or a.get("expected_slots_for_full_day") != 56
+                  or a.get("manual_dispatch_api_checked") is not True
+                  or a.get("run_to_exact_cron_slot_attribution_verified") is not False
+                  or b.get("status") != "actions_jobs_read_only_confirmed_nonformal"
+                  or b.get("matching_schedule_runs") != a.get("observed_matching_four_mode_scheduled_runs")
+                  or b.get("matching_manual_dispatch_runs") != a.get("observed_matching_four_mode_manual_dispatch_runs")
+                  or b.get("individual_run_jobs_verified") !=
+                      (b.get("matching_schedule_runs",0)+b.get("matching_manual_dispatch_runs",0))
+                  or b.get("run_to_cron_slot_mapping_verified") is not False
+                  or b.get("complete_scheduled_and_rescue_run_inventory_verified") is not False
+                  or b.get("candidate_first_remote_receipts_independently_verified") != 0
+                  or b.get("formal") is not False
+                  or b.get("model_improvement_proven") is not False
+                  or b.get("promotion_allowed") is not False
+                  or b.get("production_changed") is not False):
+              raise SystemExit("live_cron_job_report_wrong_or_falsely_certified")
+          print("POSITION_SENSITIVE_LIVE_CRON_CREATED_RUNS=" +
+                str(a["observed_matching_four_mode_scheduled_runs"]))
+          print("POSITION_SENSITIVE_LIVE_MANUAL_CREATED_RUNS=" +
+                str(a["observed_matching_four_mode_manual_dispatch_runs"]))
+          print("POSITION_SENSITIVE_LIVE_CAPTURE_JOBS_SUCCESS_SCHEDULE=" +
+                str(b["matching_schedule_capture_jobs_success"]))
+          print("POSITION_SENSITIVE_LIVE_CAPTURE_JOBS_SUCCESS_MANUAL=" +
+                str(b["matching_manual_main_capture_jobs_success"]))
+          print("POSITION_SENSITIVE_LIVE_SCHEDULE_ELAPSED_SLOTS=" +
+                str(a["scheduled_slots_elapsed"]))
+          print("POSITION_SENSITIVE_LIVE_NO_FIRST_RECEIPT_CERTIFICATION")
+          PY
+      - name: Capture job log-to-published-file audit defaults to no log and no network
+        run: |
+          python position_sensitive_original_publication_audit.py | tee position_original_publication_unstarted.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          v=json.loads(Path("position_original_publication_unstarted.json").read_text())
+          if (v.get("status") != "no_authenticated_capture_job_log_supplied"
+                  or v.get("candidate_first_remote_receipts_verified") != 0
+                  or v.get("formal") is not False
+                  or v.get("promotion_allowed") is not False
+                  or v.get("production_changed") is not False):
+              raise SystemExit("publication_log_audit_cannot_claim_proof_without_log")
+          print("POSITION_SENSITIVE_ORIGINAL_PUBLICATION_LOG_AUDIT_UNSTARTED_SAFE")
+          PY
+      - name: Manual research publisher defaults to disabled and no network
+        run: |
+          python position_sensitive_manual_publisher.py | tee position_manual_publisher_unstarted.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('position_manual_publisher_unstarted.json').read_text())
+          if (p.get('status') != 'manual_publisher_disabled_no_network'
+                  or p.get('publication_count') != 0
+                  or p.get('formal') is not False
+                  or p.get('promotion_allowed') is not False
+                  or p.get('production_changed') is not False):
+              raise SystemExit('manual_publisher_falsely_enabled_or_certified')
+          print('POSITION_SENSITIVE_MANUAL_PUBLISHER_DISABLED')
+          PY
+      - name: Read-only replay of original Nov-08 frozen archive inputs
+        run: |
+          python four_mode_position_sensitive_shadow.py --day 20261108 | tee position_shadow_input_only.json
+      - name: Assert 116 saved Nov8 V2 inputs reproduced without results
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("position_shadow_input_only.json").read_text(encoding="utf-8"))
+          n = report.get("archived_files")
+          if (report.get("day_jst") != "20261108"
+                  or type(n) is not int or n < 116
+                  or report.get("compared") != n
+                  or report.get("excluded") != 0
+                  or report.get("status") != "historical_input_only_shadow_diagnostic"
+                  or report.get("formal") is not False
+                  or report.get("research_only") is not True
+                  or report.get("production_forecast") is not False
+                  or report.get("forward_holdout_scored") != 0
+                  or report.get("first_remote_receipt_verified") is not False
+                  or report.get("model_improvement_proven") is not False):
+              raise SystemExit("position_shadow_replay_or_result_leakage")
+          for mode, row in report.get("by_mode", {}).items():
+              if row.get("top1_changed", -1) < 0 or row.get("first_boat_changed", -1) < 0:
+                  raise SystemExit(f"invalid_position_exposure:{mode}")
+              if row["first_boat_changed"] > row["top1_changed"]:
+                  raise SystemExit(f"impossible_head_change:{mode}")
+          if set(report.get("by_mode", {})) != {"narrow", "hit", "balance", "hole"}:
+              raise SystemExit("missing_mode_exposure")
+          print(f"POSITION_SENSITIVE_RESULT_BLIND_REPLAY_VERIFIED:{n}/{n}")
+          PY
+      - name: Read-only same-race Top1 3 5 10 turnover exposure
+        run: python position_sensitive_topk_exposure_audit.py --day 20261108 | tee position_shadow_topk_exposure.json
+      - name: Assert outcome-blind TopK pairs and original replay agree
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a = json.loads(Path("position_shadow_input_only.json").read_text(encoding="utf-8"))
+          b = json.loads(Path("position_shadow_topk_exposure.json").read_text(encoding="utf-8"))
+          n = a["compared"]
+          if (b.get("status") != "historical_result_blind_topk_exposure"
+                  or b.get("archived_files") != a["archived_files"]
+                  or b.get("compared") != n or b.get("excluded") != 0
+                  or b.get("formal") is not False
+                  or b.get("research_only") is not True
+                  or b.get("forward_holdout_scored") != 0
+                  or b.get("first_remote_receipt_verified") is not False
+                  or b.get("model_improvement_proven") is not False
+                  or b.get("production_forecast_changed") is not False):
+              raise SystemExit("outcome_blind_topk_contract_failed")
+          for mode in ("narrow", "hit", "balance", "hole"):
+              row = b["by_mode"][mode]
+              if row["top1_changed"] != a["by_mode"][mode]["top1_changed"]:
+                  raise SystemExit(f"baseline_top1_exposure_mismatch:{mode}")
+              if row["topn"]["5"]["membership_changed_races"] != a["by_mode"][mode]["top5_membership_changed"]:
+                  raise SystemExit(f"baseline_top5_exposure_mismatch:{mode}")
+              for k in (1, 3, 5, 10):
+                  q = row["topn"][str(k)]
+                  if mode == "narrow" and k == 10:
+                      if (q.get("applicable") is not False or
+                              q.get("mode_ticket_budget") != 5):
+                          raise SystemExit("narrow_top10_must_be_not_applicable")
+                      continue
+                  if q.get("applicable") is not True:
+                      raise SystemExit(f"unexpected_topn_not_applicable:{mode}:{k}")
+                  hist = q["retained_tickets_histogram"]
+                  if sum(hist.values()) != n or not 0 <= q["total_displaced_ticket_slots"] <= k*n:
+                      raise SystemExit(f"topk_overlap_partition_invalid:{mode}:{k}")
+          print(f"POSITION_SENSITIVE_SAME_RACE_TOPK_EXPOSURE_VALIDATED:{n}/{n};NO_ACCURACY_CLAIM")
+          PY
+      - name: Read-only archive feature coverage without official/T12 claims
+        run: |
+          python position_sensitive_feature_inventory.py --day 20261108 | tee position_shadow_feature_inventory.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a = json.loads(Path('position_shadow_input_only.json').read_text())
+          b = json.loads(Path('position_shadow_feature_inventory.json').read_text())
+          if (b.get('archived_files') != a['archived_files']
+                  or b.get('compared') != a['compared']
+                  or b.get('excluded') != 0
+                  or b.get('recorded_top_level_feature_counts', {}).get(
+                      'national_win_rates_six') != a['compared']
+                  or b.get('formal') is not False
+                  or b.get('formal_official_beforeinfo_six_odds120_verified') is not False
+                  or b.get('independent_candidate_first_remote_receipt_verified') is not False
+                  or b.get('model_improvement_proven') is not False):
+              raise SystemExit('feature_inventory_or_official_claim_invalid')
+          print(f"POSITION_SENSITIVE_FEATURE_COVERAGE_READONLY:{b['compared']}/{b['archived_files']}")
+          PY
+      - name: Original generation to T12 theoretical window only
+        run: |
+          python position_sensitive_t12_window_audit.py --day 20261108 | tee position_shadow_t12_windows.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path("position_shadow_input_only.json").read_text())
+          b=json.loads(Path("position_shadow_t12_windows.json").read_text())
+          if (b.get("compared") != a["compared"] or
+                  b.get("excluded") != 0 or
+                  b.get("actual_candidate_publications") != 0 or
+                  b.get("independent_remote_candidate_receipts_verified") is not False or
+                  b.get("formal") is not False or
+                  b.get("promotion_allowed") is not False):
+              raise SystemExit("false_theoretical_T12_to_remote_attestation")
+          print("POSITION_SENSITIVE_T12_WINDOW_THEORY_ONLY:" + str(b["compared"]))
+          PY
+      - name: Upload diagnostic (not accuracy or certification)
+        uses: actions/upload-artifact@v4
+        with:
+          name: position-sensitive-input-only-${{ github.run_id }}
+          path: |
+            position_shadow_input_only.json
+            position_shadow_topk_exposure.json
+            position_paired_guard_unstarted.json
+            position_paired_inference_unstarted.json
+            position_shadow_feature_inventory.json
+            position_receipt_intake_unstarted.json
+            position_remote_observer_unstarted.json
+            position_manual_publisher_unstarted.json
+            position_append_only_unstarted.json
+            position_ledger_history_audit.json
+            position_candidate_live_roster_observation.json
+            position_public_comment_checkpoint.json
+            position_future_paired_exposure.json
+            position_candidate_delivery_gap.json
+            position_schedule_inventory_unstarted.json
+            position_schedule_run_live.json
+            position_schedule_jobs_live.json
+            position_original_publication_unstarted.json
+            position_candidate_batch_local.json
+            position_shadow_t12_windows.json
+          retention-days: 30
