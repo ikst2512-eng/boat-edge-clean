@@ -1039,10 +1039,12 @@ jobs:
           set -euo pipefail
           # Pin the separate writer PR's source exactly; no import from
           # mutable main or the unreviewed moving #1746 branch.
-          git fetch --no-tags --depth=1 origin 19ba22303cd01fc61f4efe23583b97f79b4492b2
+          git fetch --no-tags --depth=1 origin 737bff0fac759f5260326cad457c39e6956dec3f
           mkdir -p "$RUNNER_TEMP/official1746"
-          git show 19ba22303cd01fc61f4efe23583b97f79b4492b2:scripts/audit_official_forecast_consumption.py > "$RUNNER_TEMP/official1746/audit_official_forecast_consumption.py"
+          git show 737bff0fac759f5260326cad457c39e6956dec3f:scripts/audit_official_forecast_consumption.py > "$RUNNER_TEMP/official1746/audit_official_forecast_consumption.py"
+          git show 737bff0fac759f5260326cad457c39e6956dec3f:scripts/persist_official_research_bundle.py > "$RUNNER_TEMP/official1746/persist_official_research_bundle.py"
           test "$(git hash-object "$RUNNER_TEMP/official1746/audit_official_forecast_consumption.py")" = "3b42632188572708dc7a62bef9ca4519c4610297"
+          test "$(git hash-object "$RUNNER_TEMP/official1746/persist_official_research_bundle.py")" = "99c8cc9ad2a1d9c3b3e89196735b375eef4f484b"
           python - <<'PY'
           import importlib.util,json,os
           from datetime import datetime,timedelta
@@ -1053,6 +1055,11 @@ jobs:
           spec=importlib.util.spec_from_file_location("read_only_pinned_1746",file)
           writer_source=importlib.util.module_from_spec(spec)
           spec.loader.exec_module(writer_source)
+          import base64
+          writer_path=Path(os.environ["RUNNER_TEMP"])/"official1746"/"persist_official_research_bundle.py"
+          writer_spec=importlib.util.spec_from_file_location("pinned_1746_git_writer",writer_path)
+          transport=importlib.util.module_from_spec(writer_spec)
+          writer_spec.loader.exec_module(transport)
           # Four independently frozen archive originals; preceding step has
           # already checked their ZIP bytes, CRC, path isolation and 12/12.
           tmp=Path(os.environ["RUNNER_TEMP"])
@@ -1089,6 +1096,48 @@ jobs:
                   assert set(manifest["official_sources"])=={"racelist","beforeinfo","odds"}
                   assert all(v["sha256"] and v["bytes"]>0
                              for v in manifest["official_sources"].values())
+                  # Model-source bytes are real and HASH checked. The next
+                  # transport test uses a LOCAL stub, NEVER a GitHub write.
+                  raw=(folders[0]/"racelist.html").read_bytes()
+                  remote_path=("official_source_forecast_bundles/"
+                               +race[:8]+"/"+race+".json")
+                  encoded=base64.b64encode(raw).decode("ascii")
+                  folded="\\n".join(encoded[k:k+76] for k in range(0,len(encoded),76))
+                  def mock_getter(method,path,token,data=None):
+                      assert method=="GET" and data is None and path==remote_path
+                      return 200,{"encoding":"base64","content":folded,
+                                  "sha":transport.blob_sha(raw)}
+                  assert transport.readback(remote_path,"offline",getter=mock_getter)==raw
+                  def bad_getter(method,path,token,data=None):
+                      code,item=mock_getter(method,path,token,data)
+                      return code,dict(item,content=item["content"]+"@")
+                  try:
+                      transport.readback(remote_path,"offline",getter=bad_getter)
+                  except RuntimeError as exc:
+                      assert str(exc)=="remote_readback_invalid_base64"
+                  else:
+                      raise AssertionError("malformed_github_base64_accepted")
+                  fake_commit="a"*40
+                  def fake_added(sha,token):
+                      assert sha==fake_commit
+                      return {"sha":sha,"files":[{
+                          "filename":remote_path,"status":"added",
+                          "sha":transport.blob_sha(raw)}]}
+                  assert transport.verify_commit_initial_add(
+                      fake_commit,remote_path,raw,"offline",
+                      commit_fetcher=fake_added)["git_commit_added_path_verified"] is True
+                  def fake_modified(sha,token):
+                      claim=fake_added(sha,token)
+                      claim["files"][0]["status"]="modified"
+                      return claim
+                  try:
+                      transport.verify_commit_initial_add(
+                          fake_commit,remote_path,raw,"offline",
+                          commit_fetcher=fake_modified)
+                  except RuntimeError as exc:
+                      assert str(exc)=="git_initial_add_file_status_mismatch"
+                  else:
+                      raise AssertionError("modified_commit_promoted_to_first_add")
                   cutoff=writer_source.jst(manifest["cutoff_jst"])
                   actual_now=datetime.now(JST)
                   assert actual_now>=cutoff, "historical-target-must-have-ended"
@@ -1107,6 +1156,10 @@ jobs:
                       "historical_actual_clock_after_T12":True,
                       "method_future_prediction_executed":False,
                       "historical_backfill_candidate_created":False,
+                      "raw_readback_transport_contract":True,
+                      "malformed_base64_rejected":True,
+                      "git_commit_modified_rejected_as_first_add":True,
+                      "remote_readback_or_commit_performed":False,
                       "originals_or_commit_written":False,
                       "official_first_remote_receipt_verified":False,
                       "formal":False,"production_changed":False},sort_keys=True))
