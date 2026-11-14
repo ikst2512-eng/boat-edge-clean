@@ -9,6 +9,8 @@ on:
     paths:
       - clean_four_mode_capture.py
       - capture_restored_scenario.py
+      - capture_v133_policy.py
+      - test_capture_v133_policy.py
       - test_capture_restored_scenario.py
       - legacy_scenario_engine.py
       - legacy_v133_reference_engine.py
@@ -75,7 +77,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Verify four-mode capture and receipts
-        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts test_four_mode_raw_receipt test_audit_four_mode_raw_receipts test_link_four_mode_raw_forecast test_audit_new_v2_staged test_hole_shadow_same_job_capture test_hole_shadow_prospective_gate test_third_rate_same_job_capture test_third_rate_evidence_ledger test_four_mode_github_server_observation test_four_mode_github_server_observation_ledger test_four_mode_remote_evidence_end_to_end test_verify_four_mode_capture_evidence test_four_mode_workflow_shell_syntax tests.test_four_mode_source_link_scope test_forecast_strategy_contract test_capture_restored_scenario test_legacy_v133_reference_engine test_original_v133_primary_contract test_v133_http_json_contract
+        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts test_four_mode_raw_receipt test_audit_four_mode_raw_receipts test_link_four_mode_raw_forecast test_audit_new_v2_staged test_hole_shadow_same_job_capture test_hole_shadow_prospective_gate test_third_rate_same_job_capture test_third_rate_evidence_ledger test_four_mode_github_server_observation test_four_mode_github_server_observation_ledger test_four_mode_remote_evidence_end_to_end test_verify_four_mode_capture_evidence test_four_mode_workflow_shell_syntax tests.test_four_mode_source_link_scope test_forecast_strategy_contract test_capture_restored_scenario test_capture_v133_policy test_legacy_v133_reference_engine test_original_v133_primary_contract test_v133_http_json_contract
   capture:
     # workflow_dispatch can target a feature branch. Never let it enter the
     # privileged forecast-publication path or attempt git push HEAD:main.
@@ -417,62 +419,77 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify original scenario guards before capture
-        run: python -m unittest -v test_legacy_scenario_engine test_capture_restored_scenario test_forecast_strategy_contract
+      - name: Verify original and new V133 source and frozen-provenance guards
+        run: python -m unittest -v test_legacy_scenario_engine test_capture_restored_scenario test_capture_v133_policy test_legacy_v133_reference_engine test_forecast_strategy_contract
       - name: Freeze available near-deadline scenario evidence
         run: python capture_restored_scenario.py
+      - name: Freeze new V133 policy predictions with verified actual racecard and exhibition
+        run: python capture_v133_policy.py
       - name: Commit and publish only safe new scenario snapshots
         shell: bash
         run: |
           set -euo pipefail
-          if ! git diff --quiet -- scenario_forecasts/ || ! git diff --cached --quiet -- scenario_forecasts/; then
+          if ! git diff --quiet -- scenario_forecasts/ v133_policy_forecasts/ || ! git diff --cached --quiet -- scenario_forecasts/ v133_policy_forecasts/; then
             echo "Previously tracked scenario evidence changed; refusing write" >&2
             exit 1
           fi
           python - <<'PY'
           import subprocess
-          from capture_restored_scenario import verify_snapshot
-          files = subprocess.check_output(
-              ["git", "ls-files", "--others", "--exclude-standard", "--", "scenario_forecasts/"],
-              text=True).splitlines()
-          valid = 0
-          for name in files:
-              if not name.endswith(".json"):
-                  continue
-              try:
-                  verify_snapshot(name)
-              except (ValueError, OSError, KeyError, TypeError) as exc:
-                  print("scenario snapshot held from publication:", name, str(exc)[:90])
-                  continue
-              subprocess.run(["git", "add", "--", name], check=True)
-              valid += 1
-          print("scenario candidates safely staged:", valid)
+          from capture_restored_scenario import verify_snapshot as verify_restored
+          from capture_v133_policy import verify_snapshot as verify_v133
+          staged = {"scenario_forecasts": 0, "v133_policy_forecasts": 0}
+          for folder, verifier in (
+              ("scenario_forecasts", verify_restored),
+              ("v133_policy_forecasts", verify_v133),
+          ):
+              names = subprocess.check_output(
+                  ["git", "ls-files", "--others", "--exclude-standard", "--", folder+"/"],
+                  text=True).splitlines()
+              for name in names:
+                  if not name.endswith(".json"):
+                      continue
+                  try:
+                      verifier(name)
+                  except (ValueError, OSError, KeyError, TypeError) as exc:
+                      print("research candidate held from publication:", name, str(exc)[:120])
+                      continue
+                  subprocess.run(["git", "add", "--", name], check=True)
+                  staged[folder] += 1
+          print("new scenario research safely staged:", staged)
           PY
           if git diff --cached --quiet; then
-            echo 'No safe new restored-scenario forecasts; leave V2 and history unchanged.'
+            echo 'No safe new scenario/V133 policy forecasts; leave V2 and history unchanged.'
             exit 0
           fi
           git config user.name 'scenario-capture-bot'
           git config user.email 'scenario-capture-bot@users.noreply.github.com'
-          git commit -m 'data: freeze restored scenario four-mode research (unvalidated)'
+          git commit -m 'data: freeze guarded V133 policy and scenario research (unvalidated)'
           for attempt in 1 2 3; do
             git fetch origin main
             git -c rebase.autoStash=true rebase origin/main
             python - <<'PY'
           import subprocess
-          from capture_restored_scenario import verify_snapshot
-          files = subprocess.check_output(
-              ["git", "diff-tree", "--no-commit-id", "--name-only", "--diff-filter=A", "-r", "HEAD", "--", "scenario_forecasts/"],
-              text=True).splitlines()
-          if not files:
-              raise SystemExit("No newly added scenario evidence in commit")
-          for name in files:
-              print("scenario pre-push checked:", verify_snapshot(name))
+          from capture_restored_scenario import verify_snapshot as verify_restored
+          from capture_v133_policy import verify_snapshot as verify_v133
+          total = 0
+          for folder, verifier in (
+              ("scenario_forecasts", verify_restored),
+              ("v133_policy_forecasts", verify_v133),
+          ):
+              names = subprocess.check_output(
+                  ["git", "diff-tree", "--no-commit-id", "--name-only",
+                   "--diff-filter=A", "-r", "HEAD", "--", folder+"/"],
+                  text=True).splitlines()
+              for name in names:
+                  print("fresh pre-push receipt checked:", verifier(name))
+                  total += 1
+          if total == 0:
+              raise SystemExit("No newly added scenario or V133 evidence in commit")
           PY
             if git push origin HEAD:main; then
               git fetch origin main
               git merge-base --is-ancestor HEAD FETCH_HEAD
-              echo 'Scenario research published; formal/independent first-seen remains unverified.'
+              echo 'Original/V133 policy research published; independent first-remote proof remains unverified.'
               exit 0
             fi
             if [ "$attempt" -eq 3 ]; then
