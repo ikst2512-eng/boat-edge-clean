@@ -1936,7 +1936,25 @@ async function loadOriginalV133Frozen(key,token,status,root){
  try{
   const response=await fetchTimed(url,{cache:'no-store'});
   if(!live())return true;
-  if(!response.ok)return false;
+  if(!response.ok){
+   root.replaceChildren();
+   if(response.status===422){
+    let reason='unverified_source';
+    try{
+     const failed=await response.json();
+     if(failed?.status==='past_race_not_recomputed')reason='past_race_not_recomputed';
+     else if(failed?.status==='unverified_source')reason='unverified_source';
+    }catch(_){}
+    status.textContent=reason==='past_race_not_recomputed'
+      ?'締切済みのレースは新規計算しません。保存原本がないためV127/V133予想は表示できません。'
+      :'V127/V133に必要な6艇・展示進入・取得時刻などの検証が不足。別の未検証モデルに自動切替しません。';
+   }else if(response.status===404){
+    status.textContent='V127/V133のレースカードまたは直前情報が未公開です。別の予想方式へ自動切替しません。';
+   }else{
+    status.textContent='V127/V133の予想APIが応答しません（HTTP '+response.status+'）。別方式に自動切替しません。';
+   }
+   return true;
+  }
   const d=await response.json();
   if(!(d.ok===true&&d.status==='live_old_v127_v133_reference_not_formal'&&
        d.model_version==='V127_V133_SOURCE_PORT_INPUT_GUARDED_REFERENCE_V1'&&
@@ -1952,7 +1970,13 @@ async function loadOriginalV133Frozen(key,token,status,root){
   root.append(evidence);
   status.textContent='V127/V133の元ロジックによる直前参考予想（未校正・未保存）。V2は比較欄。';
   return true;
- }catch(_){return false;}
+ }catch(_){
+  if(live()){
+   root.replaceChildren();
+   status.textContent='V127/V133の通信またはJSON検証に失敗。未検証モデルに自動切替しません。';
+  }
+  return true;
+ }
 }
 
 async function loadRestoredScenarioPreview(key,token){

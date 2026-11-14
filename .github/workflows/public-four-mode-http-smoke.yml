@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'scripts/smoke_four_mode_public_http.py'
+      - 'scripts/probe_live_v133_real.py'
+      - 'test_probe_live_v133_real.py'
       - '.github/workflows/public-four-mode-http-smoke.yml'
   push:
     branches: [main]
@@ -11,6 +13,8 @@ on:
       - 'server.py'
       - 'four_mode_archive_api.py'
       - 'scripts/smoke_four_mode_public_http.py'
+      - 'scripts/probe_live_v133_real.py'
+      - 'test_probe_live_v133_real.py'
       - '.github/workflows/public-four-mode-http-smoke.yml'
   workflow_dispatch:
 permissions:
@@ -26,3 +30,7 @@ jobs:
           python-version: '3.12'
       - name: Verify public Render four-mode page and read-only archive
         run: python scripts/smoke_four_mode_public_http.py
+      - name: Verify future-only live probe and observe one real race (read only)
+        run: |
+          python -m unittest -v test_probe_live_v133_real
+          python scripts/probe_live_v133_real.py
