@@ -1,0 +1,634 @@
+# PROPOSAL ONLY. This workflow lives in a separate Draft PR, not on main.
+# NEVER merge/enable without explicit manual security+research review.
+# No schedule or push; pull_request runs review tests only; no production change.
+name: Hole pair manual research gateway (NONFORMAL, review before enabling)
+on:
+  pull_request:
+    paths:
+      - .github/workflows/hole-pair-manual-gateway.yml
+      - docs/research/hole_pair_gateway_review_20261108.md
+  workflow_dispatch:
+    inputs:
+      capture_day_jst:
+        description: 'Current JST day YYYYMMDD (>=20261109); no backfill'
+        required: true
+        type: string
+      acknowledgement:
+        description: 'Type CAPTURE_UNVERIFIED_RESEARCH; only local artifact, never formal'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: hole-pair-manual-research-${{ inputs.capture_day_jst }}
+  cancel-in-progress: false
+jobs:
+  review_only:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Reject unattended capture and unpinned research execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          s = Path('.github/workflows/hole-pair-manual-gateway.yml').read_text()
+          header, jobs_text = s.split("\njobs:\n", 1)
+          triggers = header.split("\non:\n", 1)[1].split("\npermissions:\n", 1)[0]
+          event_names = re.findall(r"(?m)^  ([a-z_]+):$", triggers)
+          assert event_names == ['pull_request', 'workflow_dispatch'], event_names
+          parts = re.split(r"(?m)^  ([a-z_]+):\n", jobs_text)
+          assert parts[0] == ''
+          jobs = dict(zip(parts[1::2], parts[2::2]))
+          assert list(jobs) == ['review_only', 'capture'], list(jobs)
+          review, capture = jobs['review_only'], jobs['capture']
+          assert review.startswith("    if: github.event_name == 'pull_request'\n")
+          assert capture.startswith(
+              "    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'\n"
+          )
+          assert not re.search(r"(?m)^\s+python research/hole_pair_manual_capture\.py(?: |$)", review)
+          assert not re.search(r"(?m)^\s+- uses: actions/upload-artifact@", review)
+          assert re.search(r"(?m)^          ref: 464d1641a5c7b981248ab17ba5bdc42b7bfa698b$", capture)
+          assert capture.count('persist-credentials: false') == 1
+          assert re.search(r"(?m)^          persist-credentials: false$", review)
+          assert 'contents: read' in header and 'contents: write' not in header
+          assert 'contents: write' not in capture
+          assert 'CAPTURE_UNVERIFIED_RESEARCH' in capture
+          assert 'cancel-in-progress: false' in header
+          assert 'research_candidate_freeze.json' in capture
+          assert 're-run attempt rejected' in capture
+          assert 'GITHUB_RUN_ATTEMPT' in capture
+          assert 'invalid workflow run identity' in capture
+          # Execute the actual PRE-CHECKOUT shell guard with synthetic inputs.
+          # This never runs research code or reaches GitHub/Cloudflare APIs.
+          import os
+          import subprocess
+          from datetime import datetime, timezone, timedelta
+          preflight = capture.split(
+              '      - name: Verify deliberate current-day research capture BEFORE checkout\n', 1
+          )[1].split('      - name: Refuse later independent manual dispatch on the same JST day', 1)[0]
+          preflight = preflight.split('        run: |\n', 1)[1]
+          bash_script = '\n'.join(line[10:] for line in preflight.splitlines()) + '\n'
+          env = dict(os.environ)
+          env.update({
+              'DAY': datetime.now(timezone(timedelta(hours=9))).strftime('%Y%m%d'),
+              'ACK': 'CAPTURE_UNVERIFIED_RESEARCH',
+              'GITHUB_RUN_ID': '23456',
+              'GITHUB_RUN_ATTEMPT': '1',
+          })
+          def preflight_result(overrides):
+              return subprocess.run(
+                  ['bash', '-c', bash_script], env={**env, **overrides},
+                  capture_output=True, text=True, timeout=5,
+              )
+          assert preflight_result({}).returncode == 0
+          for overrides, expected_rc in (
+              ({'GITHUB_RUN_ATTEMPT': '2'}, 5),
+              ({'GITHUB_RUN_ATTEMPT': ''}, 5),
+              ({'GITHUB_RUN_ATTEMPT': '1x'}, 5),
+              ({'GITHUB_RUN_ID': '0'}, 5),
+              ({'GITHUB_RUN_ID': ''}, 5),
+              ({'ACK': 'INVALID_ACK'}, 2),
+              ({'DAY': '20261108'}, 2),
+          ):
+              result = preflight_result(overrides)
+              assert result.returncode == expected_rc, (overrides, result.returncode, result.stderr)
+          print('REVIEW_ONLY_GATE_PASS_synthetic_rerun_and_invalid_input_rejections')
+          competitors = (
+              '.github/workflows/hole-pair-manual-research-gateway.yml',
+              '.github/workflows/hole-future-pair-precommit.yml',
+          )
+          for competitor in competitors:
+              assert not Path(competitor).exists(), 'competing_gateway_present_in_merge_tree:' + competitor
+              assert competitor in capture, 'missing_live_competing_gateway_guard:' + competitor
+          assert 'git cat-file -e "origin/main:$competing"' in capture
+          assert 'test "$GITHUB_SHA" = "$(git rev-parse --verify refs/remotes/origin/main)"' in capture
+          assert 'main changed since manual dispatch' in capture
+          assert "'manifest_sha256': hashlib.sha256(raw).hexdigest()" in capture
+          assert "'github_run_id': run_id" in capture
+          assert "assert main_sha == os.environ['GITHUB_SHA'] == batch['source_main_commit']" in capture
+          assert 'test -s research_capture_provenance.json' in capture
+          assert 'research_capture_provenance.json' in capture
+          # Exercise the embedded provenance generator using synthetic bytes,
+          # not real race candidates, network, or workflow_dispatch.
+          import contextlib
+          import hashlib
+          import io
+          import json
+          import os
+          import tempfile
+          from unittest.mock import patch
+          marker = '      - name: Bind nonformal candidate manifest to exact workflow run and source commit\n'
+          snippet = capture.split(marker, 1)[1].split(
+              '      - name: Save both candidate manifest and local run provenance', 1
+          )[0]
+          snippet = snippet.split("          python - <<'PY'\n", 1)[1].split(
+              '\n          PY\n', 1
+          )[0]
+          script = '\n'.join(line[10:] for line in snippet.splitlines()) + '\n'
+          compiled = compile(script, '<nonformal-provenance>', 'exec')
+          saved_cwd = Path.cwd()
+          with tempfile.TemporaryDirectory() as tmp:
+              os.chdir(tmp)
+              try:
+                  main_sha = 'a' * 40
+                  research_sha = '464d1641a5c7b981248ab17ba5bdc42b7bfa698b'
+                  synthetic = {
+                      'source_main_commit': main_sha,
+                      'capture_day_jst': '20261109',
+                      'formal': False,
+                      'independent_first_receipt_verified': False,
+                      'eligible_forecasts_examined': 0,
+                      'source_snapshot_coverage': {
+                          'source_snapshot_race_coverage_complete': True,
+                          'entire_day_or_official_schedule_complete_verified': False,
+                          'snapshot_forecasts_examined': 0,
+                      },
+                  }
+                  raw = json.dumps(synthetic, sort_keys=True).encode()
+                  Path('research_candidate_freeze.json').write_bytes(raw)
+                  fake_env = {
+                      'GITHUB_SHA': main_sha,
+                      'GITHUB_REF': 'refs/heads/main',
+                      'GITHUB_EVENT_NAME': 'workflow_dispatch',
+                      'GITHUB_WORKFLOW_REF': 'test/repo/.github/workflows/hole-pair-manual-gateway.yml@refs/heads/main',
+                      'GITHUB_RUN_ID': '12345',
+                      'GITHUB_RUN_ATTEMPT': '1',
+                      'INPUT_CAPTURE_DAY_JST': '20261109',
+                  }
+                  def fake_git(argv, text=False):
+                      assert argv[:2] == ['git', 'rev-parse']
+                      return research_sha if argv[-1] == 'HEAD' else main_sha
+                  def exercise(env, batch):
+                      Path('research_candidate_freeze.json').write_bytes(batch)
+                      Path('research_capture_provenance.json').unlink(missing_ok=True)
+                      with patch.dict(os.environ, env), patch(
+                          'subprocess.check_output', side_effect=fake_git
+                      ), contextlib.redirect_stdout(io.StringIO()):
+                          exec(compiled, {'__name__': '__main__'})
+                  exercise(fake_env, raw)
+                  sidecar = json.loads(Path('research_capture_provenance.json').read_text())
+                  assert sidecar['manifest_sha256'] == hashlib.sha256(raw).hexdigest()
+                  assert sidecar['manifest_bytes'] == len(raw)
+                  assert sidecar['source_main_commit'] == main_sha
+                  assert sidecar['source_snapshot_forecasts_examined'] == 0
+                  assert sidecar['source_snapshot_race_census_reconciled_locally'] is True
+                  assert sidecar['entire_day_or_official_schedule_complete_verified'] is False
+                  assert sidecar['github_run_id'] == 12345
+                  assert sidecar['formal'] is False
+                  assert sidecar['independent_first_receipt_verified'] is False
+                  for bad_env, bad_raw in (
+                      ({**fake_env, 'GITHUB_SHA': 'b' * 40}, raw),
+                      (fake_env, json.dumps({**synthetic, 'formal': True}).encode()),
+                      (fake_env, json.dumps({
+                          **synthetic, 'source_snapshot_coverage': {
+                              **synthetic['source_snapshot_coverage'],
+                              'entire_day_or_official_schedule_complete_verified': True,
+                          },
+                      }).encode()),
+                      (fake_env, json.dumps({
+                          **synthetic, 'eligible_forecasts_examined': 1,
+                      }).encode()),
+                  ):
+                      try:
+                          exercise(bad_env, bad_raw)
+                      except AssertionError:
+                          assert not Path('research_capture_provenance.json').exists()
+                      else:
+                          raise AssertionError('provenance_fail_closed_negative_case_failed')
+              finally:
+                  os.chdir(saved_cwd)
+          print('REVIEW_ONLY_GATE_PASS_synthetic_provenance_positive_and_negative')
+          PY
+      - name: Exercise same-day manual dispatch history gate offline (synthetic only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import contextlib
+          import io
+          import json
+          import os
+          import urllib.parse
+          from datetime import datetime, timezone, timedelta
+          from pathlib import Path
+          from unittest.mock import patch
+
+          s = Path('.github/workflows/hole-pair-manual-gateway.yml').read_text()
+          capture = s.split('\n  capture:\n', 1)[1]
+          gate = capture.split(
+              '      - name: Refuse later independent manual dispatch on the same JST day (research-only)\n', 1
+          )[1].split('      - name: Checkout exact reviewed research implementation', 1)[0]
+          embedded = gate.split("          python - <<'PY'\n", 1)[1].split('\n          PY\n', 1)[0]
+          script = '\n'.join(line[10:] for line in embedded.splitlines()) + '\n'
+          compiled = compile(script, '<synthetic-same-day-dispatch-guard>', 'exec')
+          jst = timezone(timedelta(hours=9))
+          start = datetime.now(jst).replace(hour=0, minute=0, second=0, microsecond=0)
+          day = start.strftime('%Y%m%d')
+          created = (start + timedelta(minutes=30)).astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+          env = {
+              'GITHUB_REPOSITORY': 'ikst2512-eng/boat-edge-clean',
+              'GITHUB_EVENT_NAME': 'workflow_dispatch',
+              'GITHUB_REF': 'refs/heads/main',
+              'GITHUB_RUN_ATTEMPT': '1',
+              'GITHUB_RUN_ID': '503',
+              'INPUT_CAPTURE_DAY_JST': day,
+          }
+          def fake_history(ids, when=created):
+              return {
+                  'total_count': len(ids),
+                  'workflow_runs': [{
+                      'id': number, 'created_at': when,
+                      'event': 'workflow_dispatch', 'head_branch': 'main',
+                  } for number in ids],
+              }
+          seen = []
+          def exercise(history=None, overrides=None, network_error=False, responses=None):
+              data = fake_history([503]) if history is None else history
+              response_iter = iter(responses) if responses is not None else None
+              def fake_urlopen(req, timeout):
+                  assert timeout == 12
+                  url = urllib.parse.urlsplit(req.full_url)
+                  assert url.netloc == 'api.github.com'
+                  assert url.path.endswith('/actions/workflows/hole-pair-manual-gateway.yml/runs')
+                  args = urllib.parse.parse_qs(url.query)
+                  assert args.get('event') == ['workflow_dispatch']
+                  assert args.get('branch') == ['main']
+                  assert args.get('per_page') == ['100']
+                  assert 'created' in args
+                  seen.append(req.full_url)
+                  if network_error:
+                      raise OSError('mocked GitHub history read unavailable')
+                  result = next(response_iter) if response_iter is not None else data
+                  return io.BytesIO(json.dumps(result).encode('utf-8'))
+              with patch.dict(os.environ, {**env, **(overrides or {})}), patch(
+                  'urllib.request.urlopen', side_effect=fake_urlopen
+              ), patch('time.sleep', return_value=None), contextlib.redirect_stdout(io.StringIO()):
+                  exec(compiled, {'__name__': '__main__'})
+          exercise()
+          assert seen
+          exercise(history={
+              'total_count': 2, 'workflow_runs': [
+                  {'id': 503, 'created_at': created,
+                   'event': 'workflow_dispatch', 'head_branch': 'main'},
+                  {'id': 504, 'created_at':
+                   (start + timedelta(minutes=40)).astimezone(
+                       timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+                   'event': 'workflow_dispatch', 'head_branch': 'main'},
+              ],
+          })
+          before = len(seen)
+          exercise(responses=[fake_history([]), fake_history([503])])
+          assert len(seen) - before == 2, 'current_run_visibility_retry_not_observed'
+          before = len(seen)
+          exercise(responses=[fake_history([]), fake_history([]), fake_history([503])])
+          assert len(seen) - before == 3, 'third_bounded_visibility_attempt_not_observed'
+          # Every ambiguous, duplicate, stale, malformed or missing read fails.
+          for data, overrides, network_error in (
+              (fake_history([502, 503]), None, False),
+              # Higher ID but earlier created_at: ID-only sorting would
+              # incorrectly accept the current run as the first dispatch.
+              ({
+                  'total_count': 2, 'workflow_runs': [
+                      {'id': 503, 'created_at': created,
+                       'event': 'workflow_dispatch', 'head_branch': 'main'},
+                      {'id': 504, 'created_at':
+                       (start + timedelta(minutes=20)).astimezone(
+                           timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+                       'event': 'workflow_dispatch', 'head_branch': 'main'},
+                  ],
+              }, None, False),
+              # A second run created at precisely the same time is
+              # ambiguous even if the current run ID is lower.
+              (fake_history([503, 504]), None, False),
+              (fake_history([502]), None, False),
+              (fake_history([503, 503]), None, False),
+              (fake_history([]), None, False),
+              (fake_history(list(range(1, 102))), None, False),
+              (fake_history([503], '2026-11-08T00:00:00Z'), None, False),
+              (None, {'GITHUB_RUN_ID': '504'}, False),
+              (None, {'GITHUB_RUN_ATTEMPT': '2'}, False),
+              (None, {'GITHUB_REPOSITORY': 'other/repo'}, False),
+              (None, None, True),
+          ):
+              try:
+                  exercise(data, overrides, network_error)
+              except (AssertionError, OSError, ValueError, KeyError, SystemExit):
+                  pass
+              else:
+                  raise AssertionError('manual_history_fail_closed_case_missed')
+          print('REVIEW_ONLY_GATE_PASS_bounded_visibility_retry_and_history_fail_closed')
+          PY
+      - name: Audit exact default-main gateway path (read-only registration prerequisite)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Fetch public main only; never write a repository ref or dispatch.
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          python - <<'PY'
+          import json
+          import re
+          import subprocess
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+          main = git('rev-parse', '--verify', 'refs/remotes/origin/main')
+          if not re.fullmatch('[0-9a-f]{40}', main):
+              raise SystemExit('invalid_immutable_default_main_sha')
+          tracked = git('ls-tree', '-r', '--name-only', main, '--', '.github/workflows/')
+          paths = set(tracked.splitlines())
+          preferred = '.github/workflows/hole-pair-manual-gateway.yml'
+          competitors = (
+              '.github/workflows/hole-pair-manual-research-gateway.yml',
+              '.github/workflows/hole-future-pair-precommit.yml',
+          )
+          other_paths = sorted(x for x in competitors if x in paths)
+          # A complete default-Git-tree path check is NOT an Actions REST
+          # registration/permission test or proof of any live dispatch.
+          report = {
+              'schema': 'HOLE_PAIR_EXACT_PATH_DEFAULT_MAIN_READINESS_V1',
+              'default_main_sha': main,
+              'exact_gateway_path': preferred,
+              'exact_gateway_file_in_default_git_tree': preferred in paths,
+              'competing_gateway_files_in_default_git_tree': other_paths,
+              'registration_prerequisite_path_satisfied': preferred in paths and not other_paths,
+              'github_actions_registration_or_manual_dispatch_verified': False,
+              'capture_job_executed': False,
+              'new_candidate_artifact_created': False,
+              'independent_first_remote_receipt_verified': False,
+              'official_t12_complete_verified': False,
+              'formal': False,
+              'production_promotion_allowed': False,
+              'main_modified': False,
+          }
+          print('EXACT_GATEWAY_DEFAULT_MAIN_READINESS', json.dumps(report, sort_keys=True))
+          if other_paths:
+              raise SystemExit('competing_default_main_gateway_present_hold')
+          PY
+  capture:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Verify deliberate current-day research capture BEFORE checkout
+        shell: bash
+        env:
+          DAY: ${{ inputs.capture_day_jst }}
+          ACK: ${{ inputs.acknowledgement }}
+        run: |
+          set -euo pipefail
+          # Fail closed on GitHub Actions rerun attempts BEFORE checkout.
+          [[ "$GITHUB_RUN_ATTEMPT" == "1" ]] || { echo "::error::re-run attempt rejected; dedup review required before new dispatch"; exit 5; }
+          [[ "$GITHUB_RUN_ID" =~ ^[1-9][0-9]*$ ]] || { echo "::error::invalid workflow run identity"; exit 5; }
+          [[ "$ACK" == "CAPTURE_UNVERIFIED_RESEARCH" ]] || { echo "::error::explicit research acknowledgement required"; exit 2; }
+          [[ "$DAY" =~ ^20[0-9]{6}$ ]] || { echo "::error::invalid YYYYMMDD capture day"; exit 2; }
+          [[ "$DAY" == "$(TZ=Asia/Tokyo date +%Y%m%d)" && "$DAY" > "20261108" ]] || { echo "::error::only current JST day from Nov9; no backfill"; exit 2; }
+      - name: Refuse later independent manual dispatch on the same JST day (research-only)
+        shell: bash
+        env:
+          INPUT_CAPTURE_DAY_JST: ${{ inputs.capture_day_jst }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import urllib.parse
+          import urllib.request
+          import time
+          from datetime import datetime, timedelta, timezone
+
+          JST = timezone(timedelta(hours=9))
+          day = os.environ['INPUT_CAPTURE_DAY_JST']
+          if (os.environ['GITHUB_REPOSITORY'] != 'ikst2512-eng/boat-edge-clean'
+                  or os.environ['GITHUB_EVENT_NAME'] != 'workflow_dispatch'
+                  or os.environ['GITHUB_REF'] != 'refs/heads/main'
+                  or os.environ['GITHUB_RUN_ATTEMPT'] != '1'
+                  or len(day) != 8 or not day.isascii() or not day.isdecimal()):
+              raise SystemExit('invalid_manual_gateway_run_identity')
+          current = int(os.environ['GITHUB_RUN_ID'])
+          if current <= 0:
+              raise SystemExit('invalid_manual_gateway_run_id')
+          start = datetime.strptime(day, '%Y%m%d').replace(tzinfo=JST)
+          if start.date() != datetime.now(JST).date():
+              raise SystemExit('cross_day_manual_run_not_allowed')
+          end = start + timedelta(days=1)
+          first = start.astimezone(timezone.utc)
+          last = (end - timedelta(seconds=1)).astimezone(timezone.utc)
+          interval = (first.strftime('%Y-%m-%dT%H:%M:%SZ') + '..'
+                      + last.strftime('%Y-%m-%dT%H:%M:%SZ'))
+          params = urllib.parse.urlencode({
+              'event': 'workflow_dispatch', 'branch': 'main',
+              'created': interval, 'per_page': 100, 'page': 1,
+          })
+          url = ('https://api.github.com/repos/ikst2512-eng/boat-edge-clean'
+                 '/actions/workflows/hole-pair-manual-gateway.yml/runs?' + params)
+          req = urllib.request.Request(url, headers={
+              'Accept': 'application/vnd.github+json',
+              'User-Agent': 'boat-edge-nonformal-single-dispatch-review',
+          })
+          # Public repo, read-only API; HTTP/rate-limit/timeout errors fail closed.
+          # Actions may briefly omit the newly queued current run. Re-read
+          # at most three times; never bypass a missing self or a prior run.
+          for history_attempt in range(3):
+              with urllib.request.urlopen(req, timeout=12) as response:
+                  data = json.load(response)
+              if type(data) is not dict:
+                  raise SystemExit('untrusted_manual_run_history')
+              pending_count, pending_runs = data.get('total_count'), data.get('workflow_runs')
+              if (type(pending_count) is not int or pending_count < 0
+                      or pending_count > 100 or type(pending_runs) is not list
+                      or len(pending_runs) != pending_count):
+                  raise SystemExit('incomplete_or_unbounded_manual_run_history')
+              if any(type(run) is dict and run.get('id') == current for run in pending_runs):
+                  break
+              if history_attempt < 2:
+                  time.sleep(2)
+          else:
+              raise SystemExit('current_manual_run_not_visible_after_bounded_retries')
+          count, runs = data.get('total_count'), data.get('workflow_runs')
+          if (type(count) is not int or not 1 <= count <= 100
+                  or type(runs) is not list or len(runs) != count):
+              raise SystemExit('incomplete_or_unbounded_manual_run_history')
+          ids = []
+          created_by_id = {}
+          for run in runs:
+              if type(run) is not dict:
+                  raise SystemExit('untrusted_manual_run_record')
+              rid = run.get('id')
+              timestamp = run.get('created_at')
+              if (type(rid) is not int or rid <= 0
+                      or type(timestamp) is not str
+                      or run.get('event') != 'workflow_dispatch'
+                      or run.get('head_branch') != 'main'):
+                  raise SystemExit('untrusted_manual_run_record')
+              dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+              if dt.tzinfo is None or not first <= dt.astimezone(timezone.utc) <= last:
+                  raise SystemExit('out_of_day_manual_run_history')
+              ids.append(rid)
+              created_by_id[rid] = dt.astimezone(timezone.utc)
+          if len(set(ids)) != count or current not in ids:
+              raise SystemExit('incomplete_self_or_duplicate_run_history')
+          # A smaller run ID alone cannot prove earliest creation. Reject
+          # clock/ID contradictions and same-second ties, including a higher
+          # run ID whose server created_at predates this run.
+          if (min(ids) != current or any(
+                  when <= created_by_id[current]
+                  for rid, when in created_by_id.items() if rid != current)):
+              raise SystemExit('earlier_or_tied_manual_dispatch_exists_today_refuse_second_run')
+          print('FIRST_LISTED_MANUAL_DISPATCH_ONLY_NONFORMAL', current)
+          PY
+      - name: Checkout exact reviewed research implementation (never branch tip)
+        uses: actions/checkout@v4
+        with:
+          ref: 464d1641a5c7b981248ab17ba5bdc42b7bfa698b
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Python for offline/research candidate freeze
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Current-day research freeze, never fetch settled results
+        shell: bash
+        env:
+          HOLE_RESEARCH_CAPTURE_DAY: ${{ inputs.capture_day_jst }}
+          HOLE_RESEARCH_MANUAL_ACK: ${{ inputs.acknowledgement }}
+          HOLE_RESEARCH_LOCKED_COMMIT: 464d1641a5c7b981248ab17ba5bdc42b7bfa698b
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REF" = refs/heads/main
+          test "$(git rev-parse HEAD)" = "$HOLE_RESEARCH_LOCKED_COMMIT"
+          # Temporary runtime token is read-only. Main is fetched, not edited.
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          # Dispatch was requested against one exact main commit. Never silently
+          # switch to a different main source if the branch changed in the queue.
+          test "$GITHUB_SHA" = "$(git rev-parse --verify refs/remotes/origin/main)" || {
+            echo "::error::main changed since manual dispatch; no research freeze"
+            exit 4
+          }
+          # Fail closed if a competing manual/legacy gateway reached main.
+          # This prevents THIS gateway from collecting alongside a second path;
+          # it cannot control executions initiated through the other workflow.
+          for competing in \
+            .github/workflows/hole-pair-manual-research-gateway.yml \
+            .github/workflows/hole-future-pair-precommit.yml; do
+            if git cat-file -e "origin/main:$competing" 2>/dev/null; then
+              echo "::error::competing research capture workflow on main: $competing; refuse this capture"
+              exit 3
+            fi
+          done
+          python research/hole_pair_manual_capture.py --capture-day "$HOLE_RESEARCH_CAPTURE_DAY" --output research_candidate_freeze.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('research_candidate_freeze.json')
+          obj=json.loads(p.read_text(encoding='utf-8'))
+          assert obj['schema']=='HOLE_PAIR_FUTURE_ACTIONS_BATCH_V1'
+          assert obj['status']=='local_predeadline_freeze_not_formal'
+          assert obj['capture_day_jst']==__import__('os').environ['HOLE_RESEARCH_CAPTURE_DAY']
+          assert obj['source_snapshot_coverage']['source_snapshot_race_coverage_complete'] is True
+          assert obj['source_snapshot_coverage']['entire_day_or_official_schedule_complete_verified'] is False
+          assert obj['frozen_count']+sum(obj['excluded_by_reason'].values())==obj['eligible_forecasts_examined']
+          for key in ('formal','prospective_validation','independent_first_receipt_verified','production_forecast_changed'):
+              assert obj[key] is False
+          print('NONFORMAL_FROZEN_COUNT',obj['frozen_count'])
+          print('EXCLUSIONS',obj['excluded_by_reason'])
+          PY
+      - name: Bind nonformal candidate manifest to exact workflow run and source commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          src = Path('research_candidate_freeze.json')
+          raw = src.read_bytes()
+          batch = json.loads(raw)
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+          main_sha = git('rev-parse', '--verify', 'refs/remotes/origin/main')
+          research_sha = git('rev-parse', '--verify', 'HEAD')
+          assert main_sha == os.environ['GITHUB_SHA'] == batch['source_main_commit']
+          assert research_sha == '464d1641a5c7b981248ab17ba5bdc42b7bfa698b'
+          assert os.environ['GITHUB_REF'] == 'refs/heads/main'
+          assert os.environ['GITHUB_EVENT_NAME'] == 'workflow_dispatch'
+          assert batch['formal'] is False and batch['independent_first_receipt_verified'] is False
+          assert batch['capture_day_jst'] == os.environ['INPUT_CAPTURE_DAY_JST']
+          coverage = batch['source_snapshot_coverage']
+          assert coverage['source_snapshot_race_coverage_complete'] is True
+          assert coverage['entire_day_or_official_schedule_complete_verified'] is False
+          assert type(batch['eligible_forecasts_examined']) is int
+          assert batch['eligible_forecasts_examined'] >= 0
+          assert batch['eligible_forecasts_examined'] == coverage['snapshot_forecasts_examined']
+          run_id = int(os.environ['GITHUB_RUN_ID'])
+          attempt = int(os.environ['GITHUB_RUN_ATTEMPT'])
+          assert run_id > 0 and attempt > 0
+          local_provenance = {
+              'schema': 'HOLE_PAIR_GATEWAY_LOCAL_PROVENANCE_V1',
+              'github_run_id': run_id,
+              'github_run_attempt': attempt,
+              'github_event_name': os.environ['GITHUB_EVENT_NAME'],
+              'github_workflow_ref': os.environ['GITHUB_WORKFLOW_REF'],
+              'github_dispatch_main_sha': os.environ['GITHUB_SHA'],
+              'source_main_commit': main_sha,
+              'pinned_research_commit': research_sha,
+              'capture_day_jst': batch['capture_day_jst'],
+              'source_snapshot_forecasts_examined': batch['eligible_forecasts_examined'],
+              'source_snapshot_race_census_reconciled_locally': True,
+              'entire_day_or_official_schedule_complete_verified': False,
+              'manifest_file': src.name,
+              'manifest_sha256': hashlib.sha256(raw).hexdigest(),
+              'manifest_bytes': len(raw),
+              'formal': False,
+              'independent_first_receipt_verified': False,
+              'official_t12_complete_verified': False,
+              'production_promotion_allowed': False,
+              'warning': 'Actions/local provenance only; NOT an independent first remote receipt.',
+          }
+          Path('research_capture_provenance.json').write_text(
+              json.dumps(local_provenance, ensure_ascii=False, sort_keys=True, indent=2) + '\n',
+              encoding='utf-8',
+          )
+          print('LOCAL_MANIFEST_SHA256', local_provenance['manifest_sha256'])
+          print('NONFORMAL_RUN_ID', run_id, 'ATTEMPT', attempt)
+          PY
+        env:
+          INPUT_CAPTURE_DAY_JST: ${{ inputs.capture_day_jst }}
+      - name: Save both candidate manifest and local run provenance (not first receipt)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s research_candidate_freeze.json
+          test -s research_capture_provenance.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-pair-manual-unverified-${{ inputs.capture_day_jst }}
+          path: |
+            research_candidate_freeze.json
+            research_capture_provenance.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Fail a zero-candidate run rather than announcing capture success
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path('research_candidate_freeze.json').read_text())
+          if x['frozen_count'] == 0:
+              raise SystemExit('no_predeadline_candidates_frozen_nonformal; artifact saved for audit')
+          print('local_artifact_saved_only_NOT_independent_receipt_NOT_official_T12')
+          PY
