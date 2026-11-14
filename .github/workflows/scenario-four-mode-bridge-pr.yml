@@ -9,6 +9,8 @@ on:
       - 'test_scenario_full_pathway_catalog.py'
       - 'scenario_official_K_attack_benefit_holdout.py'
       - 'test_scenario_official_K_attack_benefit_holdout.py'
+      - 'scenario_course_scenario_october_holdout.py'
+      - 'test_scenario_course_scenario_october_holdout.py'
       - 'scenario_attack_benefit_feature_matrix.py'
       - 'test_scenario_attack_benefit_feature_matrix.py'
       - 'scenario_first_head_research.py'
@@ -108,7 +110,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Check scenario bridge safety and all four mode contracts
-        run: python -m unittest -v test_scenario_official_K_attack_benefit_holdout test_scenario_full_pathway_catalog test_scenario_attack_benefit_feature_matrix test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway test_scenario_official_racelist_rates test_scenario_official_motor_display_research test_scenario_official_meeting_form_research test_scenario_official_local_zero_research_adapter test_scenario_future_protocol_freeze test_scenario_future_local_candidate_handoff test_scenario_future_github_research_adapter test_scenario_future_archived_receipts_to_candidate test_scenario_official_st_intake_diagnostic test_scenario_flagged_st_feature_study test_scenario_signed_st_four_mode_shadow test_scenario_signed_st_registered_shadow test_scenario_signed_st_future_pre_t12_handoff test_scenario_signed_st_future_pre_t12_cli test_scenario_signed_st_cross_ledger_audit test_scenario_signed_st_source_remote_witness test_scenario_signed_st_F_remote_candidate_witness test_scenario_escape_prior_first_head_sensitivity test_scenario_exhibition_course_head_research test_scenario_official_K_training_roster_bridge
+        run: python -m unittest -v test_scenario_course_scenario_october_holdout test_scenario_official_K_attack_benefit_holdout test_scenario_full_pathway_catalog test_scenario_attack_benefit_feature_matrix test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway test_scenario_official_racelist_rates test_scenario_official_motor_display_research test_scenario_official_meeting_form_research test_scenario_official_local_zero_research_adapter test_scenario_future_protocol_freeze test_scenario_future_local_candidate_handoff test_scenario_future_github_research_adapter test_scenario_future_archived_receipts_to_candidate test_scenario_official_st_intake_diagnostic test_scenario_flagged_st_feature_study test_scenario_signed_st_four_mode_shadow test_scenario_signed_st_registered_shadow test_scenario_signed_st_future_pre_t12_handoff test_scenario_signed_st_future_pre_t12_cli test_scenario_signed_st_cross_ledger_audit test_scenario_signed_st_source_remote_witness test_scenario_signed_st_F_remote_candidate_witness test_scenario_escape_prior_first_head_sensitivity test_scenario_exhibition_course_head_research test_scenario_official_K_training_roster_bridge
       - name: Materialize pinned existing #1698 conditional lab for integration (read-only)
         run: |
           set -euo pipefail
@@ -667,6 +669,50 @@ jobs:
               "forecast_or_main_changed": False,
           }
           print("REAL_K92_HISTORICAL_ATTACK_WIN_COMPANIONS "+json.dumps(compact,ensure_ascii=False,sort_keys=True))
+          PY
+      - name: Score venue-only 120-course scenario mixture on independent October historical labels
+        run: |
+          set -euo pipefail
+          # Exactly same pinned #1692 K source & same vetted parser from
+          # previous steps. Actual courses are labels, never pre-race inputs.
+          echo "c668f545bae54f8148616315e307ed2a2b04a77a0cb8abf88bf3ea078749ce8e  $RUNNER_TEMP/official-K-92day-original.zip" | sha256sum --check --status
+          OFFICIAL_K_ZIP="$RUNNER_TEMP/official-K-92day-original.zip" \
+          PYTHONPATH="$RUNNER_TEMP/K1692:$PWD" python - <<'PY'
+          import json, os
+          from scenario_course_scenario_october_holdout import run_frozen_october_study
+          result=run_frozen_october_study(os.environ["OFFICIAL_K_ZIP"])
+          assert result["official_K_days_verified"]==92
+          assert result["clean_cohort"]==13301
+          assert result["train_n"]==8919
+          assert result["historical_holdout_oct_n"]==4382
+          assert result["feature_used_before_october_outcome"]==["venue_code_only"]
+          assert result["method_used_at_prediction_time"] is False
+          assert result["actual_entry_used_at_prediction_time"] is False
+          assert result["prospective_accuracy_established"] is False
+          assert result["production_changed"] is False
+          assert result["promotion_allowed"] is False
+          focus={
+              name: result["by_actual_winner_method_stratum_for_diagnostics_only"][name]
+              for name in ("three_makuri","three_makuri_sashi","four_makuri")
+          }
+          summary={
+              "source_sha256":result["source_zip_sha256"],
+              "train_n":result["train_n"],
+              "october_n":result["historical_holdout_oct_n"],
+              "model_comparison":result["baselines"],
+              "paired_logloss_delta_candidate_minus_baseline":result["paired_logloss_delta_candidate_minus_baseline"],
+              "paired_day_bootstrap95":result["paired_day_bootstrap_logloss_delta95"],
+              "historical_candidate_better":result["candidate_better_on_historical_oct_logloss"],
+              "topk_gained_lost":result["head_to_head_topk"],
+              "focus_result_strata_only":focus,
+              "only_venue_used_for_historical_predictions":True,
+              "actual_final_courses_are_historical_labels":True,
+              "no_retroactive_frozen_forecasts":True,
+              "future_forecast_created":False,
+              "form_or_comments_consumed":False,
+              "formal":False,"production_changed":False
+          }
+          print("OFFICIAL_K92_VENUE_SCENARIO_OCT_HOLDOUT "+json.dumps(summary,ensure_ascii=False,sort_keys=True))
           PY
       - name: Replay REAL Nov14 pre-T12 triple and original K 92-day roster (input-only)
         env:
