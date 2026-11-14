@@ -108,6 +108,41 @@ class InteractionTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "leakage|post_race"):
                 build_attack_benefit_matrix(x)
 
+    def test_nested_result_and_final_entry_leakage_fail_closed(self):
+        # The direct top-level and racer-level checks are not enough:
+        # outcome data can be hidden in valid-looking source wrappers.
+        mutations = (
+            lambda x: x["racers"][0]["signals"]["motor_2ren_pct"].update(
+                result="1-2-3"),
+            lambda x: x["racers"][1]["signals"]["makuri_pct"].update(
+                metadata={"payout":1200}),
+            lambda x: x["racers"][2]["comment"].update(
+                finish_order=[3, 4, 5]),
+            lambda x: x["exhibition_entry_source"].update(
+                source_debug={"confirmed_result":[2, 1, 3]}),
+            lambda x: x.update(
+                outer_metadata=[{"child":{"final_entry":[1, 2, 3, 4, 5, 6]}}]),
+        )
+        for mutate in mutations:
+            record=fixture()
+            mutate(record)
+            with self.subTest(mutate=mutate.__code__.co_firstlineno):
+                with self.assertRaisesRegex(ValueError,"leakage"):
+                    build_attack_benefit_matrix(record)
+
+    def test_T12_cutoff_exact_boundary_and_after_are_ineligible(self):
+        for generated in ("2026-11-15T10:48:00+09:00",
+                          "2026-11-15T10:59:59+09:00"):
+            row=fixture()
+            row["generated_at_jst"]=generated
+            with self.subTest(generated=generated):
+                with self.assertRaisesRegex(ValueError,"post_T12"):
+                    build_attack_benefit_matrix(row)
+        row=fixture()
+        row["generated_at_jst"]="2026-11-15T10:47:59+09:00"
+        self.assertEqual(build_attack_benefit_matrix(row)["count"],120)
+        self.assertIs(build_attack_benefit_matrix(row)["first_remote_receipt_verified"],False)
+
     def test_comments_not_auto_inferred(self):
         x = fixture()
         x["racers"][0]["comment"]["annotation_method"] = "llm_guess"
