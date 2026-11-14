@@ -20,7 +20,7 @@ from urllib.parse import quote
 
 from four_mode_frozen_diagnostic import compare_race
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 OLD_REPO = "ikst2512-eng/boat-edge"
 PINNED_OLD_RESULTS_COMMIT = "7dd4ce6127d7e71298605015873030ff1168a8d3"
 CODE = re.compile(r"20[0-9]{6}-[0-9]{2}-[0-9]{2}\.json\Z")
