@@ -1,29 +1,63 @@
-name: Legacy workflow dependency inventory
+name: Legacy workflow evidence inventory (activity and dependencies)
+
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - scripts/audit_legacy_workflow_inventory.py
+      - scripts/audit_legacy_workflow_dependencies.py
+      - tests/test_audit_legacy_workflow_inventory.py
+      - tests/test_legacy_workflow_schedule_detection.py
+      - .github/workflows/legacy-workflow-inventory.yml
+      - .github/workflows/legacy-workflow-dependencies.yml
   push:
     branches: [main]
     paths:
       - scripts/audit_legacy_workflow_inventory.py
+      - scripts/audit_legacy_workflow_dependencies.py
       - tests/test_audit_legacy_workflow_inventory.py
+      - tests/test_legacy_workflow_schedule_detection.py
       - .github/workflows/legacy-workflow-inventory.yml
+      - .github/workflows/legacy-workflow-dependencies.yml
+
 permissions:
   contents: read
+
 jobs:
   audit:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m unittest -v tests/test_audit_legacy_workflow_inventory.py
-      - run: python scripts/audit_legacy_workflow_inventory.py --output legacy_workflow_inventory.json
-      - uses: actions/upload-artifact@v4
+      - name: Test both existing inventory methods
+        run: |
+          python -m unittest -v \
+            tests/test_audit_legacy_workflow_inventory.py \
+            tests/test_legacy_workflow_schedule_detection.py
+      - name: Preserve activity inventory of original legacy repository
+        run: python scripts/audit_legacy_workflow_inventory.py --output legacy_workflow_inventory.json
+      - name: Preserve dependency inventory of original legacy repository
+        run: python scripts/audit_legacy_workflow_dependencies.py
+      - name: Upload original activity report (same artifact name)
+        uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: legacy-workflow-inventory
           path: legacy_workflow_inventory.json
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Upload original dependency report (same artifact name)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: legacy-workflow-dependencies
+          path: legacy_workflow_dependencies.json
+          if-no-files-found: warn
           retention-days: 90
