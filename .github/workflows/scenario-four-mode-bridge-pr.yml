@@ -66,6 +66,8 @@ on:
       - 'test_scenario_official_racelist_rates.py'
       - 'scenario_official_motor_display_research.py'
       - 'test_scenario_official_motor_display_research.py'
+      - 'scenario_official_meeting_form_research.py'
+      - 'test_scenario_official_meeting_form_research.py'
       - 'scenario_official_local_zero_research_adapter.py'
       - 'test_scenario_official_local_zero_research_adapter.py'
       - 'test_scenario_future_three_original_gateway.py'
@@ -106,7 +108,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Check scenario bridge safety and all four mode contracts
-        run: python -m unittest -v test_scenario_official_K_attack_benefit_holdout test_scenario_full_pathway_catalog test_scenario_attack_benefit_feature_matrix test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway test_scenario_official_racelist_rates test_scenario_official_motor_display_research test_scenario_official_local_zero_research_adapter test_scenario_future_protocol_freeze test_scenario_future_local_candidate_handoff test_scenario_future_github_research_adapter test_scenario_future_archived_receipts_to_candidate test_scenario_official_st_intake_diagnostic test_scenario_flagged_st_feature_study test_scenario_signed_st_four_mode_shadow test_scenario_signed_st_registered_shadow test_scenario_signed_st_future_pre_t12_handoff test_scenario_signed_st_future_pre_t12_cli test_scenario_signed_st_cross_ledger_audit test_scenario_signed_st_source_remote_witness test_scenario_signed_st_F_remote_candidate_witness test_scenario_escape_prior_first_head_sensitivity test_scenario_exhibition_course_head_research test_scenario_official_K_training_roster_bridge
+        run: python -m unittest -v test_scenario_official_K_attack_benefit_holdout test_scenario_full_pathway_catalog test_scenario_attack_benefit_feature_matrix test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway test_scenario_official_racelist_rates test_scenario_official_motor_display_research test_scenario_official_meeting_form_research test_scenario_official_local_zero_research_adapter test_scenario_future_protocol_freeze test_scenario_future_local_candidate_handoff test_scenario_future_github_research_adapter test_scenario_future_archived_receipts_to_candidate test_scenario_official_st_intake_diagnostic test_scenario_flagged_st_feature_study test_scenario_signed_st_four_mode_shadow test_scenario_signed_st_registered_shadow test_scenario_signed_st_future_pre_t12_handoff test_scenario_signed_st_future_pre_t12_cli test_scenario_signed_st_cross_ledger_audit test_scenario_signed_st_source_remote_witness test_scenario_signed_st_F_remote_candidate_witness test_scenario_escape_prior_first_head_sensitivity test_scenario_exhibition_course_head_research test_scenario_official_K_training_roster_bridge
       - name: Materialize pinned existing #1698 conditional lab for integration (read-only)
         run: |
           set -euo pipefail
@@ -1367,5 +1369,32 @@ jobs:
               "registered_six_match":True,"model_consumed_motor":False,
               "motor_denominators_verified":False,"new_prediction_generated":False,
               "formal":False,"independent_first_remote_receipt_verified":False,
+          },sort_keys=True))
+          from scenario_official_meeting_form_research import extract_prior_day_meeting_form
+          meeting=extract_prior_day_meeting_form(
+              html,race,[v["registration"] for v in manifest["six_boat_inputs"]])
+          assert meeting["racelist_original_sha256"]==source["sha256"]
+          assert [entry["registration_id"] for entry in meeting["rows"]]==[
+              v["registration"] for v in manifest["six_boat_inputs"]]
+          assert meeting["only_prior_day_settled_results"] is True
+          assert meeting["source_receipt_independently_attested"] is False
+          assert meeting["same_race_T12_model_consumption_verified"] is False
+          assert meeting["winning_method_from_result_not_inferred"] is True
+          assert meeting["comments_source_verified"] is False
+          assert meeting["formal"] is False
+          assert all(row["prior_day_completed_starts"]==len(row["prior_day_results"])
+                     for row in meeting["rows"])
+          assert all(item["race_code"][:8]<race[:8]
+                     for row in meeting["rows"] for item in row["prior_day_results"])
+          print("REAL_FIRST_ADD_BUNDLE_PRIOR_DAY_MEETING_FORM_PASS "+json.dumps({
+              "race_code":race,"source_sha256":source["sha256"],
+              "prior_day_starts":[x["prior_day_completed_starts"] for x in meeting["rows"]],
+              "prior_day_top2":[x["prior_day_top2_count"] for x in meeting["rows"]],
+              "prior_day_top3":[x["prior_day_top3_count"] for x in meeting["rows"]],
+              "prior_day_mean_st_s":[x["prior_day_average_st_s"] for x in meeting["rows"]],
+              "prior_day_exclusions":[x["excluded_slots"] for x in meeting["rows"]],
+              "previous_day_only":True,"model_consumed_meeting_form":False,
+              "winning_method_inferred":False,"comment_source_verified":False,
+              "candidate_created":False,"formal":False,
           },sort_keys=True))
           PY
