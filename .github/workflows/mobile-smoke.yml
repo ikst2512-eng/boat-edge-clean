@@ -61,17 +61,26 @@ jobs:
               if(await page.locator('#races button').count()!==12)throw Error('12 races not rendered');
               await page.evaluate(()=>setView('forecast'));
               if(!await page.locator('#forecast').isVisible())throw Error('Forecast tab not visible');
-              // The current forecast prioritizes the four-mode panel; legacy TopN
-              // research is intentionally collapsed and must not be treated as
-              // the primary visible prediction status.
-              if(!await page.locator('#fourModeForecastPanel').isVisible())throw Error('Four-mode forecast panel not visible');
-              if(!await page.locator('#fourModeForecastStatus').isVisible())throw Error('Four-mode forecast status not visible');
+              // V127/V133 is the primary scenario-based forecast. The older V2
+              // archive remains available in a CLOSED comparison details panel.
+              // Do not require V2 to be visible before the user expands it.
+              if(!await page.locator('#restoredScenarioPanel').isVisible())throw Error('Primary V133 forecast panel not visible');
+              if(!await page.locator('#restoredScenarioStatus').isVisible())throw Error('Primary V133 forecast status not visible');
+              if(await page.locator('#v2Comparator').evaluate(node=>node.open))throw Error('V2 comparator unexpectedly expanded');
+              if(await page.locator('#fourModeForecastPanel').isVisible())throw Error('V2 comparison leaked into primary forecast');
+              await page.locator('#v2Comparator > summary').click();
+              if(!await page.locator('#fourModeForecastPanel').isVisible())throw Error('V2 comparison cannot be expanded');
               const state=await page.evaluate(()=>({
-                fourModeStatus:document.querySelector('#fourModeForecastStatus')?.textContent?.trim() || '',
-                hasFourModeRows:!!document.querySelector('#fourModeForecastRows'),
+                primaryStatus:document.querySelector('#restoredScenarioStatus')?.textContent?.trim() || '',
+                hasPrimaryRows:!!document.querySelector('#restoredScenarioRows'),
+                hasV2Rows:!!document.querySelector('#fourModeForecastRows'),
+                hasV2Status:!!document.querySelector('#fourModeForecastStatus'),
                 legacyCollapsed:!document.querySelector('#legacyTopnResearch')?.open
               }));
-              if(!state.hasFourModeRows || !state.legacyCollapsed)throw Error('Four-mode/legacy forecast hierarchy broken: '+JSON.stringify(state));
+              if(!state.hasPrimaryRows || !state.hasV2Rows || !state.hasV2Status || !state.legacyCollapsed)
+                throw Error('Primary/V2/legacy forecast hierarchy broken: '+JSON.stringify(state));
+              await page.locator('#v2Comparator > summary').click();
+              if(await page.locator('#fourModeForecastPanel').isVisible())throw Error('V2 comparison remained visible after collapse');
               const leaked=await page.evaluate(()=>['if(item.state!==','verifiedFourModeRace(key)','predictionModes=confirmed.modes','if(token!==resultListRequestId'].some(t=>document.body.innerText.includes(t)));
               if(leaked)throw Error('Raw JavaScript is visible in forecast page');
               console.log('CURRENT_FOUR_MODE_FORECAST_UI_PASS',JSON.stringify(state));
