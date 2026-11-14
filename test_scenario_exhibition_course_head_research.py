@@ -218,6 +218,12 @@ class Pinned1698CourseHolderMathTests(unittest.TestCase):
 
     def test_tampered_callback_and_changed_entry_after_prepare_rejected(self):
         case=input_case(5); study=prepare(*case)
+        forged=copy.deepcopy(study)
+        board=forged["head_models"]["escape_wall"]["ranked_board"]
+        board[0]=(board[0][0], board[0][1] + .001)
+        with self.assertRaisesRegex(ValueError,"tampered_first_head_board"):
+            run_course_holder_four_mode_sensitivity(
+                forged,case[3],self.callback)
         def fake(*args):
             x=self.callback(*args)
             x["formal"]=True
