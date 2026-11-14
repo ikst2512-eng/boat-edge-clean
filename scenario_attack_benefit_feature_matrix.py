@@ -12,7 +12,7 @@ import json
 import math
 import re
 
-MODEL = "EXPLORATORY_ONLY_ATTACK_BENEFIT_FEATURES_V1"
+MODEL = "EXPLORATORY_ONLY_ATTACK_BENEFIT_FEATURES_V2"
 JST = timedelta(hours=9)
 SHA = re.compile(r"^[0-9a-f]{64}$")
 RATES = {"motor_2ren_pct", "meeting_2ren_pct", "two_escape_assist_pct",
@@ -239,6 +239,37 @@ def build_attack_benefit_matrix(record):
             "third_attack_two_escape_assist_obstacle_proxy": _interaction(
                 h == c[3], _rate(by_course, 3, "makuri_pct"),
                 _rate(by_course, 2, "two_escape_assist_pct")),
+            # Compound 2C escape-assist x 3C attack x 4C/5C benefit.
+            # Signs are NOT predetermined: a high escape-assist rate may
+            # obstruct a 3C attack, but it can also leave a sashi gap.
+            # These are interaction covariates, not hit probabilities.
+            "one_survives_three_attack_four_sashi_second": _interaction(
+                h == c[1] and s == c[4],
+                _rate(by_course, 2, "two_escape_assist_pct"),
+                _rate(by_course, 3, "makuri_pct"),
+                _rate(by_course, 4, "sashi_pct")),
+            "three_attacks_two_escape_assist_four_second": _interaction(
+                h == c[3] and s == c[4],
+                _rate(by_course, 2, "two_escape_assist_pct"),
+                _rate(by_course, 3, "makuri_pct"),
+                _rate(by_course, 4, "sashi_pct")),
+            "three_attacks_two_escape_assist_five_second": _interaction(
+                h == c[3] and s == c[5],
+                _rate(by_course, 2, "two_escape_assist_pct"),
+                _rate(by_course, 3, "makuri_pct"),
+                _rate(by_course, 5, "makuri_sashi_pct")),
+            "third_attack_four_sashi_third": _interaction(
+                h == c[3] and t == c[4],
+                _rate(by_course, 3, "makuri_pct"),
+                _rate(by_course, 4, "sashi_pct")),
+            "fourth_attack_five_makuri_sashi_third": _interaction(
+                h == c[4] and t == c[5],
+                _rate(by_course, 4, "makuri_pct"),
+                _rate(by_course, 5, "makuri_sashi_pct")),
+            "fourth_attack_six_makuri_sashi_third": _interaction(
+                h == c[4] and t == c[6],
+                _rate(by_course, 4, "makuri_pct"),
+                _rate(by_course, 6, "makuri_sashi_pct")),
             "fourth_attack_five_makuri_sashi_second": _interaction(
                 h == c[4] and s == c[5],
                 _rate(by_course, 4, "makuri_pct"), _rate(by_course, 5, "makuri_sashi_pct")),
