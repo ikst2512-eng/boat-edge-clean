@@ -182,22 +182,29 @@ def predict_boat120(fit,venue,roster):
                   (vn+VENUE_PSEUDO_N) for t in TICKETS}
     player_delta=fit["player_delta"]
     by_boat=[player_delta.get(p,(0.,0.,0.)) for p in roster]
-    athlete_raw={
-        t:venue_board[t]*exp(fsum(
+    multiplier={
+        t:exp(fsum(
             ATHLETE_POSITION_SHIFTS[i]*by_boat[t[i]-1][i]
             for i in range(3)))
         for t in TICKETS
     }
-    total=fsum(athlete_raw.values())
-    athlete={t:v/total for t,v in athlete_raw.items()}
+    def weight(board):
+        raw={t:board[t]*multiplier[t] for t in TICKETS}
+        z=fsum(raw.values())
+        return {t:v/z for t,v in raw.items()}
+    venue_athlete=weight(venue_board)
+    global_athlete=weight(base)
     if (not isclose(fsum(venue_board.values()),1,abs_tol=1e-10)
-            or not isclose(fsum(athlete.values()),1,abs_tol=1e-10)
-            or min(athlete.values())<=0):
+            or not isclose(fsum(venue_athlete.values()),1,abs_tol=1e-10)
+            or not isclose(fsum(global_athlete.values()),1,abs_tol=1e-10)
+            or min(venue_athlete.values())<=0
+            or min(global_athlete.values())<=0):
         raise ValueError("boat_model_mass_invalid")
     return {
         "global_direct":base,
         "venue_direct":venue_board,
-        "venue_plus_athlete":athlete,
+        "venue_plus_athlete":venue_athlete,
+        "global_plus_athlete":global_athlete,
     }
 
 
@@ -220,11 +227,19 @@ def _report(x):
 def evaluate_october(fit,records,require_n=None):
     if type(records) is not list or not records or (require_n is not None and len(records)!=require_n):
         raise ValueError("boat_holdout_nonempty_and_pinned_n")
-    names=("global_direct","venue_direct","venue_plus_athlete")
+    names=("global_direct","venue_direct","venue_plus_athlete","global_plus_athlete")
     metrics={p:_stats() for p in names}
+    comparisons={
+        "athlete_vs_venue":("venue_plus_athlete","venue_direct"),
+        "athlete_vs_global":("venue_plus_athlete","global_direct"),
+        "global_athlete_vs_global":("global_plus_athlete","global_direct"),
+        "global_athlete_vs_venue_athlete":("global_plus_athlete","venue_plus_athlete"),
+    }
     paired={com:{k:{"gained":0,"lost":0,"both":0,"neither":0} for k in TOPS}
-            for com in ("athlete_vs_venue","athlete_vs_global")}
-    days=defaultdict(lambda:{"n":0,"delta_logloss":0.})
+            for com in comparisons}
+    days=defaultdict(lambda:{"n":0,
+        "delta_logloss":0.,
+        "global_athlete_delta_logloss":0.})
     day_keys=set()
     predicted_cache={}
     for row in records:
@@ -254,10 +269,10 @@ def evaluate_october(fit,records,require_n=None):
         d=days[day]
         d["n"]+=1
         d["delta_logloss"]+=ls["venue_plus_athlete"]-ls["venue_direct"]
-        for name,base in (("athlete_vs_venue","venue_direct"),
-                          ("athlete_vs_global","global_direct")):
+        d["global_athlete_delta_logloss"]+=ls["global_plus_athlete"]-ls["global_direct"]
+        for name,(challenger,base) in comparisons.items():
             for k in TOPS:
-                a=hits["venue_plus_athlete"][k]
+                a=hits[challenger][k]
                 b=hits[base][k]
                 status="both" if a and b else "gained" if a else "lost" if b else "neither"
                 paired[name][k][status]+=1
@@ -273,6 +288,19 @@ def evaluate_october(fit,records,require_n=None):
     samples.sort()
     ci=[round(samples[int(.025*(BOOTSTRAP_REPS-1))],7),
         round(samples[int(.975*(BOOTSTRAP_REPS-1))],7)]
+    # Use the SAME fixed day resamples for both board comparisons. The
+    # extra national+athlete comparator reuses the exact same coefficient,
+    # not a parameter sweep on October.
+    rng=random.Random(BOOTSTRAP_SEED)
+    other_samples=[]
+    for _ in range(BOOTSTRAP_REPS):
+        sample=[ds[rng.randrange(len(ds))] for _ in ds]
+        total=sum(days[d]["n"] for d in sample)
+        other_samples.append(sum(days[d]["global_athlete_delta_logloss"]
+                                 for d in sample)/total)
+    other_samples.sort()
+    global_ci=[round(other_samples[int(.025*(BOOTSTRAP_REPS-1))],7),
+               round(other_samples[int(.975*(BOOTSTRAP_REPS-1))],7)]
     results={name:_report(stat) for name,stat in metrics.items()}
     old=results["venue_direct"]
     new=results["venue_plus_athlete"]
@@ -281,10 +309,20 @@ def evaluate_october(fit,records,require_n=None):
         "logloss":round(new["logloss"]-old["logloss"],7),
         "brier120":round(new["brier120"]-old["brier120"],7),
     })
+    global_base=results["global_direct"]
+    global_new=results["global_plus_athlete"]
+    global_deltas={f"top{k}_count":global_new[f"top{k}"]-global_base[f"top{k}"] for k in TOPS}
+    global_deltas.update({
+        "logloss":round(global_new["logloss"]-global_base["logloss"],7),
+        "brier120":round(global_new["brier120"]-global_base["brier120"],7),
+    })
     gate={
         "historical_top5_nonregression":deltas["top5_count"]>=0,
         "historical_top10_nonregression":deltas["top10_count"]>=0,
         "historical_logloss_day_bootstrap_upper_below_zero":ci[1]<0,
+        "global_plus_athlete_top5_nonregression":global_deltas["top5_count"]>=0,
+        "global_plus_athlete_top10_nonregression":global_deltas["top10_count"]>=0,
+        "global_plus_athlete_logloss_day_bootstrap_upper_below_zero":global_ci[1]<0,
         "true_predeadline_roster_source_certified":False,
         "postrace_six_finishers_selection_known_preahead":False,
         "300_plus_300_future_independent_verified":False,
@@ -298,6 +336,8 @@ def evaluate_october(fit,records,require_n=None):
         "baseline_definition":"all_three_models_evaluated_same_boat123_tickets",
         "models":results,"athlete_vs_venue_delta":deltas,
         "athlete_vs_venue_logloss_delta_day_bootstrap_95":ci,
+        "global_athlete_vs_global_delta":global_deltas,
+        "global_athlete_vs_global_logloss_delta_day_bootstrap_95":global_ci,
         "paired_topn":paired,
         "historical_findings_not_prospective_accuracy":True,
         "historical_clean_six_finishers_selected_after_result":True,
