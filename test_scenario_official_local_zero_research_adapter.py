@@ -60,7 +60,8 @@ class OriginalVenueZeroResearchTests(unittest.TestCase):
             raw.replace("全国".encode(),"全国不明".encode(),1),
             raw.replace(b'class="is-lineH2" rowspan="4">0.00',
                         b'class="bad" rowspan="4">0.00',1),
-            raw.replace(b"</table>",b"",1),
+            raw.replace(b'<tr><td class="is-boatColor6',
+                        b'<notrow><td class="is-boatColor6',1),
             b"",
         ):
             with self.subTest(bad=bad[:80]),self.assertRaises(ValueError):
