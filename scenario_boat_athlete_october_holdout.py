@@ -239,7 +239,11 @@ def evaluate_october(fit,records,require_n=None):
             for com in comparisons}
     days=defaultdict(lambda:{"n":0,
         "delta_logloss":0.,
-        "global_athlete_delta_logloss":0.})
+        "global_athlete_delta_logloss":0.,
+        "global_top10_gain":0})
+    venue_diagnostic=defaultdict(lambda:{"n":0,"global_top10_gain":0,
+                                         "global_top5_gain":0,"logloss_delta_sum":0.})
+    known_roster_athletes=Counter()
     day_keys=set()
     predicted_cache={}
     for row in records:
@@ -270,6 +274,17 @@ def evaluate_october(fit,records,require_n=None):
         d["n"]+=1
         d["delta_logloss"]+=ls["venue_plus_athlete"]-ls["venue_direct"]
         d["global_athlete_delta_logloss"]+=ls["global_plus_athlete"]-ls["global_direct"]
+        top10_delta=(int(hits["global_plus_athlete"][10])-
+                     int(hits["global_direct"][10]))
+        top5_delta=(int(hits["global_plus_athlete"][5])-
+                    int(hits["global_direct"][5]))
+        d["global_top10_gain"]+=top10_delta
+        v=venue_diagnostic[venue]
+        v["n"]+=1
+        v["global_top10_gain"]+=top10_delta
+        v["global_top5_gain"]+=top5_delta
+        v["logloss_delta_sum"]+=ls["global_plus_athlete"]-ls["global_direct"]
+        known_roster_athletes[sum(p in fit["player_delta"] for p in row["roster"])]+=1
         for name,(challenger,base) in comparisons.items():
             for k in TOPS:
                 a=hits[challenger][k]
@@ -301,6 +316,17 @@ def evaluate_october(fit,records,require_n=None):
     other_samples.sort()
     global_ci=[round(other_samples[int(.025*(BOOTSTRAP_REPS-1))],7),
                round(other_samples[int(.975*(BOOTSTRAP_REPS-1))],7)]
+    rng=random.Random(BOOTSTRAP_SEED)
+    top10_day_samples=[]
+    for _ in range(BOOTSTRAP_REPS):
+        sample=[ds[rng.randrange(len(ds))] for _ in ds]
+        denom=sum(days[d]["n"] for d in sample)
+        top10_day_samples.append(
+            100*sum(days[d]["global_top10_gain"] for d in sample)/denom)
+    top10_day_samples.sort()
+    top10_ci_pct=[
+        round(top10_day_samples[int(.025*(BOOTSTRAP_REPS-1))],4),
+        round(top10_day_samples[int(.975*(BOOTSTRAP_REPS-1))],4)]
     results={name:_report(stat) for name,stat in metrics.items()}
     old=results["venue_direct"]
     new=results["venue_plus_athlete"]
@@ -338,6 +364,20 @@ def evaluate_october(fit,records,require_n=None):
         "athlete_vs_venue_logloss_delta_day_bootstrap_95":ci,
         "global_athlete_vs_global_delta":global_deltas,
         "global_athlete_vs_global_logloss_delta_day_bootstrap_95":global_ci,
+        "global_athlete_vs_global_top10_pctpoint_day_bootstrap_95":top10_ci_pct,
+        "day_diagnostic":{
+            "total_days":len(days),
+            "top10_positive_days":sum(v["global_top10_gain"]>0 for v in days.values()),
+            "top10_negative_days":sum(v["global_top10_gain"]<0 for v in days.values()),
+            "top10_equal_days":sum(v["global_top10_gain"]==0 for v in days.values()),
+        },
+        "venue_diagnostic":{
+            venue:{"n":v["n"],
+                   "top5_delta":v["global_top5_gain"],
+                   "top10_delta":v["global_top10_gain"],
+                   "mean_logloss_delta":round(v["logloss_delta_sum"]/v["n"],7)}
+            for venue,v in sorted(venue_diagnostic.items())},
+        "known_training_athletes_in_october_roster_distribution":dict(sorted(known_roster_athletes.items())),
         "paired_topn":paired,
         "historical_findings_not_prospective_accuracy":True,
         "historical_clean_six_finishers_selected_after_result":True,
@@ -359,4 +399,23 @@ def run_official_K_boat_holdout(path):
     report=evaluate_october(fit,data["historical_october"],require_n=4382)
     report["original_K_source"]=evidence
     report["train_row_fingerprint"]=fit["train_roster_shas"]
+    # NON-FORECAST negative control: after-event permute Oct athlete rosters
+    # among events without touching their venues/outcome labels. The
+    # permutation MUST be seeded, and is not a prospective predictor.
+    test=data["historical_october"]
+    idx=list(range(len(test)))
+    random.Random(1710).shuffle(idx)
+    shuffled=[{**row,"roster":test[idx[i]]["roster"]}
+              for i,row in enumerate(test)]
+    negative=evaluate_october(fit,shuffled,require_n=4382)
+    assert negative["models"]["global_direct"]==report["models"]["global_direct"]
+    assert negative["models"]["venue_direct"]==report["models"]["venue_direct"]
+    report["posthoc_roster_permutation_negative_control"]={
+        "seed":1710,
+        "permutation_does_not_change_global_or_venue_boards":True,
+        "note":"counterfactual shuffled October roster after outcome; never forecast",
+        "shuffled_athlete_model":negative["models"]["global_plus_athlete"],
+        "original_athlete_model":report["models"]["global_plus_athlete"],
+        "not_an_independent_confirmation":True,
+    }
     return report
