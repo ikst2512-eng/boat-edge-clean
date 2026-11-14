@@ -34,7 +34,7 @@ class HistoricalBoatAthleteTests(unittest.TestCase):
 
     def test_all_120_sum_and_three_model_shapes(self):
         board=predict_boat120(self.fitted,"01",self.october[0]["roster"])
-        self.assertEqual(set(board),{"global_direct","venue_direct","venue_plus_athlete"})
+        self.assertEqual(set(board),{"global_direct","venue_direct","venue_plus_athlete","global_plus_athlete"})
         for v in board.values():
             self.assertEqual(set(v),set(TICKETS))
             self.assertTrue(math.isclose(sum(v.values()),1,abs_tol=1e-9))
@@ -61,6 +61,8 @@ class HistoricalBoatAthleteTests(unittest.TestCase):
         self.assertTrue(result["historical_clean_six_finishers_selected_after_result"])
         self.assertFalse(result["production_adoption_allowed"])
         self.assertFalse(result["trained_on_october_labels"])
+        self.assertIn("global_athlete_vs_global_delta",result)
+        self.assertEqual(sum(result["paired_topn"]["global_athlete_vs_global"][10].values()),100)
         for m in result["models"].values():
             self.assertEqual(m["n"],100)
             self.assertGreaterEqual(m["top10"],m["top5"])
@@ -94,6 +96,7 @@ class HistoricalBoatAthleteTests(unittest.TestCase):
         self.assertEqual(src["venue_direct"],nxt["venue_direct"])
         # Train roster features for a unique player are separate from venue.
         self.assertNotEqual(src["venue_plus_athlete"],nxt["venue_plus_athlete"])
+        self.assertNotEqual(src["global_plus_athlete"],nxt["global_plus_athlete"])
 
 
 if __name__=="__main__":
