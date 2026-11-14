@@ -43,7 +43,8 @@ def snapshot_timing(directory, race, official):
     """Inspect exact archived forecast only. Never use result, payout or new HTTP."""
     directory = Path(directory)
     kind = directory.name
-    if kind not in ("prospective_predictions", "four_mode_forecasts"):
+    if kind not in ("prospective_predictions", "four_mode_forecasts",
+                    "scenario_forecasts", "v133_policy_forecasts"):
         raise ValueError("unexpected_forecast_type")
     path = directory / (race + ".json")
     if not path.exists() and not path.is_symlink():
@@ -60,7 +61,7 @@ def snapshot_timing(directory, race, official):
             generated = jst(row["generated_at"])
             deadline = jst(row["source_deadline_jst"])
             cutoff = jst(row["cutoff_jst"])
-        else:
+        elif kind == "four_mode_forecasts":
             if (row.get("race_code") != race or
                     row.get("schema") != "CLEAN_FOUR_MODES_PREDEADLINE_V1" or
                     row.get("status") != "provisional" or
@@ -69,8 +70,47 @@ def snapshot_timing(directory, race, official):
             generated = jst(row["generated_at_jst"])
             deadline = jst(row["deadline_jst"])
             cutoff = deadline - timedelta(minutes=12)
-        title = jst(row["source_title_received_jst"])
-        cards = jst(row["source_cards_received_jst"])
+        else:
+            # New scenario/V133 records are separate, uncalibrated research
+            # artifacts. They consume a verified racecard/beforeinfo receipt,
+            # NOT necessarily this separately collected official three-original
+            # batch. The chronology can reject impossible provenance but can
+            # never affirm positive consumption without exact input linkage.
+            identity = {
+                "scenario_forecasts": (
+                    "CLEAN_RESTORED_SCENARIO_FORWARD_CAPTURE_V1",
+                    "predeadline_frozen_scenario_research"),
+                "v133_policy_forecasts": (
+                    "CLEAN_V133_POINT_POLICY_PROSPECTIVE_RESEARCH_V1",
+                    "predeadline_v133_policy_research_frozen"),
+            }[kind]
+            if (row.get("race_code") != race or
+                    row.get("schema") != identity[0] or
+                    row.get("status") != identity[1] or
+                    row.get("formal") is not False or
+                    row.get("calibrated") is not False or
+                    row.get("first_remote_add_verified") is not False or
+                    row.get("production_buy_approved") is not False or
+                    row.get("v2_archive_untouched") is not True):
+                raise ValueError("invalid_scenario_research_record")
+            generated = jst(row["generated_at_jst"])
+            deadline = jst(row["deadline_jst"])
+            cutoff = deadline - timedelta(minutes=12)
+            audit = row.get("source_audit")
+            if not isinstance(audit, dict):
+                raise ValueError("scenario_source_audit_missing")
+            for name in ("race_card", "beforeinfo"):
+                receipt = audit.get(name)
+                if not isinstance(receipt, dict) or receipt.get("status") != "ok":
+                    raise ValueError("scenario_source_receipt_unverified")
+            if (audit["race_card"].get("sha256") !=
+                    row.get("source_racecard_sha256")):
+                raise ValueError("scenario_racecard_digest_mismatch")
+            title = jst(audit["race_card"]["fetched_at"])
+            cards = jst(audit["beforeinfo"]["fetched_at"])
+        if is_candidate or kind == "four_mode_forecasts":
+            title = jst(row["source_title_received_jst"])
+            cards = jst(row["source_cards_received_jst"])
         if (deadline != jst(official["official_deadline_jst"]) or
                 cutoff != jst(official["cutoff_jst"])):
             return {"status": "official_deadline_mismatch",
@@ -87,7 +127,9 @@ def snapshot_timing(directory, race, official):
             status = "official_model_input_consumption_unverified"
         return {"status": status, "generated_at_jst": generated.isoformat(),
                 "latest_official_received_jst": latest.isoformat(),
-                "input_source_kind": str(row.get("input_source_kind", "not_recorded"))[:80],
+                "input_source_kind": str(row.get("input_source_kind",
+                    row.get("source_audit", {}).get("beforeinfo", {}).get("source",
+                            "not_recorded")))[:80],
                 "formal_attested": False}
     except (ValueError, KeyError, TypeError, OSError, OverflowError, UnicodeError):
         return {"status": "forecast_record_unverified", "generated_at_jst": None}
@@ -396,7 +438,8 @@ def audit_batch(batch_dir, forecast_root, *, official_auditor=audit_three_origin
                 row["latest_official_received_jst"] = audited["latest_original_received_jst"]
                 row["forecast_statuses"] = {
                     name: snapshot_timing(forecast_root / name, race, audited)
-                    for name in ("prospective_predictions", "four_mode_forecasts")
+                    for name in ("prospective_predictions", "four_mode_forecasts",
+                                 "scenario_forecasts", "v133_policy_forecasts")
                 }
             except (ValueError, KeyError, OSError, TypeError, UnicodeError) as exc:
                 row["official_original_status"] = "official_original_reaudit_failed"
@@ -440,7 +483,8 @@ def audit_batch(batch_dir, forecast_root, *, official_auditor=audit_three_origin
                     and pair["component_checks"]["odds_received_by_t12"] is True)
                 row["forecast_statuses"] = {
                     name: snapshot_timing(forecast_root / name, race, observed)
-                    for name in ("prospective_predictions", "four_mode_forecasts")
+                    for name in ("prospective_predictions", "four_mode_forecasts",
+                                 "scenario_forecasts", "v133_policy_forecasts")
                 }
             except (ValueError, KeyError, OSError, TypeError, UnicodeError) as exc:
                 row["official_original_status"] = "official_pair_reaudit_failed"

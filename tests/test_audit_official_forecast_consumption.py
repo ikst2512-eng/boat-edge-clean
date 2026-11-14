@@ -208,6 +208,113 @@ class OfficialForecastConsumptionTests(unittest.TestCase):
             self.assertEqual(snapshot_timing(Path(tmp) / "four_mode_forecasts",
                                              RACE, verified)["status"], "forecast_not_saved")
 
+    @staticmethod
+    def write_scenario_research(root, kind, generated):
+        identities = {
+            "scenario_forecasts": (
+                "CLEAN_RESTORED_SCENARIO_FORWARD_CAPTURE_V1",
+                "predeadline_frozen_scenario_research"),
+            "v133_policy_forecasts": (
+                "CLEAN_V133_POINT_POLICY_PROSPECTIVE_RESEARCH_V1",
+                "predeadline_v133_policy_research_frozen"),
+        }
+        schema, status = identities[kind]
+        folder = Path(root) / kind
+        folder.mkdir(exist_ok=True)
+        path = folder / (RACE + ".json")
+        report = {
+            "race_code": RACE, "schema": schema, "status": status,
+            "formal": False, "calibrated": False,
+            "first_remote_add_verified": False,
+            "production_buy_approved": False, "v2_archive_untouched": True,
+            "generated_at_jst": generated, "deadline_jst": DEADLINE,
+            "source_racecard_sha256": "a" * 64,
+            "source_audit": {
+                "race_card": {
+                    "status": "ok", "fetched_at": "2026-11-02T21:19:00+09:00",
+                    "sha256": "a" * 64},
+                "beforeinfo": {
+                    "status": "ok", "fetched_at": "2026-11-02T21:19:01+09:00",
+                    "sha256": "b" * 64,
+                    "source": "BOAT RACE official beforeinfo JSON"}}
+        }
+        path.write_text(json.dumps(report), encoding="utf-8")
+        return path
+
+    def test_new_scenario_and_v133_are_rejected_when_official_triple_arrives_later(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for kind in ("scenario_forecasts", "v133_policy_forecasts"):
+                path = self.write_scenario_research(
+                    tmp, kind, "2026-11-02T21:19:30+09:00")
+                result = snapshot_timing(Path(tmp) / kind, RACE, self.simulated_official())
+                self.assertEqual(result["status"],
+                                 "official_originals_arrived_after_forecast")
+                self.assertFalse(result["formal_attested"])
+                self.assertIn("beforeinfo", result["input_source_kind"].lower())
+                # Even if the official source preceded this model, metadata
+                # chronology alone cannot certify actual source consumption.
+                data = json.loads(path.read_text())
+                data["generated_at_jst"] = "2026-11-02T21:22:00+09:00"
+                path.write_text(json.dumps(data))
+                result = snapshot_timing(Path(tmp) / kind, RACE, self.simulated_official())
+                self.assertEqual(result["status"],
+                                 "official_model_input_consumption_unverified")
+                self.assertFalse(result["formal_attested"])
+                # The original deadlines and source receipts are hard guards.
+                data["deadline_jst"] = "2026-11-02T21:50:00+09:00"
+                path.write_text(json.dumps(data))
+                self.assertEqual(snapshot_timing(Path(tmp) / kind, RACE,
+                                 self.simulated_official())["status"],
+                                 "official_deadline_mismatch")
+                data["deadline_jst"] = DEADLINE
+                data["source_audit"]["beforeinfo"]["fetched_at"] = (
+                    "2026-11-02T21:23:00+09:00")
+                path.write_text(json.dumps(data))
+                self.assertEqual(snapshot_timing(Path(tmp) / kind, RACE,
+                                 self.simulated_official())["status"],
+                                 "forecast_timing_invalid")
+
+    def test_new_scenario_v133_missing_or_forged_receipts_are_never_accepted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for kind in ("scenario_forecasts", "v133_policy_forecasts"):
+                path = self.write_scenario_research(
+                    tmp, kind, "2026-11-02T21:19:30+09:00")
+                original = json.loads(path.read_text())
+                for label, change in (
+                    ("formal", lambda d: d.update(formal=True)),
+                    ("first_remote", lambda d: d.update(first_remote_add_verified=True)),
+                    ("racecard_hash", lambda d: d.update(source_racecard_sha256="wrong")),
+                    ("beforeinfo_missing", lambda d: d["source_audit"].pop("beforeinfo")),
+                    ("beforeinfo_late", lambda d: d["source_audit"]["beforeinfo"].update(
+                        fetched_at="2026-11-02T21:40:00+09:00")),
+                ):
+                    with self.subTest(kind=kind, label=label):
+                        import copy
+                        data = copy.deepcopy(original)
+                        change(data)
+                        path.write_text(json.dumps(data))
+                        result = snapshot_timing(Path(tmp) / kind, RACE,
+                                                 self.simulated_official())
+                        self.assertIn(result["status"],
+                                      ("forecast_record_unverified", "forecast_timing_invalid"))
+                path.write_text(json.dumps(original))
+
+    def test_actual_wakamatsu12_scenario_precedes_separate_triple_capture(self):
+        # 11/14 same race: this archived scenario was generated at 20:12:55;
+        # the independent triple original was last received at 20:13:29.
+        # The fixture time is an observation from that separate research run,
+        # NOT proof of official source consumption or GitHub first-seen.
+        root = Path(__file__).resolve().parent.parent
+        official = {
+            "official_deadline_jst": "2026-11-14T20:30:00+09:00",
+            "cutoff_jst": "2026-11-14T20:18:00+09:00",
+            "latest_original_received_jst": "2026-11-14T20:13:29.038247+09:00",
+        }
+        result = snapshot_timing(
+            root / "scenario_forecasts", "202611142012", official)
+        self.assertEqual(result["status"], "official_originals_arrived_after_forecast")
+        self.assertFalse(result["formal_attested"])
+
     def test_actual_three_original_bytes_are_reaudited_before_timing(self):
         with tempfile.TemporaryDirectory() as tmp:
             batch = Path(tmp) / "official_joint_evidence"
