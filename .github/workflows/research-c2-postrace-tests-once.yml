@@ -1,0 +1,34 @@
+name: Research C2 postrace isolated tests (one shot)
+on:
+  push:
+    branches:
+      - research/venue-environment-factor-baseline-20261106
+    paths:
+      - .github/workflows/research-c2-postrace-tests-once.yml
+permissions:
+  contents: read
+concurrency:
+  group: research-c2-postrace-once
+  cancel-in-progress: false
+jobs:
+  safety-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile research-only parser wrapper
+        run: |
+          python -m py_compile scripts/research_official_k_c2_escape_conditional_92day.py
+          python -m py_compile scripts/research_venue24_feature_readiness_gate.py
+          python -m py_compile scripts/research_official_k_c2_athlete_chronological_holdout.py
+      - name: Run C1/C2 postrace cohort synthetic offline tests
+        run: python -m unittest discover -s tests -p 'test_research_official_k_c2_escape_conditional_92day.py' -v
+      - name: Run 24-venue frozen sources and feature-readiness source gate
+        run: python scripts/research_venue24_feature_readiness_gate.py
+      - name: Reject 11 illegal venue feature promotions and source mutations
+        run: python -m unittest discover -s tests -p 'test_research_venue24_feature_readiness_gate.py' -v
+      - name: Validate C2 historical holdout has no October target leakage
+        run: python -m unittest discover -s tests -p 'test_research_official_k_c2_athlete_chronological_holdout.py' -v

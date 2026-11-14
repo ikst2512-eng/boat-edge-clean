@@ -1,0 +1,180 @@
+{
+  "schema": "K_PRIMARY_OPERATOR_INDEX_WIND_COMPARISON_20261108_V1",
+  "kind": "RESEARCH_ONLY_POSTRACE_NO_PRODUCTION",
+  "officialK": {
+    "source_zip_sha256": "c668f545bae54f8148616315e307ed2a2b04a77a0cb8abf88bf3ea078749ce8e",
+    "actions_run_id": 42453296631,
+    "artifact_id": 13607470249,
+    "all_92_days_sha_verified": true
+  },
+  "operator_history": {
+    "url": "https://boatrace-ashiya.com/sp/index.php?dtl=27&motor_no=8&page=datafile-motor_histdtl&select=27",
+    "source_type": "OFFICIAL_OPERATOR_CRAWLER_SEARCH_EXCERPT_NOT_IMMUTABLE_ORIGIN",
+    "important": "Old 2026-08-30..09-02 event was visible in a public search-result excerpt; directly opening the URL later returned newer/other data. Never treat this as an original archived HTML receipt.",
+    "original_response_sha256": null
+  },
+  "historic_matches": [
+    {
+      "race_id": "202608302104",
+      "day": "20260830",
+      "rno": 4,
+      "officialKsha256": "41d0e937d224513228cd0b42c5c7f02e0c2e68c0dae3a1523ef9721b0ecd713c",
+      "officialKwind": "西",
+      "officialKmeters": 2,
+      "officialKwave_cm": 2,
+      "operator_index_wind": "西",
+      "operator_index_meters": 2,
+      "operator_index_wave_cm": 2,
+      "operator_index_relative_label": "追い風",
+      "three_data_fields_agree": true,
+      "operator_original_html_sha256": null
+    },
+    {
+      "race_id": "202608302112",
+      "day": "20260830",
+      "rno": 12,
+      "officialKsha256": "41d0e937d224513228cd0b42c5c7f02e0c2e68c0dae3a1523ef9721b0ecd713c",
+      "officialKwind": "北西",
+      "officialKmeters": 3,
+      "officialKwave_cm": 3,
+      "operator_index_wind": "北西",
+      "operator_index_meters": 3,
+      "operator_index_wave_cm": 3,
+      "operator_index_relative_label": "追い風",
+      "three_data_fields_agree": true,
+      "operator_original_html_sha256": null
+    },
+    {
+      "race_id": "202608312104",
+      "day": "20260831",
+      "rno": 4,
+      "officialKsha256": "1966f2a0d62b50371a27104bb8b5ba8b5ffe3af3e34fbb8e17fded9938530084",
+      "officialKwind": "東",
+      "officialKmeters": 2,
+      "officialKwave_cm": 2,
+      "operator_index_wind": "東",
+      "operator_index_meters": 2,
+      "operator_index_wave_cm": 2,
+      "operator_index_relative_label": "向い風",
+      "three_data_fields_agree": true,
+      "operator_original_html_sha256": null
+    },
+    {
+      "race_id": "202608312108",
+      "day": "20260831",
+      "rno": 8,
+      "officialKsha256": "1966f2a0d62b50371a27104bb8b5ba8b5ffe3af3e34fbb8e17fded9938530084",
+      "officialKwind": "北東",
+      "officialKmeters": 3,
+      "officialKwave_cm": 3,
+      "operator_index_wind": "北東",
+      "operator_index_meters": 3,
+      "operator_index_wave_cm": 3,
+      "operator_index_relative_label": "向い風",
+      "three_data_fields_agree": true,
+      "operator_original_html_sha256": null
+    },
+    {
+      "race_id": "202609012105",
+      "day": "20260901",
+      "rno": 5,
+      "officialKsha256": "9d298fa0969483dd95e9fe7b4afe4bcb13152641cf224da736520cd9dc7109ec",
+      "officialKwind": "東",
+      "officialKmeters": 3,
+      "officialKwave_cm": 3,
+      "operator_index_wind": "東",
+      "operator_index_meters": 3,
+      "operator_index_wave_cm": 3,
+      "operator_index_relative_label": "向い風",
+      "three_data_fields_agree": true,
+      "operator_original_html_sha256": null
+    },
+    {
+      "race_id": "202609012112",
+      "day": "20260901",
+      "rno": 12,
+      "officialKsha256": "9d298fa0969483dd95e9fe7b4afe4bcb13152641cf224da736520cd9dc7109ec",
+      "officialKwind": "東",
+      "officialKmeters": 4,
+      "officialKwave_cm": 4,
+      "operator_index_wind": "東",
+      "operator_index_meters": 4,
+      "operator_index_wave_cm": 4,
+      "operator_index_relative_label": "向い風",
+      "three_data_fields_agree": true,
+      "operator_original_html_sha256": null
+    },
+    {
+      "race_id": "202609022112",
+      "day": "20260902",
+      "rno": 12,
+      "officialKsha256": "aa44b6fd89f1b66e915611189e1f8c28f728a1b62c36dcac8441a3ba8dc4870e",
+      "officialKwind": "東",
+      "officialKmeters": 3,
+      "officialKwave_cm": 3,
+      "operator_index_wind": "東",
+      "operator_index_meters": 3,
+      "operator_index_wave_cm": 3,
+      "operator_index_relative_label": "向い風",
+      "three_data_fields_agree": true,
+      "operator_original_html_sha256": null
+    }
+  ],
+  "explicit_source_evidence": [
+    {
+      "jcd": "06",
+      "venue": "浜名湖",
+      "source_url": "https://www.boatrace.jp/owpc/pc/extra/race/06_20180316/monthly/course_motor_guide.html",
+      "source_era": "2018",
+      "statement": "南風=ホーム向かい風、北西風=ホーム追い風",
+      "alignment_with_secondary_A": "explicit_for_south_head",
+      "official_2026_diagram_sha256": null
+    },
+    {
+      "jcd": "09",
+      "venue": "津",
+      "source_url": "https://www.boatrace.jp/owsp/sp/extra/race/09_20160802/monthly/point.html",
+      "source_era": "2016",
+      "statement": "南東方向からのホーム追い風、競走水面はほぼ東西",
+      "alignment_with_secondary_A": "oblique_tail_sector_only",
+      "official_2026_diagram_sha256": null
+    },
+    {
+      "jcd": "21",
+      "venue": "芦屋",
+      "source_url": "https://www.boatrace-ashiya.com/modules/datafile/?motor_no=46&page=index_motor_histdtl&select=6",
+      "source_era": "2026-11-08",
+      "statement": "11月8日5R:東向い風4m、11R:東向い風5m",
+      "alignment_with_secondary_A": "explicit_for_east_head",
+      "official_2026_diagram_sha256": null
+    }
+  ],
+  "contemporary_conflict": {
+    "race_id": "202611082105",
+    "official_operator_url": "https://www.boatrace-ashiya.com/modules/datafile/?motor_no=46&page=index_motor_histdtl&select=6",
+    "official_operator_from": "東",
+    "official_operator_m": 4,
+    "official_operator_wave": 4,
+    "secondary_url": "https://kyotei-karte.com/race/2026-11-08/ashiya/5/",
+    "secondary_from": "西",
+    "secondary_m": 4,
+    "secondary_wave": 4,
+    "alternate_secondary_url": "https://boatrace-techo.com/race/2026-11-08/ashiya/5?tab=result",
+    "alternate_secondary_wind_direction": "—",
+    "status": "UNRESOLVED_DIRECTION_CONFLICT",
+    "official_K_20261108_raw_sha_verified": false,
+    "same_race_arrow_sha_verified": false
+  },
+  "cumulative_witness_count": {
+    "explicit_8": 8,
+    "partial_3": 3,
+    "unverified_13": 13,
+    "official_diagram_plus_same_race_arrow_fully_certified": 0,
+    "pre_t12_wind_verified": 0
+  },
+  "safe": {
+    "do_not_feed_postrace_to_forecast": true,
+    "main_and_production_unchanged": true,
+    "automerge": false
+  }
+}

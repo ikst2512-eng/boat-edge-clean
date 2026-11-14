@@ -1,0 +1,2095 @@
+{
+  "schema": "VENUE_WIND_NOV01_05_OUT_OF_PERIOD_AUDIT_V1",
+  "period": "2026-11-01..2026-11-05",
+  "research_only": true,
+  "post_race_weather": true,
+  "approved_for_prediction": false,
+  "official_result_reconciled": false,
+  "source": "BoatraceCSV GitHub result CSV",
+  "sources": [
+    {
+      "date": "2026-11-01",
+      "source_path": "data/results/realtime/2026/11/01.csv",
+      "blob_sha": "4fafdde85df5ff607c817e2d4db87b673a499d27",
+      "bytes": 41623,
+      "rows": 167,
+      "error": null
+    },
+    {
+      "date": "2026-11-02",
+      "source_path": "data/results/realtime/2026/11/02.csv",
+      "blob_sha": "edbae287eb90bb786f0aad64802c125e91ea9540",
+      "bytes": 38640,
+      "rows": 155,
+      "error": null
+    },
+    {
+      "date": "2026-11-03",
+      "source_path": "data/results/realtime/2026/11/03.csv",
+      "blob_sha": "a7b9e6ceaf05e997003089fa96e80c5b32f6c153",
+      "bytes": 38812,
+      "rows": 155,
+      "error": null
+    },
+    {
+      "date": "2026-11-04",
+      "source_path": "data/results/realtime/2026/11/04.csv",
+      "blob_sha": "5c2e83f8d87a7f31d6f1cac510baa2ef332abefa",
+      "bytes": 35815,
+      "rows": 143,
+      "error": null
+    },
+    {
+      "date": "2026-11-05",
+      "source_path": "data/results/realtime/2026/11/05.csv",
+      "blob_sha": "18b057831a07bd6f6f381774a165f834125c41f9",
+      "bytes": 36402,
+      "rows": 144,
+      "error": null
+    }
+  ],
+  "validation": {
+    "input_rows": 764,
+    "accepted": 756,
+    "excluded": 8,
+    "exclusions": {
+      "invalid_course": 8
+    },
+    "examples": {
+      "invalid_course": "202611011911"
+    },
+    "per_day": {
+      "01": {
+        "source_rows": 167,
+        "accepted": 166
+      },
+      "02": {
+        "source_rows": 155,
+        "accepted": 153
+      },
+      "03": {
+        "source_rows": 155,
+        "accepted": 152
+      },
+      "04": {
+        "source_rows": 143,
+        "accepted": 141
+      },
+      "05": {
+        "source_rows": 144,
+        "accepted": 144
+      }
+    }
+  },
+  "national": {
+    "0-2m": {
+      "n": 547,
+      "winner_course_counts": [
+        326,
+        77,
+        52,
+        56,
+        25,
+        11
+      ],
+      "winner_course1_pct": 59.6,
+      "escape": 309,
+      "escape_pct": 56.49,
+      "winning_method_counts": {
+        "逃げ": 309,
+        "差し": 72,
+        "まくり": 67,
+        "まくり差し": 57,
+        "抜き": 34,
+        "恵まれ": 8
+      },
+      "wind_direction_raw_counts": {
+        "1": 86,
+        "2": 52,
+        "3": 86,
+        "4": 54,
+        "5": 57,
+        "6": 48,
+        "7": 36,
+        "8": 49,
+        "": 79
+      }
+    },
+    "3-4m": {
+      "n": 180,
+      "winner_course_counts": [
+        95,
+        25,
+        29,
+        18,
+        11,
+        2
+      ],
+      "winner_course1_pct": 52.78,
+      "escape": 88,
+      "escape_pct": 48.89,
+      "winning_method_counts": {
+        "逃げ": 88,
+        "差し": 27,
+        "まくり": 32,
+        "まくり差し": 20,
+        "抜き": 13,
+        "恵まれ": 0
+      },
+      "wind_direction_raw_counts": {
+        "1": 52,
+        "2": 24,
+        "3": 18,
+        "4": 11,
+        "5": 16,
+        "6": 17,
+        "7": 6,
+        "8": 36
+      }
+    },
+    "5m+": {
+      "n": 29,
+      "winner_course_counts": [
+        14,
+        4,
+        4,
+        5,
+        2,
+        0
+      ],
+      "winner_course1_pct": 48.28,
+      "escape": 13,
+      "escape_pct": 44.83,
+      "winning_method_counts": {
+        "逃げ": 13,
+        "差し": 4,
+        "まくり": 6,
+        "まくり差し": 3,
+        "抜き": 2,
+        "恵まれ": 1
+      },
+      "wind_direction_raw_counts": {
+        "1": 6,
+        "2": 1,
+        "7": 1,
+        "8": 21
+      }
+    }
+  },
+  "venues": {
+    "10": {
+      "0-2m": {
+        "n": 17,
+        "winner_course_counts": [
+          8,
+          6,
+          2,
+          0,
+          1,
+          0
+        ],
+        "winner_course1_pct": 47.06,
+        "escape": 8,
+        "escape_pct": 47.06,
+        "winning_method_counts": {
+          "逃げ": 8,
+          "差し": 7,
+          "まくり": 0,
+          "まくり差し": 1,
+          "抜き": 1,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "1": 3,
+          "2": 2,
+          "4": 5,
+          "7": 5,
+          "8": 1,
+          "": 1
+        }
+      },
+      "3-4m": {
+        "n": 14,
+        "winner_course_counts": [
+          6,
+          1,
+          3,
+          2,
+          1,
+          1
+        ],
+        "winner_course1_pct": 42.86,
+        "escape": 6,
+        "escape_pct": 42.86,
+        "winning_method_counts": {
+          "逃げ": 6,
+          "差し": 2,
+          "まくり": 4,
+          "まくり差し": 2,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "1": 4,
+          "2": 2,
+          "4": 3,
+          "8": 5
+        }
+      },
+      "5m+": {
+        "n": 4,
+        "winner_course_counts": [
+          2,
+          1,
+          0,
+          0,
+          1,
+          0
+        ],
+        "winner_course1_pct": 50,
+        "escape": 2,
+        "escape_pct": 50,
+        "winning_method_counts": {
+          "逃げ": 2,
+          "差し": 1,
+          "まくり": 0,
+          "まくり差し": 1,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "1": 1,
+          "8": 3
+        }
+      }
+    },
+    "11": {
+      "0-2m": {
+        "n": 12,
+        "winner_course_counts": [
+          9,
+          1,
+          1,
+          1,
+          0,
+          0
+        ],
+        "winner_course1_pct": 75,
+        "escape": 9,
+        "escape_pct": 75,
+        "winning_method_counts": {
+          "逃げ": 9,
+          "差し": 1,
+          "まくり": 1,
+          "まくり差し": 1,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "2": 4,
+          "3": 2,
+          "": 6
+        }
+      },
+      "3-4m": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      },
+      "5m+": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      }
+    },
+    "12": {
+      "0-2m": {
+        "n": 12,
+        "winner_course_counts": [
+          7,
+          0,
+          3,
+          1,
+          1,
+          0
+        ],
+        "winner_course1_pct": 58.33,
+        "escape": 7,
+        "escape_pct": 58.33,
+        "winning_method_counts": {
+          "逃げ": 7,
+          "差し": 0,
+          "まくり": 2,
+          "まくり差し": 3,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "2": 1,
+          "5": 4,
+          "": 7
+        }
+      },
+      "3-4m": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      },
+      "5m+": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      }
+    },
+    "13": {
+      "0-2m": {
+        "n": 9,
+        "winner_course_counts": [
+          8,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": 88.89,
+        "escape": 6,
+        "escape_pct": 66.67,
+        "winning_method_counts": {
+          "逃げ": 6,
+          "差し": 1,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 2,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "3": 1,
+          "4": 1,
+          "5": 1,
+          "6": 2,
+          "7": 2,
+          "": 2
+        }
+      },
+      "3-4m": {
+        "n": 3,
+        "winner_course_counts": [
+          1,
+          0,
+          2,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": 33.33,
+        "escape": 1,
+        "escape_pct": 33.33,
+        "winning_method_counts": {
+          "逃げ": 1,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 2,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "6": 1,
+          "7": 2
+        }
+      },
+      "5m+": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      }
+    },
+    "14": {
+      "0-2m": {
+        "n": 16,
+        "winner_course_counts": [
+          12,
+          1,
+          2,
+          1,
+          0,
+          0
+        ],
+        "winner_course1_pct": 75,
+        "escape": 12,
+        "escape_pct": 75,
+        "winning_method_counts": {
+          "逃げ": 12,
+          "差し": 1,
+          "まくり": 3,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "3": 5,
+          "4": 7,
+          "6": 1,
+          "8": 3
+        }
+      },
+      "3-4m": {
+        "n": 5,
+        "winner_course_counts": [
+          2,
+          2,
+          1,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": 40,
+        "escape": 2,
+        "escape_pct": 40,
+        "winning_method_counts": {
+          "逃げ": 2,
+          "差し": 0,
+          "まくり": 1,
+          "まくり差し": 1,
+          "抜き": 1,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "8": 5
+        }
+      },
+      "5m+": {
+        "n": 3,
+        "winner_course_counts": [
+          1,
+          0,
+          2,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": 33.33,
+        "escape": 1,
+        "escape_pct": 33.33,
+        "winning_method_counts": {
+          "逃げ": 1,
+          "差し": 0,
+          "まくり": 1,
+          "まくり差し": 0,
+          "抜き": 1,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "8": 3
+        }
+      }
+    },
+    "15": {
+      "0-2m": {
+        "n": 33,
+        "winner_course_counts": [
+          18,
+          4,
+          5,
+          3,
+          2,
+          1
+        ],
+        "winner_course1_pct": 54.55,
+        "escape": 17,
+        "escape_pct": 51.52,
+        "winning_method_counts": {
+          "逃げ": 17,
+          "差し": 2,
+          "まくり": 5,
+          "まくり差し": 3,
+          "抜き": 4,
+          "恵まれ": 2
+        },
+        "wind_direction_raw_counts": {
+          "1": 3,
+          "3": 7,
+          "4": 11,
+          "5": 2,
+          "6": 5,
+          "7": 3,
+          "": 2
+        }
+      },
+      "3-4m": {
+        "n": 11,
+        "winner_course_counts": [
+          6,
+          1,
+          1,
+          2,
+          1,
+          0
+        ],
+        "winner_course1_pct": 54.55,
+        "escape": 6,
+        "escape_pct": 54.55,
+        "winning_method_counts": {
+          "逃げ": 6,
+          "差し": 2,
+          "まくり": 0,
+          "まくり差し": 3,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "4": 3,
+          "6": 1,
+          "7": 3,
+          "8": 4
+        }
+      },
+      "5m+": {
+        "n": 4,
+        "winner_course_counts": [
+          1,
+          1,
+          0,
+          1,
+          1,
+          0
+        ],
+        "winner_course1_pct": 25,
+        "escape": 1,
+        "escape_pct": 25,
+        "winning_method_counts": {
+          "逃げ": 1,
+          "差し": 2,
+          "まくり": 0,
+          "まくり差し": 1,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "7": 1,
+          "8": 3
+        }
+      }
+    },
+    "16": {
+      "0-2m": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      },
+      "3-4m": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      },
+      "5m+": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      }
+    },
+    "17": {
+      "0-2m": {
+        "n": 46,
+        "winner_course_counts": [
+          28,
+          7,
+          3,
+          4,
+          4,
+          0
+        ],
+        "winner_course1_pct": 60.87,
+        "escape": 26,
+        "escape_pct": 56.52,
+        "winning_method_counts": {
+          "逃げ": 26,
+          "差し": 3,
+          "まくり": 8,
+          "まくり差し": 4,
+          "抜き": 3,
+          "恵まれ": 2
+        },
+        "wind_direction_raw_counts": {
+          "1": 7,
+          "2": 5,
+          "3": 17,
+          "5": 5,
+          "6": 5,
+          "7": 1,
+          "": 6
+        }
+      },
+      "3-4m": {
+        "n": 14,
+        "winner_course_counts": [
+          8,
+          2,
+          2,
+          2,
+          0,
+          0
+        ],
+        "winner_course1_pct": 57.14,
+        "escape": 7,
+        "escape_pct": 50,
+        "winning_method_counts": {
+          "逃げ": 7,
+          "差し": 2,
+          "まくり": 3,
+          "まくり差し": 0,
+          "抜き": 2,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "2": 9,
+          "3": 4,
+          "6": 1
+        }
+      },
+      "5m+": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      }
+    },
+    "18": {
+      "0-2m": {
+        "n": 33,
+        "winner_course_counts": [
+          19,
+          7,
+          2,
+          2,
+          1,
+          2
+        ],
+        "winner_course1_pct": 57.58,
+        "escape": 19,
+        "escape_pct": 57.58,
+        "winning_method_counts": {
+          "逃げ": 19,
+          "差し": 5,
+          "まくり": 1,
+          "まくり差し": 5,
+          "抜き": 3,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "2": 1,
+          "3": 6,
+          "4": 1,
+          "5": 12,
+          "6": 11,
+          "7": 2
+        }
+      },
+      "3-4m": {
+        "n": 3,
+        "winner_course_counts": [
+          1,
+          2,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": 33.33,
+        "escape": 1,
+        "escape_pct": 33.33,
+        "winning_method_counts": {
+          "逃げ": 1,
+          "差し": 1,
+          "まくり": 1,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "1": 1,
+          "3": 1,
+          "6": 1
+        }
+      },
+      "5m+": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      }
+    },
+    "19": {
+      "0-2m": {
+        "n": 42,
+        "winner_course_counts": [
+          30,
+          5,
+          1,
+          3,
+          0,
+          3
+        ],
+        "winner_course1_pct": 71.43,
+        "escape": 29,
+        "escape_pct": 69.05,
+        "winning_method_counts": {
+          "逃げ": 29,
+          "差し": 4,
+          "まくり": 7,
+          "まくり差し": 1,
+          "抜き": 1,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "1": 13,
+          "2": 13,
+          "3": 9,
+          "4": 2,
+          "8": 5
+        }
+      },
+      "3-4m": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      },
+      "5m+": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      }
+    },
+    "20": {
+      "0-2m": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      },
+      "3-4m": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      },
+      "5m+": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      }
+    },
+    "21": {
+      "0-2m": {
+        "n": 44,
+        "winner_course_counts": [
+          33,
+          3,
+          1,
+          5,
+          2,
+          0
+        ],
+        "winner_course1_pct": 75,
+        "escape": 30,
+        "escape_pct": 68.18,
+        "winning_method_counts": {
+          "逃げ": 30,
+          "差し": 4,
+          "まくり": 3,
+          "まくり差し": 3,
+          "抜き": 4,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "1": 1,
+          "2": 2,
+          "3": 11,
+          "4": 1,
+          "5": 13,
+          "6": 5,
+          "8": 3,
+          "": 8
+        }
+      },
+      "3-4m": {
+        "n": 16,
+        "winner_course_counts": [
+          9,
+          4,
+          2,
+          1,
+          0,
+          0
+        ],
+        "winner_course1_pct": 56.25,
+        "escape": 9,
+        "escape_pct": 56.25,
+        "winning_method_counts": {
+          "逃げ": 9,
+          "差し": 3,
+          "まくり": 3,
+          "まくり差し": 0,
+          "抜き": 1,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "2": 3,
+          "3": 9,
+          "8": 4
+        }
+      },
+      "5m+": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      }
+    },
+    "22": {
+      "0-2m": {
+        "n": 31,
+        "winner_course_counts": [
+          17,
+          5,
+          3,
+          5,
+          1,
+          0
+        ],
+        "winner_course1_pct": 54.84,
+        "escape": 15,
+        "escape_pct": 48.39,
+        "winning_method_counts": {
+          "逃げ": 15,
+          "差し": 2,
+          "まくり": 7,
+          "まくり差し": 3,
+          "抜き": 4,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "1": 17,
+          "2": 1,
+          "3": 5,
+          "4": 3,
+          "5": 4,
+          "8": 1
+        }
+      },
+      "3-4m": {
+        "n": 27,
+        "winner_course_counts": [
+          15,
+          1,
+          7,
+          1,
+          3,
+          0
+        ],
+        "winner_course1_pct": 55.56,
+        "escape": 13,
+        "escape_pct": 48.15,
+        "winning_method_counts": {
+          "逃げ": 13,
+          "差し": 3,
+          "まくり": 6,
+          "まくり差し": 2,
+          "抜き": 3,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "1": 10,
+          "2": 1,
+          "3": 1,
+          "5": 12,
+          "6": 2,
+          "7": 1
+        }
+      },
+      "5m+": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      }
+    },
+    "23": {
+      "0-2m": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      },
+      "3-4m": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      },
+      "5m+": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      }
+    },
+    "24": {
+      "0-2m": {
+        "n": 29,
+        "winner_course_counts": [
+          24,
+          2,
+          1,
+          2,
+          0,
+          0
+        ],
+        "winner_course1_pct": 82.76,
+        "escape": 24,
+        "escape_pct": 82.76,
+        "winning_method_counts": {
+          "逃げ": 24,
+          "差し": 3,
+          "まくり": 0,
+          "まくり差し": 2,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "1": 3,
+          "2": 8,
+          "3": 4,
+          "4": 9,
+          "5": 1,
+          "6": 3,
+          "": 1
+        }
+      },
+      "3-4m": {
+        "n": 17,
+        "winner_course_counts": [
+          11,
+          1,
+          1,
+          4,
+          0,
+          0
+        ],
+        "winner_course1_pct": 64.71,
+        "escape": 11,
+        "escape_pct": 64.71,
+        "winning_method_counts": {
+          "逃げ": 11,
+          "差し": 3,
+          "まくり": 1,
+          "まくり差し": 2,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "1": 5,
+          "2": 8,
+          "4": 1,
+          "6": 1,
+          "8": 2
+        }
+      },
+      "5m+": {
+        "n": 2,
+        "winner_course_counts": [
+          1,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": 50,
+        "escape": 1,
+        "escape_pct": 50,
+        "winning_method_counts": {
+          "逃げ": 1,
+          "差し": 0,
+          "まくり": 1,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "2": 1,
+          "8": 1
+        }
+      }
+    },
+    "01": {
+      "0-2m": {
+        "n": 30,
+        "winner_course_counts": [
+          13,
+          7,
+          5,
+          4,
+          1,
+          0
+        ],
+        "winner_course1_pct": 43.33,
+        "escape": 13,
+        "escape_pct": 43.33,
+        "winning_method_counts": {
+          "逃げ": 13,
+          "差し": 8,
+          "まくり": 3,
+          "まくり差し": 6,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "1": 3,
+          "2": 3,
+          "3": 5,
+          "7": 3,
+          "8": 7,
+          "": 9
+        }
+      },
+      "3-4m": {
+        "n": 4,
+        "winner_course_counts": [
+          2,
+          0,
+          1,
+          0,
+          1,
+          0
+        ],
+        "winner_course1_pct": 50,
+        "escape": 2,
+        "escape_pct": 50,
+        "winning_method_counts": {
+          "逃げ": 2,
+          "差し": 0,
+          "まくり": 1,
+          "まくり差し": 1,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "8": 4
+        }
+      },
+      "5m+": {
+        "n": 2,
+        "winner_course_counts": [
+          1,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": 50,
+        "escape": 1,
+        "escape_pct": 50,
+        "winning_method_counts": {
+          "逃げ": 1,
+          "差し": 1,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "8": 2
+        }
+      }
+    },
+    "02": {
+      "0-2m": {
+        "n": 32,
+        "winner_course_counts": [
+          14,
+          6,
+          3,
+          7,
+          1,
+          1
+        ],
+        "winner_course1_pct": 43.75,
+        "escape": 11,
+        "escape_pct": 34.38,
+        "winning_method_counts": {
+          "逃げ": 11,
+          "差し": 8,
+          "まくり": 5,
+          "まくり差し": 3,
+          "抜き": 4,
+          "恵まれ": 1
+        },
+        "wind_direction_raw_counts": {
+          "1": 6,
+          "5": 3,
+          "8": 15,
+          "": 8
+        }
+      },
+      "3-4m": {
+        "n": 4,
+        "winner_course_counts": [
+          2,
+          1,
+          0,
+          1,
+          0,
+          0
+        ],
+        "winner_course1_pct": 50,
+        "escape": 2,
+        "escape_pct": 50,
+        "winning_method_counts": {
+          "逃げ": 2,
+          "差し": 2,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "8": 4
+        }
+      },
+      "5m+": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      }
+    },
+    "03": {
+      "0-2m": {
+        "n": 10,
+        "winner_course_counts": [
+          3,
+          1,
+          3,
+          2,
+          1,
+          0
+        ],
+        "winner_course1_pct": 30,
+        "escape": 3,
+        "escape_pct": 30,
+        "winning_method_counts": {
+          "逃げ": 3,
+          "差し": 1,
+          "まくり": 3,
+          "まくり差し": 2,
+          "抜き": 0,
+          "恵まれ": 1
+        },
+        "wind_direction_raw_counts": {
+          "1": 4,
+          "2": 1,
+          "3": 1,
+          "4": 1,
+          "7": 2,
+          "8": 1
+        }
+      },
+      "3-4m": {
+        "n": 18,
+        "winner_course_counts": [
+          9,
+          4,
+          1,
+          1,
+          3,
+          0
+        ],
+        "winner_course1_pct": 50,
+        "escape": 7,
+        "escape_pct": 38.89,
+        "winning_method_counts": {
+          "逃げ": 7,
+          "差し": 3,
+          "まくり": 4,
+          "まくり差し": 1,
+          "抜き": 3,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "1": 9,
+          "6": 7,
+          "8": 2
+        }
+      },
+      "5m+": {
+        "n": 6,
+        "winner_course_counts": [
+          3,
+          0,
+          1,
+          2,
+          0,
+          0
+        ],
+        "winner_course1_pct": 50,
+        "escape": 2,
+        "escape_pct": 33.33,
+        "winning_method_counts": {
+          "逃げ": 2,
+          "差し": 0,
+          "まくり": 2,
+          "まくり差し": 0,
+          "抜き": 1,
+          "恵まれ": 1
+        },
+        "wind_direction_raw_counts": {
+          "1": 3,
+          "8": 3
+        }
+      }
+    },
+    "04": {
+      "0-2m": {
+        "n": 35,
+        "winner_course_counts": [
+          15,
+          6,
+          7,
+          3,
+          4,
+          0
+        ],
+        "winner_course1_pct": 42.86,
+        "escape": 15,
+        "escape_pct": 42.86,
+        "winning_method_counts": {
+          "逃げ": 15,
+          "差し": 4,
+          "まくり": 5,
+          "まくり差し": 5,
+          "抜き": 5,
+          "恵まれ": 1
+        },
+        "wind_direction_raw_counts": {
+          "1": 17,
+          "5": 9,
+          "": 9
+        }
+      },
+      "3-4m": {
+        "n": 23,
+        "winner_course_counts": [
+          11,
+          3,
+          3,
+          4,
+          1,
+          1
+        ],
+        "winner_course1_pct": 47.83,
+        "escape": 10,
+        "escape_pct": 43.48,
+        "winning_method_counts": {
+          "逃げ": 10,
+          "差し": 4,
+          "まくり": 4,
+          "まくり差し": 3,
+          "抜き": 2,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "1": 23
+        }
+      },
+      "5m+": {
+        "n": 2,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          2,
+          0,
+          0
+        ],
+        "winner_course1_pct": 0,
+        "escape": 0,
+        "escape_pct": 0,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 1,
+          "まくり差し": 1,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "1": 2
+        }
+      }
+    },
+    "05": {
+      "0-2m": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      },
+      "3-4m": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      },
+      "5m+": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      }
+    },
+    "06": {
+      "0-2m": {
+        "n": 38,
+        "winner_course_counts": [
+          20,
+          2,
+          3,
+          6,
+          3,
+          4
+        ],
+        "winner_course1_pct": 52.63,
+        "escape": 17,
+        "escape_pct": 44.74,
+        "winning_method_counts": {
+          "逃げ": 17,
+          "差し": 3,
+          "まくり": 4,
+          "まくり差し": 11,
+          "抜き": 3,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "1": 6,
+          "2": 8,
+          "7": 10,
+          "8": 8,
+          "": 6
+        }
+      },
+      "3-4m": {
+        "n": 10,
+        "winner_course_counts": [
+          7,
+          1,
+          2,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": 70,
+        "escape": 6,
+        "escape_pct": 60,
+        "winning_method_counts": {
+          "逃げ": 6,
+          "差し": 0,
+          "まくり": 1,
+          "まくり差し": 2,
+          "抜き": 1,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "2": 1,
+          "4": 4,
+          "5": 4,
+          "8": 1
+        }
+      },
+      "5m+": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      }
+    },
+    "07": {
+      "0-2m": {
+        "n": 12,
+        "winner_course_counts": [
+          9,
+          2,
+          1,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": 75,
+        "escape": 9,
+        "escape_pct": 75,
+        "winning_method_counts": {
+          "逃げ": 9,
+          "差し": 2,
+          "まくり": 0,
+          "まくり差し": 1,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "1": 3,
+          "2": 3,
+          "7": 6
+        }
+      },
+      "3-4m": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      },
+      "5m+": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      }
+    },
+    "08": {
+      "0-2m": {
+        "n": 21,
+        "winner_course_counts": [
+          14,
+          2,
+          1,
+          4,
+          0,
+          0
+        ],
+        "winner_course1_pct": 66.67,
+        "escape": 14,
+        "escape_pct": 66.67,
+        "winning_method_counts": {
+          "逃げ": 14,
+          "差し": 3,
+          "まくり": 2,
+          "まくり差し": 1,
+          "抜き": 0,
+          "恵まれ": 1
+        },
+        "wind_direction_raw_counts": {
+          "4": 2,
+          "5": 3,
+          "6": 16
+        }
+      },
+      "3-4m": {
+        "n": 3,
+        "winner_course_counts": [
+          1,
+          1,
+          0,
+          0,
+          1,
+          0
+        ],
+        "winner_course1_pct": 33.33,
+        "escape": 1,
+        "escape_pct": 33.33,
+        "winning_method_counts": {
+          "逃げ": 1,
+          "差し": 1,
+          "まくり": 0,
+          "まくり差し": 1,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "6": 3
+        }
+      },
+      "5m+": {
+        "n": 0,
+        "winner_course_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": null,
+        "escape": 0,
+        "escape_pct": null,
+        "winning_method_counts": {
+          "逃げ": 0,
+          "差し": 0,
+          "まくり": 0,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {}
+      }
+    },
+    "09": {
+      "0-2m": {
+        "n": 45,
+        "winner_course_counts": [
+          25,
+          9,
+          5,
+          3,
+          3,
+          0
+        ],
+        "winner_course1_pct": 55.56,
+        "escape": 25,
+        "escape_pct": 55.56,
+        "winning_method_counts": {
+          "逃げ": 25,
+          "差し": 10,
+          "まくり": 8,
+          "まくり差し": 2,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "3": 13,
+          "4": 11,
+          "7": 2,
+          "8": 5,
+          "": 14
+        }
+      },
+      "3-4m": {
+        "n": 8,
+        "winner_course_counts": [
+          4,
+          1,
+          3,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": 50,
+        "escape": 4,
+        "escape_pct": 50,
+        "winning_method_counts": {
+          "逃げ": 4,
+          "差し": 1,
+          "まくり": 3,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "3": 3,
+          "8": 5
+        }
+      },
+      "5m+": {
+        "n": 6,
+        "winner_course_counts": [
+          5,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        "winner_course1_pct": 83.33,
+        "escape": 5,
+        "escape_pct": 83.33,
+        "winning_method_counts": {
+          "逃げ": 5,
+          "差し": 0,
+          "まくり": 1,
+          "まくり差し": 0,
+          "抜き": 0,
+          "恵まれ": 0
+        },
+        "wind_direction_raw_counts": {
+          "8": 6
+        }
+      }
+    }
+  },
+  "limitations": [
+    "Postrace measurements, NOT predeadline inputs",
+    "Only five calendar days; each venue group requires sample-size checks",
+    "Unadjusted for venue mix, riders, season, grading, tide and race time",
+    "No verified direction-to-head/tail axis: retain raw direction codes",
+    "Do not adjust model probabilities or use as formal T-12 evidence"
+  ]
+}

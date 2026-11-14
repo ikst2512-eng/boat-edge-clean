@@ -1,0 +1,2840 @@
+{
+  "schema": "VENUE_WIND_DESCRIPTIVE_202609_V1",
+  "month": "2026-09",
+  "research_only": true,
+  "formal_evidence": false,
+  "source": "BoatraceCSV GitHub results/realtime 2026/09 daily CSV",
+  "official_binary_reconciliation": false,
+  "predeadline_data": false,
+  "input_rows": 4596,
+  "accepted_unique_races": 4558,
+  "excluded": {
+    "course_finish": 38
+  },
+  "files": [
+    {
+      "day": "01.csv",
+      "blob_sha": "fa3840f009e3cb417a2ef902d7fc9bd57a9a6fd7",
+      "rows": 144,
+      "accepted": 143
+    },
+    {
+      "day": "02.csv",
+      "blob_sha": "8a98e1c1a8e35cc25b24a071d4db8fac0edcca1f",
+      "rows": 156,
+      "accepted": 155
+    },
+    {
+      "day": "03.csv",
+      "blob_sha": "01def446b6d58fc734850166a734f2b8005ad969",
+      "rows": 168,
+      "accepted": 167
+    },
+    {
+      "day": "04.csv",
+      "blob_sha": "43b3f3c3b8c84f81213a541c5aa9017d5e909a34",
+      "rows": 156,
+      "accepted": 154
+    },
+    {
+      "day": "05.csv",
+      "blob_sha": "e741915cebca1c74a5bacb70d51d2b7659286e11",
+      "rows": 168,
+      "accepted": 166
+    },
+    {
+      "day": "06.csv",
+      "blob_sha": "f266325df96970e87efbdd62fa055501513d82af",
+      "rows": 144,
+      "accepted": 143
+    },
+    {
+      "day": "07.csv",
+      "blob_sha": "957162d00c1feb0ef23616b2d16a5f68a8619f2f",
+      "rows": 144,
+      "accepted": 144
+    },
+    {
+      "day": "08.csv",
+      "blob_sha": "bb3f57442e8f77c308954610d483f0f8ad99b3ea",
+      "rows": 132,
+      "accepted": 131
+    },
+    {
+      "day": "09.csv",
+      "blob_sha": "ac86c09d9f4ccd1559f997a71bae507f23bc3ef9",
+      "rows": 132,
+      "accepted": 132
+    },
+    {
+      "day": "10.csv",
+      "blob_sha": "6160cb3fbe3e033fbd2166aba2bb1fe6fca28410",
+      "rows": 132,
+      "accepted": 132
+    },
+    {
+      "day": "11.csv",
+      "blob_sha": "8bf9e4e7da4ed85f39ba938abb5ef06241ff35f5",
+      "rows": 144,
+      "accepted": 143
+    },
+    {
+      "day": "12.csv",
+      "blob_sha": "e6404462b9478d081961f6b8fd7a3374657f580e",
+      "rows": 156,
+      "accepted": 155
+    },
+    {
+      "day": "13.csv",
+      "blob_sha": "be6ff16baaef1cdd6e8ed565db54a3a50d69b32d",
+      "rows": 180,
+      "accepted": 176
+    },
+    {
+      "day": "14.csv",
+      "blob_sha": "cb0542e272566ddbe858ce06ebc4ed48ce8a8ba8",
+      "rows": 167,
+      "accepted": 165
+    },
+    {
+      "day": "15.csv",
+      "blob_sha": "eca10667cc1e5422817b4ce1ec987c3f529666ce",
+      "rows": 156,
+      "accepted": 151
+    },
+    {
+      "day": "16.csv",
+      "blob_sha": "e6d3a836ac12d807a5d7abdae42ca31bad3478d9",
+      "rows": 156,
+      "accepted": 154
+    },
+    {
+      "day": "17.csv",
+      "blob_sha": "40aab729d8d93c77154751c4647c8d7d08408a9a",
+      "rows": 180,
+      "accepted": 180
+    },
+    {
+      "day": "18.csv",
+      "blob_sha": "62fb93f2810e063988b220db1a3d45ee1a87c9ce",
+      "rows": 180,
+      "accepted": 178
+    },
+    {
+      "day": "19.csv",
+      "blob_sha": "776a3e29035756960c83e6d2dd451bd5d0f30622",
+      "rows": 156,
+      "accepted": 155
+    },
+    {
+      "day": "20.csv",
+      "blob_sha": "f97271e35ab0d22c853caad21821e1a343ffc604",
+      "rows": 168,
+      "accepted": 167
+    },
+    {
+      "day": "21.csv",
+      "blob_sha": "2ed9b938bdd88e29af146598741a26594be58035",
+      "rows": 121,
+      "accepted": 121
+    },
+    {
+      "day": "22.csv",
+      "blob_sha": "1f4b7d5919b46cfe94f89327ebf610db692312bd",
+      "rows": 156,
+      "accepted": 153
+    },
+    {
+      "day": "23.csv",
+      "blob_sha": "70b35f27ed0423d9ff747245a9bcd23c5f83a115",
+      "rows": 156,
+      "accepted": 155
+    },
+    {
+      "day": "24.csv",
+      "blob_sha": "58d523568d1bcc94cf4c71ea9397626acb6b2f0e",
+      "rows": 156,
+      "accepted": 155
+    },
+    {
+      "day": "25.csv",
+      "blob_sha": "437b6cabd521cdf999645155dd08fe79cf049f93",
+      "rows": 144,
+      "accepted": 144
+    },
+    {
+      "day": "26.csv",
+      "blob_sha": "89602f0f2e45feed3af1306e40da35a9be915531",
+      "rows": 156,
+      "accepted": 155
+    },
+    {
+      "day": "27.csv",
+      "blob_sha": "00c866a9cdf5ac3d22473bc2921133897d938413",
+      "rows": 156,
+      "accepted": 156
+    },
+    {
+      "day": "28.csv",
+      "blob_sha": "ec16a9bc8c80980b6d61338c0004bd3a8909c7e8",
+      "rows": 144,
+      "accepted": 142
+    },
+    {
+      "day": "29.csv",
+      "blob_sha": "eb4783b28ee6c76af9fbc57a68127106d318c89b",
+      "rows": 144,
+      "accepted": 142
+    },
+    {
+      "day": "30.csv",
+      "blob_sha": "9b60f5a6e7ccf9d02e0dc9ff6e3d08bdc039b623",
+      "rows": 144,
+      "accepted": 144
+    }
+  ],
+  "failed": [],
+  "wind_direction_notes": "Original numeric codes retained; no proven compass conversion or headwind/tailwind inference.",
+  "min_n_for_exploratory_delta": 30,
+  "min_n_for_preferrable_examination": 100,
+  "national": {
+    "0-2m": {
+      "n": 2811,
+      "boat1_pct": 56.42,
+      "course1_pct": 56.63,
+      "course1_ci95": [
+        54.79,
+        58.46
+      ],
+      "escape_pct": 54.14,
+      "escape_ci95": [
+        52.3,
+        55.98
+      ],
+      "winning_methods": {
+        "逃げ": 54.14,
+        "差し": 13.02,
+        "まくり": 14.62,
+        "まくり差し": 11.53,
+        "抜き": 5.83,
+        "恵まれ": 0.85
+      },
+      "winning_courses": {
+        "1": 56.63,
+        "2": 14.73,
+        "3": 11.88,
+        "4": 9.5,
+        "5": 5.69,
+        "6": 1.57
+      }
+    },
+    "3-4m": {
+      "n": 1271,
+      "boat1_pct": 54.37,
+      "course1_pct": 54.6,
+      "course1_ci95": [
+        51.86,
+        57.32
+      ],
+      "escape_pct": 51.69,
+      "escape_ci95": [
+        48.94,
+        54.43
+      ],
+      "winning_methods": {
+        "逃げ": 51.69,
+        "差し": 11.8,
+        "まくり": 16.37,
+        "まくり差し": 11.8,
+        "抜き": 7.79,
+        "恵まれ": 0.55
+      },
+      "winning_courses": {
+        "1": 54.6,
+        "2": 12.75,
+        "3": 15.11,
+        "4": 9.36,
+        "5": 6.06,
+        "6": 2.12
+      }
+    },
+    "5m+": {
+      "n": 476,
+      "boat1_pct": 52.94,
+      "course1_pct": 52.94,
+      "course1_ci95": [
+        48.45,
+        57.38
+      ],
+      "escape_pct": 48.32,
+      "escape_ci95": [
+        43.86,
+        52.8
+      ],
+      "winning_methods": {
+        "逃げ": 48.32,
+        "差し": 14.5,
+        "まくり": 14.92,
+        "まくり差し": 13.24,
+        "抜き": 8.61,
+        "恵まれ": 0.42
+      },
+      "winning_courses": {
+        "1": 52.94,
+        "2": 12.82,
+        "3": 13.24,
+        "4": 11.34,
+        "5": 7.77,
+        "6": 1.89
+      }
+    }
+  },
+  "venues": [
+    {
+      "venue_code": "01",
+      "venue_name": "桐生",
+      "all_n": 143,
+      "wind_bands": {
+        "0-2m": {
+          "n": 110,
+          "boat1_pct": 49.09,
+          "course1_pct": 50.91,
+          "course1_ci95": [
+            41.7,
+            60.06
+          ],
+          "escape_pct": 47.27,
+          "escape_ci95": [
+            38.19,
+            56.54
+          ],
+          "winning_methods": {
+            "逃げ": 47.27,
+            "差し": 18.18,
+            "まくり": 19.09,
+            "まくり差し": 9.09,
+            "抜き": 6.36,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 50.91,
+            "2": 20.91,
+            "3": 11.82,
+            "4": 9.09,
+            "5": 4.55,
+            "6": 2.73
+          }
+        },
+        "3-4m": {
+          "n": 31,
+          "boat1_pct": 45.16,
+          "course1_pct": 45.16,
+          "course1_ci95": [
+            29.16,
+            62.23
+          ],
+          "escape_pct": 45.16,
+          "escape_ci95": [
+            29.16,
+            62.23
+          ],
+          "winning_methods": {
+            "逃げ": 45.16,
+            "差し": 12.9,
+            "まくり": 9.68,
+            "まくり差し": 32.26,
+            "抜き": 0,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 45.16,
+            "2": 6.45,
+            "3": 22.58,
+            "4": 6.45,
+            "5": 12.9,
+            "6": 6.45
+          }
+        },
+        "5m+": {
+          "n": 2,
+          "boat1_pct": 100,
+          "course1_pct": 100,
+          "course1_ci95": [
+            34.24,
+            100
+          ],
+          "escape_pct": 100,
+          "escape_ci95": [
+            34.24,
+            100
+          ],
+          "winning_methods": {
+            "逃げ": 100,
+            "差し": 0,
+            "まくり": 0,
+            "まくり差し": 0,
+            "抜き": 0,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 100,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0
+          }
+        }
+      },
+      "delta_vs_calm_if_each_n30": {
+        "3-4m": {
+          "course1_pt": -5.75,
+          "escape_pt": -2.11,
+          "comparability": "exploratory_N30"
+        },
+        "5m+": null
+      },
+      "wind5m_sample_min100": false
+    },
+    {
+      "venue_code": "02",
+      "venue_name": "戸田",
+      "all_n": 227,
+      "wind_bands": {
+        "0-2m": {
+          "n": 201,
+          "boat1_pct": 49.25,
+          "course1_pct": 49.25,
+          "course1_ci95": [
+            42.42,
+            56.11
+          ],
+          "escape_pct": 46.27,
+          "escape_ci95": [
+            39.51,
+            53.17
+          ],
+          "winning_methods": {
+            "逃げ": 46.27,
+            "差し": 10.45,
+            "まくり": 20.9,
+            "まくり差し": 15.42,
+            "抜き": 6.47,
+            "恵まれ": 0.5
+          },
+          "winning_courses": {
+            "1": 49.25,
+            "2": 16.92,
+            "3": 12.94,
+            "4": 9.45,
+            "5": 10.45,
+            "6": 1
+          }
+        },
+        "3-4m": {
+          "n": 24,
+          "boat1_pct": 16.67,
+          "course1_pct": 16.67,
+          "course1_ci95": [
+            6.68,
+            35.85
+          ],
+          "escape_pct": 16.67,
+          "escape_ci95": [
+            6.68,
+            35.85
+          ],
+          "winning_methods": {
+            "逃げ": 16.67,
+            "差し": 8.33,
+            "まくり": 33.33,
+            "まくり差し": 25,
+            "抜き": 12.5,
+            "恵まれ": 4.17
+          },
+          "winning_courses": {
+            "1": 16.67,
+            "2": 16.67,
+            "3": 25,
+            "4": 25,
+            "5": 8.33,
+            "6": 8.33
+          }
+        },
+        "5m+": {
+          "n": 2,
+          "boat1_pct": 50,
+          "course1_pct": 50,
+          "course1_ci95": [
+            9.45,
+            90.55
+          ],
+          "escape_pct": 50,
+          "escape_ci95": [
+            9.45,
+            90.55
+          ],
+          "winning_methods": {
+            "逃げ": 50,
+            "差し": 50,
+            "まくり": 0,
+            "まくり差し": 0,
+            "抜き": 0,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 50,
+            "2": 50,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0
+          }
+        }
+      },
+      "delta_vs_calm_if_each_n30": {
+        "3-4m": null,
+        "5m+": null
+      },
+      "wind5m_sample_min100": false
+    },
+    {
+      "venue_code": "03",
+      "venue_name": "江戸川",
+      "all_n": 186,
+      "wind_bands": {
+        "0-2m": {
+          "n": 67,
+          "boat1_pct": 47.76,
+          "course1_pct": 47.76,
+          "course1_ci95": [
+            36.25,
+            59.51
+          ],
+          "escape_pct": 43.28,
+          "escape_ci95": [
+            32.1,
+            55.19
+          ],
+          "winning_methods": {
+            "逃げ": 43.28,
+            "差し": 19.4,
+            "まくり": 14.93,
+            "まくり差し": 8.96,
+            "抜き": 10.45,
+            "恵まれ": 2.99
+          },
+          "winning_courses": {
+            "1": 47.76,
+            "2": 17.91,
+            "3": 13.43,
+            "4": 8.96,
+            "5": 8.96,
+            "6": 2.99
+          }
+        },
+        "3-4m": {
+          "n": 81,
+          "boat1_pct": 50.62,
+          "course1_pct": 50.62,
+          "course1_ci95": [
+            39.95,
+            61.23
+          ],
+          "escape_pct": 48.15,
+          "escape_ci95": [
+            37.6,
+            58.86
+          ],
+          "winning_methods": {
+            "逃げ": 48.15,
+            "差し": 7.41,
+            "まくり": 24.69,
+            "まくり差し": 9.88,
+            "抜き": 9.88,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 50.62,
+            "2": 9.88,
+            "3": 17.28,
+            "4": 11.11,
+            "5": 7.41,
+            "6": 3.7
+          }
+        },
+        "5m+": {
+          "n": 38,
+          "boat1_pct": 42.11,
+          "course1_pct": 42.11,
+          "course1_ci95": [
+            27.85,
+            57.81
+          ],
+          "escape_pct": 39.47,
+          "escape_ci95": [
+            25.6,
+            55.28
+          ],
+          "winning_methods": {
+            "逃げ": 39.47,
+            "差し": 13.16,
+            "まくり": 23.68,
+            "まくり差し": 18.42,
+            "抜き": 5.26,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 42.11,
+            "2": 13.16,
+            "3": 18.42,
+            "4": 10.53,
+            "5": 7.89,
+            "6": 7.89
+          }
+        }
+      },
+      "delta_vs_calm_if_each_n30": {
+        "3-4m": {
+          "course1_pt": 2.86,
+          "escape_pt": 4.87,
+          "comparability": "exploratory_N30"
+        },
+        "5m+": {
+          "course1_pt": -5.65,
+          "escape_pt": -3.81,
+          "comparability": "exploratory_N30"
+        }
+      },
+      "wind5m_sample_min100": false
+    },
+    {
+      "venue_code": "04",
+      "venue_name": "平和島",
+      "all_n": 178,
+      "wind_bands": {
+        "0-2m": {
+          "n": 95,
+          "boat1_pct": 40,
+          "course1_pct": 40,
+          "course1_ci95": [
+            30.72,
+            50.05
+          ],
+          "escape_pct": 36.84,
+          "escape_ci95": [
+            27.83,
+            46.88
+          ],
+          "winning_methods": {
+            "逃げ": 36.84,
+            "差し": 20,
+            "まくり": 23.16,
+            "まくり差し": 11.58,
+            "抜き": 6.32,
+            "恵まれ": 2.11
+          },
+          "winning_courses": {
+            "1": 40,
+            "2": 15.79,
+            "3": 21.05,
+            "4": 13.68,
+            "5": 8.42,
+            "6": 1.05
+          }
+        },
+        "3-4m": {
+          "n": 61,
+          "boat1_pct": 37.7,
+          "course1_pct": 37.7,
+          "course1_ci95": [
+            26.61,
+            50.25
+          ],
+          "escape_pct": 34.43,
+          "escape_ci95": [
+            23.75,
+            46.95
+          ],
+          "winning_methods": {
+            "逃げ": 34.43,
+            "差し": 13.11,
+            "まくり": 24.59,
+            "まくり差し": 16.39,
+            "抜き": 9.84,
+            "恵まれ": 1.64
+          },
+          "winning_courses": {
+            "1": 37.7,
+            "2": 21.31,
+            "3": 21.31,
+            "4": 6.56,
+            "5": 8.2,
+            "6": 4.92
+          }
+        },
+        "5m+": {
+          "n": 22,
+          "boat1_pct": 50,
+          "course1_pct": 50,
+          "course1_ci95": [
+            30.72,
+            69.28
+          ],
+          "escape_pct": 50,
+          "escape_ci95": [
+            30.72,
+            69.28
+          ],
+          "winning_methods": {
+            "逃げ": 50,
+            "差し": 13.64,
+            "まくり": 18.18,
+            "まくり差し": 13.64,
+            "抜き": 4.55,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 50,
+            "2": 9.09,
+            "3": 22.73,
+            "4": 4.55,
+            "5": 13.64,
+            "6": 0
+          }
+        }
+      },
+      "delta_vs_calm_if_each_n30": {
+        "3-4m": {
+          "course1_pt": -2.3,
+          "escape_pt": -2.41,
+          "comparability": "exploratory_N30"
+        },
+        "5m+": null
+      },
+      "wind5m_sample_min100": false
+    },
+    {
+      "venue_code": "05",
+      "venue_name": "多摩川",
+      "all_n": 228,
+      "wind_bands": {
+        "0-2m": {
+          "n": 201,
+          "boat1_pct": 57.21,
+          "course1_pct": 56.72,
+          "course1_ci95": [
+            49.8,
+            63.38
+          ],
+          "escape_pct": 54.23,
+          "escape_ci95": [
+            47.33,
+            60.97
+          ],
+          "winning_methods": {
+            "逃げ": 54.23,
+            "差し": 12.44,
+            "まくり": 15.42,
+            "まくり差し": 11.44,
+            "抜き": 5.47,
+            "恵まれ": 1
+          },
+          "winning_courses": {
+            "1": 56.72,
+            "2": 14.43,
+            "3": 13.93,
+            "4": 7.96,
+            "5": 3.48,
+            "6": 3.48
+          }
+        },
+        "3-4m": {
+          "n": 24,
+          "boat1_pct": 58.33,
+          "course1_pct": 58.33,
+          "course1_ci95": [
+            38.83,
+            75.53
+          ],
+          "escape_pct": 50,
+          "escape_ci95": [
+            31.43,
+            68.57
+          ],
+          "winning_methods": {
+            "逃げ": 50,
+            "差し": 12.5,
+            "まくり": 8.33,
+            "まくり差し": 16.67,
+            "抜き": 12.5,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 58.33,
+            "2": 16.67,
+            "3": 0,
+            "4": 20.83,
+            "5": 4.17,
+            "6": 0
+          }
+        },
+        "5m+": {
+          "n": 3,
+          "boat1_pct": 33.33,
+          "course1_pct": 33.33,
+          "course1_ci95": [
+            6.15,
+            79.23
+          ],
+          "escape_pct": 33.33,
+          "escape_ci95": [
+            6.15,
+            79.23
+          ],
+          "winning_methods": {
+            "逃げ": 33.33,
+            "差し": 0,
+            "まくり": 0,
+            "まくり差し": 33.33,
+            "抜き": 33.33,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 33.33,
+            "2": 0,
+            "3": 33.33,
+            "4": 33.33,
+            "5": 0,
+            "6": 0
+          }
+        }
+      },
+      "delta_vs_calm_if_each_n30": {
+        "3-4m": null,
+        "5m+": null
+      },
+      "wind5m_sample_min100": false
+    },
+    {
+      "venue_code": "06",
+      "venue_name": "浜名湖",
+      "all_n": 191,
+      "wind_bands": {
+        "0-2m": {
+          "n": 126,
+          "boat1_pct": 57.14,
+          "course1_pct": 57.14,
+          "course1_ci95": [
+            48.42,
+            65.45
+          ],
+          "escape_pct": 54.76,
+          "escape_ci95": [
+            46.06,
+            63.18
+          ],
+          "winning_methods": {
+            "逃げ": 54.76,
+            "差し": 15.87,
+            "まくり": 11.11,
+            "まくり差し": 12.7,
+            "抜き": 4.76,
+            "恵まれ": 0.79
+          },
+          "winning_courses": {
+            "1": 57.14,
+            "2": 12.7,
+            "3": 9.52,
+            "4": 13.49,
+            "5": 5.56,
+            "6": 1.59
+          }
+        },
+        "3-4m": {
+          "n": 61,
+          "boat1_pct": 49.18,
+          "course1_pct": 50.82,
+          "course1_ci95": [
+            38.6,
+            62.94
+          ],
+          "escape_pct": 50.82,
+          "escape_ci95": [
+            38.6,
+            62.94
+          ],
+          "winning_methods": {
+            "逃げ": 50.82,
+            "差し": 16.39,
+            "まくり": 16.39,
+            "まくり差し": 13.11,
+            "抜き": 3.28,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 50.82,
+            "2": 18.03,
+            "3": 14.75,
+            "4": 8.2,
+            "5": 4.92,
+            "6": 3.28
+          }
+        },
+        "5m+": {
+          "n": 4,
+          "boat1_pct": 75,
+          "course1_pct": 75,
+          "course1_ci95": [
+            30.06,
+            95.44
+          ],
+          "escape_pct": 75,
+          "escape_ci95": [
+            30.06,
+            95.44
+          ],
+          "winning_methods": {
+            "逃げ": 75,
+            "差し": 0,
+            "まくり": 25,
+            "まくり差し": 0,
+            "抜き": 0,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 75,
+            "2": 0,
+            "3": 25,
+            "4": 0,
+            "5": 0,
+            "6": 0
+          }
+        }
+      },
+      "delta_vs_calm_if_each_n30": {
+        "3-4m": {
+          "course1_pt": -6.32,
+          "escape_pt": -3.94,
+          "comparability": "exploratory_N30"
+        },
+        "5m+": null
+      },
+      "wind5m_sample_min100": false
+    },
+    {
+      "venue_code": "07",
+      "venue_name": "蒲郡",
+      "all_n": 167,
+      "wind_bands": {
+        "0-2m": {
+          "n": 139,
+          "boat1_pct": 58.27,
+          "course1_pct": 58.27,
+          "course1_ci95": [
+            49.96,
+            66.14
+          ],
+          "escape_pct": 58.27,
+          "escape_ci95": [
+            49.96,
+            66.14
+          ],
+          "winning_methods": {
+            "逃げ": 58.27,
+            "差し": 7.19,
+            "まくり": 18.71,
+            "まくり差し": 12.23,
+            "抜き": 2.88,
+            "恵まれ": 0.72
+          },
+          "winning_courses": {
+            "1": 58.27,
+            "2": 12.95,
+            "3": 14.39,
+            "4": 6.47,
+            "5": 5.04,
+            "6": 2.88
+          }
+        },
+        "3-4m": {
+          "n": 28,
+          "boat1_pct": 60.71,
+          "course1_pct": 60.71,
+          "course1_ci95": [
+            42.41,
+            76.43
+          ],
+          "escape_pct": 60.71,
+          "escape_ci95": [
+            42.41,
+            76.43
+          ],
+          "winning_methods": {
+            "逃げ": 60.71,
+            "差し": 7.14,
+            "まくり": 14.29,
+            "まくり差し": 17.86,
+            "抜き": 0,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 60.71,
+            "2": 7.14,
+            "3": 10.71,
+            "4": 14.29,
+            "5": 7.14,
+            "6": 0
+          }
+        },
+        "5m+": {
+          "n": 0,
+          "boat1_pct": null,
+          "course1_pct": null,
+          "course1_ci95": null,
+          "escape_pct": null,
+          "escape_ci95": null,
+          "winning_methods": {
+            "逃げ": null,
+            "差し": null,
+            "まくり": null,
+            "まくり差し": null,
+            "抜き": null,
+            "恵まれ": null
+          },
+          "winning_courses": {
+            "1": null,
+            "2": null,
+            "3": null,
+            "4": null,
+            "5": null,
+            "6": null
+          }
+        }
+      },
+      "delta_vs_calm_if_each_n30": {
+        "3-4m": null,
+        "5m+": null
+      },
+      "wind5m_sample_min100": false
+    },
+    {
+      "venue_code": "08",
+      "venue_name": "常滑",
+      "all_n": 178,
+      "wind_bands": {
+        "0-2m": {
+          "n": 121,
+          "boat1_pct": 56.2,
+          "course1_pct": 57.02,
+          "course1_ci95": [
+            48.12,
+            65.5
+          ],
+          "escape_pct": 54.55,
+          "escape_ci95": [
+            45.67,
+            63.14
+          ],
+          "winning_methods": {
+            "逃げ": 54.55,
+            "差し": 6.61,
+            "まくり": 16.53,
+            "まくり差し": 13.22,
+            "抜き": 5.79,
+            "恵まれ": 3.31
+          },
+          "winning_courses": {
+            "1": 57.02,
+            "2": 12.4,
+            "3": 5.79,
+            "4": 18.18,
+            "5": 4.96,
+            "6": 1.65
+          }
+        },
+        "3-4m": {
+          "n": 53,
+          "boat1_pct": 60.38,
+          "course1_pct": 60.38,
+          "course1_ci95": [
+            46.94,
+            72.41
+          ],
+          "escape_pct": 56.6,
+          "escape_ci95": [
+            43.27,
+            69.05
+          ],
+          "winning_methods": {
+            "逃げ": 56.6,
+            "差し": 9.43,
+            "まくり": 15.09,
+            "まくり差し": 11.32,
+            "抜き": 5.66,
+            "恵まれ": 1.89
+          },
+          "winning_courses": {
+            "1": 60.38,
+            "2": 15.09,
+            "3": 11.32,
+            "4": 3.77,
+            "5": 5.66,
+            "6": 3.77
+          }
+        },
+        "5m+": {
+          "n": 4,
+          "boat1_pct": 25,
+          "course1_pct": 25,
+          "course1_ci95": [
+            4.56,
+            69.94
+          ],
+          "escape_pct": 25,
+          "escape_ci95": [
+            4.56,
+            69.94
+          ],
+          "winning_methods": {
+            "逃げ": 25,
+            "差し": 25,
+            "まくり": 0,
+            "まくり差し": 25,
+            "抜き": 25,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 25,
+            "2": 25,
+            "3": 25,
+            "4": 0,
+            "5": 25,
+            "6": 0
+          }
+        }
+      },
+      "delta_vs_calm_if_each_n30": {
+        "3-4m": {
+          "course1_pt": 3.36,
+          "escape_pt": 2.05,
+          "comparability": "exploratory_N30"
+        },
+        "5m+": null
+      },
+      "wind5m_sample_min100": false
+    },
+    {
+      "venue_code": "09",
+      "venue_name": "津",
+      "all_n": 230,
+      "wind_bands": {
+        "0-2m": {
+          "n": 177,
+          "boat1_pct": 65.54,
+          "course1_pct": 66.1,
+          "course1_ci95": [
+            58.85,
+            72.67
+          ],
+          "escape_pct": 64.97,
+          "escape_ci95": [
+            57.69,
+            71.61
+          ],
+          "winning_methods": {
+            "逃げ": 64.97,
+            "差し": 12.99,
+            "まくり": 7.34,
+            "まくり差し": 11.86,
+            "抜き": 2.82,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 66.1,
+            "2": 10.73,
+            "3": 11.86,
+            "4": 6.21,
+            "5": 5.08,
+            "6": 0
+          }
+        },
+        "3-4m": {
+          "n": 38,
+          "boat1_pct": 52.63,
+          "course1_pct": 52.63,
+          "course1_ci95": [
+            37.26,
+            67.52
+          ],
+          "escape_pct": 50,
+          "escape_ci95": [
+            34.85,
+            65.15
+          ],
+          "winning_methods": {
+            "逃げ": 50,
+            "差し": 7.89,
+            "まくり": 10.53,
+            "まくり差し": 21.05,
+            "抜き": 7.89,
+            "恵まれ": 2.63
+          },
+          "winning_courses": {
+            "1": 52.63,
+            "2": 7.89,
+            "3": 18.42,
+            "4": 7.89,
+            "5": 10.53,
+            "6": 2.63
+          }
+        },
+        "5m+": {
+          "n": 15,
+          "boat1_pct": 53.33,
+          "course1_pct": 53.33,
+          "course1_ci95": [
+            30.12,
+            75.19
+          ],
+          "escape_pct": 46.67,
+          "escape_ci95": [
+            24.81,
+            69.88
+          ],
+          "winning_methods": {
+            "逃げ": 46.67,
+            "差し": 26.67,
+            "まくり": 0,
+            "まくり差し": 6.67,
+            "抜き": 20,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 53.33,
+            "2": 20,
+            "3": 13.33,
+            "4": 6.67,
+            "5": 6.67,
+            "6": 0
+          }
+        }
+      },
+      "delta_vs_calm_if_each_n30": {
+        "3-4m": {
+          "course1_pt": -13.47,
+          "escape_pt": -14.97,
+          "comparability": "exploratory_N30"
+        },
+        "5m+": null
+      },
+      "wind5m_sample_min100": false
+    },
+    {
+      "venue_code": "10",
+      "venue_name": "三国",
+      "all_n": 187,
+      "wind_bands": {
+        "0-2m": {
+          "n": 98,
+          "boat1_pct": 61.22,
+          "course1_pct": 63.27,
+          "course1_ci95": [
+            53.39,
+            72.14
+          ],
+          "escape_pct": 58.16,
+          "escape_ci95": [
+            48.27,
+            67.44
+          ],
+          "winning_methods": {
+            "逃げ": 58.16,
+            "差し": 13.27,
+            "まくり": 8.16,
+            "まくり差し": 11.22,
+            "抜き": 9.18,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 63.27,
+            "2": 13.27,
+            "3": 9.18,
+            "4": 6.12,
+            "5": 5.1,
+            "6": 3.06
+          }
+        },
+        "3-4m": {
+          "n": 35,
+          "boat1_pct": 57.14,
+          "course1_pct": 57.14,
+          "course1_ci95": [
+            40.86,
+            72.02
+          ],
+          "escape_pct": 57.14,
+          "escape_ci95": [
+            40.86,
+            72.02
+          ],
+          "winning_methods": {
+            "逃げ": 57.14,
+            "差し": 11.43,
+            "まくり": 25.71,
+            "まくり差し": 0,
+            "抜き": 5.71,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 57.14,
+            "2": 14.29,
+            "3": 22.86,
+            "4": 5.71,
+            "5": 0,
+            "6": 0
+          }
+        },
+        "5m+": {
+          "n": 54,
+          "boat1_pct": 53.7,
+          "course1_pct": 53.7,
+          "course1_ci95": [
+            40.61,
+            66.31
+          ],
+          "escape_pct": 44.44,
+          "escape_ci95": [
+            32,
+            57.62
+          ],
+          "winning_methods": {
+            "逃げ": 44.44,
+            "差し": 9.26,
+            "まくり": 22.22,
+            "まくり差し": 14.81,
+            "抜き": 9.26,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 53.7,
+            "2": 11.11,
+            "3": 20.37,
+            "4": 7.41,
+            "5": 7.41,
+            "6": 0
+          }
+        }
+      },
+      "delta_vs_calm_if_each_n30": {
+        "3-4m": {
+          "course1_pt": -6.13,
+          "escape_pt": -1.02,
+          "comparability": "exploratory_N30"
+        },
+        "5m+": {
+          "course1_pt": -9.57,
+          "escape_pt": -13.72,
+          "comparability": "exploratory_N30"
+        }
+      },
+      "wind5m_sample_min100": false
+    },
+    {
+      "venue_code": "11",
+      "venue_name": "びわこ",
+      "all_n": 215,
+      "wind_bands": {
+        "0-2m": {
+          "n": 136,
+          "boat1_pct": 58.09,
+          "course1_pct": 58.09,
+          "course1_ci95": [
+            49.69,
+            66.05
+          ],
+          "escape_pct": 55.15,
+          "escape_ci95": [
+            46.76,
+            63.25
+          ],
+          "winning_methods": {
+            "逃げ": 55.15,
+            "差し": 11.03,
+            "まくり": 11.76,
+            "まくり差し": 13.24,
+            "抜き": 6.62,
+            "恵まれ": 2.21
+          },
+          "winning_courses": {
+            "1": 58.09,
+            "2": 13.24,
+            "3": 11.03,
+            "4": 11.76,
+            "5": 3.68,
+            "6": 2.21
+          }
+        },
+        "3-4m": {
+          "n": 70,
+          "boat1_pct": 58.57,
+          "course1_pct": 58.57,
+          "course1_ci95": [
+            46.88,
+            69.37
+          ],
+          "escape_pct": 54.29,
+          "escape_ci95": [
+            42.7,
+            65.43
+          ],
+          "winning_methods": {
+            "逃げ": 54.29,
+            "差し": 14.29,
+            "まくり": 10,
+            "まくり差し": 8.57,
+            "抜き": 12.86,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 58.57,
+            "2": 14.29,
+            "3": 8.57,
+            "4": 10,
+            "5": 8.57,
+            "6": 0
+          }
+        },
+        "5m+": {
+          "n": 9,
+          "boat1_pct": 33.33,
+          "course1_pct": 33.33,
+          "course1_ci95": [
+            12.06,
+            64.58
+          ],
+          "escape_pct": 33.33,
+          "escape_ci95": [
+            12.06,
+            64.58
+          ],
+          "winning_methods": {
+            "逃げ": 33.33,
+            "差し": 33.33,
+            "まくり": 11.11,
+            "まくり差し": 22.22,
+            "抜き": 0,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 33.33,
+            "2": 33.33,
+            "3": 0,
+            "4": 11.11,
+            "5": 22.22,
+            "6": 0
+          }
+        }
+      },
+      "delta_vs_calm_if_each_n30": {
+        "3-4m": {
+          "course1_pt": 0.48,
+          "escape_pt": -0.86,
+          "comparability": "exploratory_N30"
+        },
+        "5m+": null
+      },
+      "wind5m_sample_min100": false
+    },
+    {
+      "venue_code": "12",
+      "venue_name": "住之江",
+      "all_n": 215,
+      "wind_bands": {
+        "0-2m": {
+          "n": 145,
+          "boat1_pct": 49.66,
+          "course1_pct": 49.66,
+          "course1_ci95": [
+            41.63,
+            57.7
+          ],
+          "escape_pct": 47.59,
+          "escape_ci95": [
+            39.63,
+            55.67
+          ],
+          "winning_methods": {
+            "逃げ": 47.59,
+            "差し": 19.31,
+            "まくり": 15.86,
+            "まくり差し": 11.03,
+            "抜き": 6.21,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 49.66,
+            "2": 19.31,
+            "3": 11.72,
+            "4": 12.41,
+            "5": 6.21,
+            "6": 0.69
+          }
+        },
+        "3-4m": {
+          "n": 51,
+          "boat1_pct": 50.98,
+          "course1_pct": 50.98,
+          "course1_ci95": [
+            37.68,
+            64.14
+          ],
+          "escape_pct": 50.98,
+          "escape_ci95": [
+            37.68,
+            64.14
+          ],
+          "winning_methods": {
+            "逃げ": 50.98,
+            "差し": 19.61,
+            "まくり": 15.69,
+            "まくり差し": 9.8,
+            "抜き": 3.92,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 50.98,
+            "2": 13.73,
+            "3": 21.57,
+            "4": 7.84,
+            "5": 1.96,
+            "6": 3.92
+          }
+        },
+        "5m+": {
+          "n": 19,
+          "boat1_pct": 52.63,
+          "course1_pct": 52.63,
+          "course1_ci95": [
+            31.71,
+            72.67
+          ],
+          "escape_pct": 52.63,
+          "escape_ci95": [
+            31.71,
+            72.67
+          ],
+          "winning_methods": {
+            "逃げ": 52.63,
+            "差し": 15.79,
+            "まくり": 15.79,
+            "まくり差し": 15.79,
+            "抜き": 0,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 52.63,
+            "2": 5.26,
+            "3": 15.79,
+            "4": 10.53,
+            "5": 15.79,
+            "6": 0
+          }
+        }
+      },
+      "delta_vs_calm_if_each_n30": {
+        "3-4m": {
+          "course1_pt": 1.32,
+          "escape_pt": 3.39,
+          "comparability": "exploratory_N30"
+        },
+        "5m+": null
+      },
+      "wind5m_sample_min100": false
+    },
+    {
+      "venue_code": "13",
+      "venue_name": "尼崎",
+      "all_n": 262,
+      "wind_bands": {
+        "0-2m": {
+          "n": 138,
+          "boat1_pct": 55.8,
+          "course1_pct": 55.8,
+          "course1_ci95": [
+            47.47,
+            63.81
+          ],
+          "escape_pct": 55.07,
+          "escape_ci95": [
+            46.75,
+            63.12
+          ],
+          "winning_methods": {
+            "逃げ": 55.07,
+            "差し": 13.04,
+            "まくり": 14.49,
+            "まくり差し": 12.32,
+            "抜き": 4.35,
+            "恵まれ": 0.72
+          },
+          "winning_courses": {
+            "1": 55.8,
+            "2": 15.94,
+            "3": 14.49,
+            "4": 7.25,
+            "5": 6.52,
+            "6": 0
+          }
+        },
+        "3-4m": {
+          "n": 94,
+          "boat1_pct": 62.77,
+          "course1_pct": 61.7,
+          "course1_ci95": [
+            51.6,
+            70.89
+          ],
+          "escape_pct": 59.57,
+          "escape_ci95": [
+            49.47,
+            68.93
+          ],
+          "winning_methods": {
+            "逃げ": 59.57,
+            "差し": 13.83,
+            "まくり": 13.83,
+            "まくり差し": 8.51,
+            "抜き": 4.26,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 61.7,
+            "2": 12.77,
+            "3": 11.7,
+            "4": 9.57,
+            "5": 3.19,
+            "6": 1.06
+          }
+        },
+        "5m+": {
+          "n": 30,
+          "boat1_pct": 50,
+          "course1_pct": 50,
+          "course1_ci95": [
+            33.15,
+            66.85
+          ],
+          "escape_pct": 46.67,
+          "escape_ci95": [
+            30.23,
+            63.86
+          ],
+          "winning_methods": {
+            "逃げ": 46.67,
+            "差し": 23.33,
+            "まくり": 16.67,
+            "まくり差し": 10,
+            "抜き": 3.33,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 50,
+            "2": 20,
+            "3": 0,
+            "4": 23.33,
+            "5": 6.67,
+            "6": 0
+          }
+        }
+      },
+      "delta_vs_calm_if_each_n30": {
+        "3-4m": {
+          "course1_pt": 5.9,
+          "escape_pt": 4.5,
+          "comparability": "exploratory_N30"
+        },
+        "5m+": {
+          "course1_pt": -5.8,
+          "escape_pt": -8.4,
+          "comparability": "exploratory_N30"
+        }
+      },
+      "wind5m_sample_min100": false
+    },
+    {
+      "venue_code": "14",
+      "venue_name": "鳴門",
+      "all_n": 192,
+      "wind_bands": {
+        "0-2m": {
+          "n": 143,
+          "boat1_pct": 42.66,
+          "course1_pct": 42.66,
+          "course1_ci95": [
+            34.85,
+            50.85
+          ],
+          "escape_pct": 40.56,
+          "escape_ci95": [
+            32.86,
+            48.75
+          ],
+          "winning_methods": {
+            "逃げ": 40.56,
+            "差し": 10.49,
+            "まくり": 25.87,
+            "まくり差し": 14.69,
+            "抜き": 7.69,
+            "恵まれ": 0.7
+          },
+          "winning_courses": {
+            "1": 42.66,
+            "2": 13.29,
+            "3": 18.18,
+            "4": 14.69,
+            "5": 11.19,
+            "6": 0
+          }
+        },
+        "3-4m": {
+          "n": 42,
+          "boat1_pct": 50,
+          "course1_pct": 50,
+          "course1_ci95": [
+            35.53,
+            64.47
+          ],
+          "escape_pct": 50,
+          "escape_ci95": [
+            35.53,
+            64.47
+          ],
+          "winning_methods": {
+            "逃げ": 50,
+            "差し": 4.76,
+            "まくり": 19.05,
+            "まくり差し": 19.05,
+            "抜き": 7.14,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 50,
+            "2": 11.9,
+            "3": 14.29,
+            "4": 7.14,
+            "5": 14.29,
+            "6": 2.38
+          }
+        },
+        "5m+": {
+          "n": 7,
+          "boat1_pct": 42.86,
+          "course1_pct": 42.86,
+          "course1_ci95": [
+            15.82,
+            74.95
+          ],
+          "escape_pct": 28.57,
+          "escape_ci95": [
+            8.22,
+            64.11
+          ],
+          "winning_methods": {
+            "逃げ": 28.57,
+            "差し": 57.14,
+            "まくり": 0,
+            "まくり差し": 0,
+            "抜き": 14.29,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 42.86,
+            "2": 28.57,
+            "3": 14.29,
+            "4": 0,
+            "5": 14.29,
+            "6": 0
+          }
+        }
+      },
+      "delta_vs_calm_if_each_n30": {
+        "3-4m": {
+          "course1_pt": 7.34,
+          "escape_pt": 9.44,
+          "comparability": "exploratory_N30"
+        },
+        "5m+": null
+      },
+      "wind5m_sample_min100": false
+    },
+    {
+      "venue_code": "15",
+      "venue_name": "丸亀",
+      "all_n": 115,
+      "wind_bands": {
+        "0-2m": {
+          "n": 73,
+          "boat1_pct": 53.42,
+          "course1_pct": 53.42,
+          "course1_ci95": [
+            42.1,
+            64.41
+          ],
+          "escape_pct": 52.05,
+          "escape_ci95": [
+            40.78,
+            63.12
+          ],
+          "winning_methods": {
+            "逃げ": 52.05,
+            "差し": 19.18,
+            "まくり": 13.7,
+            "まくり差し": 9.59,
+            "抜き": 4.11,
+            "恵まれ": 1.37
+          },
+          "winning_courses": {
+            "1": 53.42,
+            "2": 16.44,
+            "3": 10.96,
+            "4": 10.96,
+            "5": 8.22,
+            "6": 0
+          }
+        },
+        "3-4m": {
+          "n": 30,
+          "boat1_pct": 43.33,
+          "course1_pct": 43.33,
+          "course1_ci95": [
+            27.38,
+            60.8
+          ],
+          "escape_pct": 40,
+          "escape_ci95": [
+            24.59,
+            57.68
+          ],
+          "winning_methods": {
+            "逃げ": 40,
+            "差し": 16.67,
+            "まくり": 13.33,
+            "まくり差し": 20,
+            "抜き": 6.67,
+            "恵まれ": 3.33
+          },
+          "winning_courses": {
+            "1": 43.33,
+            "2": 10,
+            "3": 16.67,
+            "4": 13.33,
+            "5": 13.33,
+            "6": 3.33
+          }
+        },
+        "5m+": {
+          "n": 12,
+          "boat1_pct": 50,
+          "course1_pct": 50,
+          "course1_ci95": [
+            25.38,
+            74.62
+          ],
+          "escape_pct": 50,
+          "escape_ci95": [
+            25.38,
+            74.62
+          ],
+          "winning_methods": {
+            "逃げ": 50,
+            "差し": 0,
+            "まくり": 33.33,
+            "まくり差し": 16.67,
+            "抜き": 0,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 50,
+            "2": 0,
+            "3": 25,
+            "4": 16.67,
+            "5": 8.33,
+            "6": 0
+          }
+        }
+      },
+      "delta_vs_calm_if_each_n30": {
+        "3-4m": {
+          "course1_pt": -10.09,
+          "escape_pt": -12.05,
+          "comparability": "exploratory_N30"
+        },
+        "5m+": null
+      },
+      "wind5m_sample_min100": false
+    },
+    {
+      "venue_code": "16",
+      "venue_name": "児島",
+      "all_n": 216,
+      "wind_bands": {
+        "0-2m": {
+          "n": 96,
+          "boat1_pct": 54.17,
+          "course1_pct": 54.17,
+          "course1_ci95": [
+            44.23,
+            63.78
+          ],
+          "escape_pct": 47.92,
+          "escape_ci95": [
+            38.2,
+            57.8
+          ],
+          "winning_methods": {
+            "逃げ": 47.92,
+            "差し": 17.71,
+            "まくり": 12.5,
+            "まくり差し": 10.42,
+            "抜き": 11.46,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 54.17,
+            "2": 20.83,
+            "3": 7.29,
+            "4": 9.38,
+            "5": 5.21,
+            "6": 3.13
+          }
+        },
+        "3-4m": {
+          "n": 95,
+          "boat1_pct": 45.26,
+          "course1_pct": 45.26,
+          "course1_ci95": [
+            35.63,
+            55.26
+          ],
+          "escape_pct": 41.05,
+          "escape_ci95": [
+            31.7,
+            51.1
+          ],
+          "winning_methods": {
+            "逃げ": 41.05,
+            "差し": 16.84,
+            "まくり": 15.79,
+            "まくり差し": 17.89,
+            "抜き": 8.42,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 45.26,
+            "2": 11.58,
+            "3": 21.05,
+            "4": 11.58,
+            "5": 7.37,
+            "6": 3.16
+          }
+        },
+        "5m+": {
+          "n": 25,
+          "boat1_pct": 40,
+          "course1_pct": 40,
+          "course1_ci95": [
+            23.4,
+            59.26
+          ],
+          "escape_pct": 40,
+          "escape_ci95": [
+            23.4,
+            59.26
+          ],
+          "winning_methods": {
+            "逃げ": 40,
+            "差し": 12,
+            "まくり": 12,
+            "まくり差し": 20,
+            "抜き": 12,
+            "恵まれ": 4
+          },
+          "winning_courses": {
+            "1": 40,
+            "2": 16,
+            "3": 12,
+            "4": 16,
+            "5": 8,
+            "6": 8
+          }
+        }
+      },
+      "delta_vs_calm_if_each_n30": {
+        "3-4m": {
+          "course1_pt": -8.91,
+          "escape_pt": -6.87,
+          "comparability": "exploratory_N30"
+        },
+        "5m+": null
+      },
+      "wind5m_sample_min100": false
+    },
+    {
+      "venue_code": "17",
+      "venue_name": "宮島",
+      "all_n": 188,
+      "wind_bands": {
+        "0-2m": {
+          "n": 96,
+          "boat1_pct": 56.25,
+          "course1_pct": 56.25,
+          "course1_ci95": [
+            46.28,
+            65.74
+          ],
+          "escape_pct": 54.17,
+          "escape_ci95": [
+            44.23,
+            63.78
+          ],
+          "winning_methods": {
+            "逃げ": 54.17,
+            "差し": 8.33,
+            "まくり": 18.75,
+            "まくり差し": 12.5,
+            "抜き": 5.21,
+            "恵まれ": 1.04
+          },
+          "winning_courses": {
+            "1": 56.25,
+            "2": 12.5,
+            "3": 12.5,
+            "4": 13.54,
+            "5": 5.21,
+            "6": 0
+          }
+        },
+        "3-4m": {
+          "n": 56,
+          "boat1_pct": 53.57,
+          "course1_pct": 53.57,
+          "course1_ci95": [
+            40.7,
+            65.98
+          ],
+          "escape_pct": 51.79,
+          "escape_ci95": [
+            39.01,
+            64.33
+          ],
+          "winning_methods": {
+            "逃げ": 51.79,
+            "差し": 8.93,
+            "まくり": 21.43,
+            "まくり差し": 12.5,
+            "抜き": 5.36,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 53.57,
+            "2": 8.93,
+            "3": 14.29,
+            "4": 10.71,
+            "5": 8.93,
+            "6": 3.57
+          }
+        },
+        "5m+": {
+          "n": 36,
+          "boat1_pct": 50,
+          "course1_pct": 50,
+          "course1_ci95": [
+            34.47,
+            65.53
+          ],
+          "escape_pct": 47.22,
+          "escape_ci95": [
+            31.99,
+            62.99
+          ],
+          "winning_methods": {
+            "逃げ": 47.22,
+            "差し": 13.89,
+            "まくり": 11.11,
+            "まくり差し": 19.44,
+            "抜き": 8.33,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 50,
+            "2": 13.89,
+            "3": 13.89,
+            "4": 16.67,
+            "5": 0,
+            "6": 5.56
+          }
+        }
+      },
+      "delta_vs_calm_if_each_n30": {
+        "3-4m": {
+          "course1_pt": -2.68,
+          "escape_pt": -2.38,
+          "comparability": "exploratory_N30"
+        },
+        "5m+": {
+          "course1_pt": -6.25,
+          "escape_pt": -6.95,
+          "comparability": "exploratory_N30"
+        }
+      },
+      "wind5m_sample_min100": false
+    },
+    {
+      "venue_code": "18",
+      "venue_name": "徳山",
+      "all_n": 203,
+      "wind_bands": {
+        "0-2m": {
+          "n": 92,
+          "boat1_pct": 73.91,
+          "course1_pct": 73.91,
+          "course1_ci95": [
+            64.11,
+            81.8
+          ],
+          "escape_pct": 70.65,
+          "escape_ci95": [
+            60.67,
+            78.98
+          ],
+          "winning_methods": {
+            "逃げ": 70.65,
+            "差し": 10.87,
+            "まくり": 5.43,
+            "まくり差し": 7.61,
+            "抜き": 4.35,
+            "恵まれ": 1.09
+          },
+          "winning_courses": {
+            "1": 73.91,
+            "2": 10.87,
+            "3": 7.61,
+            "4": 2.17,
+            "5": 4.35,
+            "6": 1.09
+          }
+        },
+        "3-4m": {
+          "n": 86,
+          "boat1_pct": 60.47,
+          "course1_pct": 61.63,
+          "course1_ci95": [
+            51.06,
+            71.2
+          ],
+          "escape_pct": 58.14,
+          "escape_ci95": [
+            47.58,
+            68
+          ],
+          "winning_methods": {
+            "逃げ": 58.14,
+            "差し": 12.79,
+            "まくり": 13.95,
+            "まくり差し": 6.98,
+            "抜き": 8.14,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 61.63,
+            "2": 10.47,
+            "3": 15.12,
+            "4": 8.14,
+            "5": 4.65,
+            "6": 0
+          }
+        },
+        "5m+": {
+          "n": 25,
+          "boat1_pct": 56,
+          "course1_pct": 56,
+          "course1_ci95": [
+            37.07,
+            73.33
+          ],
+          "escape_pct": 48,
+          "escape_ci95": [
+            30.03,
+            66.5
+          ],
+          "winning_methods": {
+            "逃げ": 48,
+            "差し": 8,
+            "まくり": 16,
+            "まくり差し": 16,
+            "抜き": 12,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 56,
+            "2": 8,
+            "3": 4,
+            "4": 20,
+            "5": 8,
+            "6": 4
+          }
+        }
+      },
+      "delta_vs_calm_if_each_n30": {
+        "3-4m": {
+          "course1_pt": -12.28,
+          "escape_pt": -12.51,
+          "comparability": "exploratory_N30"
+        },
+        "5m+": null
+      },
+      "wind5m_sample_min100": false
+    },
+    {
+      "venue_code": "19",
+      "venue_name": "下関",
+      "all_n": 167,
+      "wind_bands": {
+        "0-2m": {
+          "n": 106,
+          "boat1_pct": 63.21,
+          "course1_pct": 63.21,
+          "course1_ci95": [
+            53.72,
+            71.78
+          ],
+          "escape_pct": 59.43,
+          "escape_ci95": [
+            49.92,
+            68.29
+          ],
+          "winning_methods": {
+            "逃げ": 59.43,
+            "差し": 12.26,
+            "まくり": 9.43,
+            "まくり差し": 11.32,
+            "抜き": 7.55,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 63.21,
+            "2": 9.43,
+            "3": 11.32,
+            "4": 7.55,
+            "5": 4.72,
+            "6": 3.77
+          }
+        },
+        "3-4m": {
+          "n": 49,
+          "boat1_pct": 81.63,
+          "course1_pct": 81.63,
+          "course1_ci95": [
+            68.64,
+            90.02
+          ],
+          "escape_pct": 73.47,
+          "escape_ci95": [
+            59.74,
+            83.79
+          ],
+          "winning_methods": {
+            "逃げ": 73.47,
+            "差し": 0,
+            "まくり": 6.12,
+            "まくり差し": 8.16,
+            "抜き": 12.24,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 81.63,
+            "2": 2.04,
+            "3": 12.24,
+            "4": 4.08,
+            "5": 0,
+            "6": 0
+          }
+        },
+        "5m+": {
+          "n": 12,
+          "boat1_pct": 41.67,
+          "course1_pct": 41.67,
+          "course1_ci95": [
+            19.33,
+            68.05
+          ],
+          "escape_pct": 41.67,
+          "escape_ci95": [
+            19.33,
+            68.05
+          ],
+          "winning_methods": {
+            "逃げ": 41.67,
+            "差し": 16.67,
+            "まくり": 25,
+            "まくり差し": 8.33,
+            "抜き": 0,
+            "恵まれ": 8.33
+          },
+          "winning_courses": {
+            "1": 41.67,
+            "2": 0,
+            "3": 25,
+            "4": 16.67,
+            "5": 8.33,
+            "6": 8.33
+          }
+        }
+      },
+      "delta_vs_calm_if_each_n30": {
+        "3-4m": {
+          "course1_pt": 18.42,
+          "escape_pt": 14.04,
+          "comparability": "exploratory_N30"
+        },
+        "5m+": null
+      },
+      "wind5m_sample_min100": false
+    },
+    {
+      "venue_code": "20",
+      "venue_name": "若松",
+      "all_n": 214,
+      "wind_bands": {
+        "0-2m": {
+          "n": 106,
+          "boat1_pct": 67.92,
+          "course1_pct": 67.92,
+          "course1_ci95": [
+            58.55,
+            76.05
+          ],
+          "escape_pct": 65.09,
+          "escape_ci95": [
+            55.64,
+            73.5
+          ],
+          "winning_methods": {
+            "逃げ": 65.09,
+            "差し": 12.26,
+            "まくり": 7.55,
+            "まくり差し": 8.49,
+            "抜き": 6.6,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 67.92,
+            "2": 11.32,
+            "3": 8.49,
+            "4": 7.55,
+            "5": 3.77,
+            "6": 0.94
+          }
+        },
+        "3-4m": {
+          "n": 79,
+          "boat1_pct": 41.77,
+          "course1_pct": 44.3,
+          "course1_ci95": [
+            33.87,
+            55.27
+          ],
+          "escape_pct": 40.51,
+          "escape_ci95": [
+            30.37,
+            51.53
+          ],
+          "winning_methods": {
+            "逃げ": 40.51,
+            "差し": 20.25,
+            "まくり": 21.52,
+            "まくり差し": 5.06,
+            "抜き": 11.39,
+            "恵まれ": 1.27
+          },
+          "winning_courses": {
+            "1": 44.3,
+            "2": 21.52,
+            "3": 15.19,
+            "4": 12.66,
+            "5": 6.33,
+            "6": 0
+          }
+        },
+        "5m+": {
+          "n": 29,
+          "boat1_pct": 62.07,
+          "course1_pct": 62.07,
+          "course1_ci95": [
+            44,
+            77.31
+          ],
+          "escape_pct": 51.72,
+          "escape_ci95": [
+            34.43,
+            68.61
+          ],
+          "winning_methods": {
+            "逃げ": 51.72,
+            "差し": 17.24,
+            "まくり": 6.9,
+            "まくり差し": 6.9,
+            "抜き": 17.24,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 62.07,
+            "2": 13.79,
+            "3": 6.9,
+            "4": 13.79,
+            "5": 3.45,
+            "6": 0
+          }
+        }
+      },
+      "delta_vs_calm_if_each_n30": {
+        "3-4m": {
+          "course1_pt": -23.62,
+          "escape_pt": -24.58,
+          "comparability": "exploratory_N30"
+        },
+        "5m+": null
+      },
+      "wind5m_sample_min100": false
+    },
+    {
+      "venue_code": "21",
+      "venue_name": "芦屋",
+      "all_n": 166,
+      "wind_bands": {
+        "0-2m": {
+          "n": 122,
+          "boat1_pct": 64.75,
+          "course1_pct": 66.39,
+          "course1_ci95": [
+            57.62,
+            74.16
+          ],
+          "escape_pct": 63.11,
+          "escape_ci95": [
+            54.27,
+            71.15
+          ],
+          "winning_methods": {
+            "逃げ": 63.11,
+            "差し": 8.2,
+            "まくり": 11.48,
+            "まくり差し": 9.02,
+            "抜き": 7.38,
+            "恵まれ": 0.82
+          },
+          "winning_courses": {
+            "1": 66.39,
+            "2": 14.75,
+            "3": 4.1,
+            "4": 9.02,
+            "5": 4.1,
+            "6": 1.64
+          }
+        },
+        "3-4m": {
+          "n": 31,
+          "boat1_pct": 67.74,
+          "course1_pct": 67.74,
+          "course1_ci95": [
+            50.14,
+            81.43
+          ],
+          "escape_pct": 64.52,
+          "escape_ci95": [
+            46.95,
+            78.88
+          ],
+          "winning_methods": {
+            "逃げ": 64.52,
+            "差し": 0,
+            "まくり": 19.35,
+            "まくり差し": 12.9,
+            "抜き": 3.23,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 67.74,
+            "2": 3.23,
+            "3": 9.68,
+            "4": 12.9,
+            "5": 3.23,
+            "6": 3.23
+          }
+        },
+        "5m+": {
+          "n": 13,
+          "boat1_pct": 76.92,
+          "course1_pct": 76.92,
+          "course1_ci95": [
+            49.74,
+            91.82
+          ],
+          "escape_pct": 69.23,
+          "escape_ci95": [
+            42.37,
+            87.32
+          ],
+          "winning_methods": {
+            "逃げ": 69.23,
+            "差し": 7.69,
+            "まくり": 0,
+            "まくり差し": 15.38,
+            "抜き": 7.69,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 76.92,
+            "2": 7.69,
+            "3": 0,
+            "4": 0,
+            "5": 15.38,
+            "6": 0
+          }
+        }
+      },
+      "delta_vs_calm_if_each_n30": {
+        "3-4m": {
+          "course1_pt": 1.35,
+          "escape_pt": 1.41,
+          "comparability": "exploratory_N30"
+        },
+        "5m+": null
+      },
+      "wind5m_sample_min100": false
+    },
+    {
+      "venue_code": "22",
+      "venue_name": "福岡",
+      "all_n": 216,
+      "wind_bands": {
+        "0-2m": {
+          "n": 75,
+          "boat1_pct": 57.33,
+          "course1_pct": 57.33,
+          "course1_ci95": [
+            46.05,
+            67.9
+          ],
+          "escape_pct": 57.33,
+          "escape_ci95": [
+            46.05,
+            67.9
+          ],
+          "winning_methods": {
+            "逃げ": 57.33,
+            "差し": 18.67,
+            "まくり": 17.33,
+            "まくり差し": 5.33,
+            "抜き": 1.33,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 57.33,
+            "2": 20,
+            "3": 13.33,
+            "4": 6.67,
+            "5": 2.67,
+            "6": 0
+          }
+        },
+        "3-4m": {
+          "n": 118,
+          "boat1_pct": 66.1,
+          "course1_pct": 66.1,
+          "course1_ci95": [
+            57.17,
+            74.01
+          ],
+          "escape_pct": 61.86,
+          "escape_ci95": [
+            52.86,
+            70.12
+          ],
+          "winning_methods": {
+            "逃げ": 61.86,
+            "差し": 9.32,
+            "まくり": 12.71,
+            "まくり差し": 6.78,
+            "抜き": 8.47,
+            "恵まれ": 0.85
+          },
+          "winning_courses": {
+            "1": 66.1,
+            "2": 11.86,
+            "3": 11.86,
+            "4": 6.78,
+            "5": 2.54,
+            "6": 0.85
+          }
+        },
+        "5m+": {
+          "n": 23,
+          "boat1_pct": 47.83,
+          "course1_pct": 47.83,
+          "course1_ci95": [
+            29.24,
+            67.04
+          ],
+          "escape_pct": 39.13,
+          "escape_ci95": [
+            22.16,
+            59.21
+          ],
+          "winning_methods": {
+            "逃げ": 39.13,
+            "差し": 26.09,
+            "まくり": 26.09,
+            "まくり差し": 0,
+            "抜き": 8.7,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 47.83,
+            "2": 26.09,
+            "3": 21.74,
+            "4": 0,
+            "5": 4.35,
+            "6": 0
+          }
+        }
+      },
+      "delta_vs_calm_if_each_n30": {
+        "3-4m": {
+          "course1_pt": 8.77,
+          "escape_pt": 4.53,
+          "comparability": "exploratory_N30"
+        },
+        "5m+": null
+      },
+      "wind5m_sample_min100": false
+    },
+    {
+      "venue_code": "23",
+      "venue_name": "唐津",
+      "all_n": 71,
+      "wind_bands": {
+        "0-2m": {
+          "n": 9,
+          "boat1_pct": 77.78,
+          "course1_pct": 77.78,
+          "course1_ci95": [
+            45.26,
+            93.68
+          ],
+          "escape_pct": 77.78,
+          "escape_ci95": [
+            45.26,
+            93.68
+          ],
+          "winning_methods": {
+            "逃げ": 77.78,
+            "差し": 0,
+            "まくり": 0,
+            "まくり差し": 11.11,
+            "抜き": 11.11,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 77.78,
+            "2": 0,
+            "3": 22.22,
+            "4": 0,
+            "5": 0,
+            "6": 0
+          }
+        },
+        "3-4m": {
+          "n": 20,
+          "boat1_pct": 45,
+          "course1_pct": 45,
+          "course1_ci95": [
+            25.82,
+            65.79
+          ],
+          "escape_pct": 40,
+          "escape_ci95": [
+            21.88,
+            61.34
+          ],
+          "winning_methods": {
+            "逃げ": 40,
+            "差し": 15,
+            "まくり": 15,
+            "まくり差し": 10,
+            "抜き": 20,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 45,
+            "2": 30,
+            "3": 15,
+            "4": 5,
+            "5": 5,
+            "6": 0
+          }
+        },
+        "5m+": {
+          "n": 42,
+          "boat1_pct": 54.76,
+          "course1_pct": 54.76,
+          "course1_ci95": [
+            39.95,
+            68.78
+          ],
+          "escape_pct": 47.62,
+          "escape_ci95": [
+            33.36,
+            62.28
+          ],
+          "winning_methods": {
+            "逃げ": 47.62,
+            "差し": 14.29,
+            "まくり": 9.52,
+            "まくり差し": 14.29,
+            "抜き": 14.29,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 54.76,
+            "2": 14.29,
+            "3": 7.14,
+            "4": 11.9,
+            "5": 11.9,
+            "6": 0
+          }
+        }
+      },
+      "delta_vs_calm_if_each_n30": {
+        "3-4m": null,
+        "5m+": null
+      },
+      "wind5m_sample_min100": false
+    },
+    {
+      "venue_code": "24",
+      "venue_name": "大村",
+      "all_n": 203,
+      "wind_bands": {
+        "0-2m": {
+          "n": 139,
+          "boat1_pct": 58.27,
+          "course1_pct": 57.55,
+          "course1_ci95": [
+            49.24,
+            65.46
+          ],
+          "escape_pct": 56.12,
+          "escape_ci95": [
+            47.81,
+            64.09
+          ],
+          "winning_methods": {
+            "逃げ": 56.12,
+            "差し": 13.67,
+            "まくり": 12.95,
+            "まくり差し": 12.23,
+            "抜き": 3.6,
+            "恵まれ": 1.44
+          },
+          "winning_courses": {
+            "1": 57.55,
+            "2": 17.27,
+            "3": 13.67,
+            "4": 6.47,
+            "5": 2.88,
+            "6": 2.16
+          }
+        },
+        "3-4m": {
+          "n": 14,
+          "boat1_pct": 71.43,
+          "course1_pct": 71.43,
+          "course1_ci95": [
+            45.35,
+            88.28
+          ],
+          "escape_pct": 71.43,
+          "escape_ci95": [
+            45.35,
+            88.28
+          ],
+          "winning_methods": {
+            "逃げ": 71.43,
+            "差し": 7.14,
+            "まくり": 14.29,
+            "まくり差し": 0,
+            "抜き": 7.14,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 71.43,
+            "2": 7.14,
+            "3": 7.14,
+            "4": 7.14,
+            "5": 7.14,
+            "6": 0
+          }
+        },
+        "5m+": {
+          "n": 50,
+          "boat1_pct": 68,
+          "course1_pct": 68,
+          "course1_ci95": [
+            54.19,
+            79.24
+          ],
+          "escape_pct": 66,
+          "escape_ci95": [
+            52.15,
+            77.56
+          ],
+          "winning_methods": {
+            "逃げ": 66,
+            "差し": 6,
+            "まくり": 12,
+            "まくり差し": 10,
+            "抜き": 6,
+            "恵まれ": 0
+          },
+          "winning_courses": {
+            "1": 68,
+            "2": 6,
+            "3": 12,
+            "4": 10,
+            "5": 4,
+            "6": 0
+          }
+        }
+      },
+      "delta_vs_calm_if_each_n30": {
+        "3-4m": null,
+        "5m+": {
+          "course1_pt": 10.45,
+          "escape_pt": 9.88,
+          "comparability": "exploratory_N30"
+        }
+      },
+      "wind5m_sample_min100": false
+    }
+  ],
+  "limitations": [
+    "Post-race wind must never feed predeadline models.",
+    "Course-specific 1st is not boat 1st.",
+    "Unadjusted associations; weather/athlete/race mix and venue confounding.",
+    "Minimum 30 each is only exploratory, not adequate evidence of causal effect.",
+    "Independent primary official result crosscheck incomplete.",
+    "September and October are historical two-period checks, not future prospective model validation."
+  ]
+}

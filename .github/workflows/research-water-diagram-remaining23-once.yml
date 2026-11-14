@@ -1,0 +1,75 @@
+name: BOAT remaining 23 water diagrams (one-shot research only)
+
+on:
+  push:
+    branches:
+      - research/venue-environment-factor-baseline-20261106
+    paths:
+      - .github/workflows/research-water-diagram-remaining23-once.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: research-water-diagram-remaining23-one-shot-1692
+  cancel-in-progress: false
+
+jobs:
+  receive-remaining-23:
+    if: github.ref == 'refs/heads/research/venue-environment-factor-baseline-20261106'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Offline original-PNG and HTTP rejection tests
+        run: |
+          set -euo pipefail
+          python3 -m unittest -q scripts.test_research_water_diagram_byte_gate
+          python3 -m unittest -q scripts.test_research_water_diagram_http_receipt
+      - name: Capture only original official PNGs of other 23 venues
+        id: capture
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$RUNNER_TEMP/boat-water-remaining23-1692"
+          python3 - <<'PY'
+          import json, os, pathlib, sys, time
+          from scripts.research_water_diagram_http_receipt import fetch_once, write_bundle
+          root = pathlib.Path(os.environ['RUNNER_TEMP']) / 'boat-water-remaining23-1692'
+          codes = [f'{i:02}' for i in range(1,25) if i != 21]
+          entries=[]
+          for code in codes:
+              try:
+                  raw, receipt = fetch_once(code, timeout=12.0)
+                  dest = write_bundle(root, raw, receipt)
+                  entries.append({'jcd':code,'status':'captured','bytes':len(raw),
+                                  'sha256':receipt['png_sha256'],'bundle':dest.name,
+                                  'utc_finished':receipt['response_finished_utc']})
+                  print('CAPTURED',code,receipt['png_sha256'],len(raw),flush=True)
+              except Exception as exc:
+                  entries.append({'jcd':code,'status':'failed','error_type':type(exc).__name__,
+                                  'error_detail':str(exc)[:200]})
+                  print('FAILED',code,type(exc).__name__,str(exc)[:150],flush=True)
+              time.sleep(0.75)
+          ok = sum(e['status']=='captured' for e in entries)
+          report = {'schema':'BOAT_EDGE_23_WATER_DIAGRAM_ONE_SHOT_CAPTURE_V1',
+                    'source':'https://www.boatrace.jp/static_extra/pc/images/img_water1_XX.png',
+                    'research_only':True, 'no_t12_or_heading_certification':True,
+                    'requested_venues':23,'captured':ok,'failed':23-ok,'entries':entries}
+          (root/'capture-summary.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
+          print('CAPTURE_TOTAL',ok,'/23',flush=True)
+          if ok == 0:
+              sys.exit('zero official image original responses captured')
+          PY
+      - name: Save receipts only as ephemeral research artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-23-water-diagram-raw-receipts-research-only
+          path: ${{ runner.temp }}/boat-water-remaining23-1692/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0

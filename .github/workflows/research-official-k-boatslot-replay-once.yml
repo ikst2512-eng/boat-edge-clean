@@ -1,0 +1,82 @@
+name: Research official K 92-day boat-slot replay (one shot)
+on:
+  push:
+    branches:
+      - research/venue-environment-factor-baseline-20261106
+    paths:
+      - .github/workflows/research-official-k-boatslot-replay-once.yml
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: research-official-k-boatslot-only
+  cancel-in-progress: false
+jobs:
+  exact-primary-K-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check libarchive LHA decoder
+        run: |
+          python -c 'import ctypes; ctypes.CDLL("libarchive.so.13")'
+      - name: Verify historical source and role-switch regression tests
+        run: |
+          python -m unittest discover -s tests -p 'test_research_official_k_c2_athlete_chronological_holdout.py' -v
+          python -m unittest discover -s tests -p 'test_research_official_k_boat_slots_holdout.py' -v
+      - name: Download the original fixed 92-day research artifact without modifying it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --retry 2 \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/13607470249/zip" \
+            --output "${RUNNER_TEMP}/official-k-original.zip"
+          echo 'c668f545bae54f8148616315e307ed2a2b04a77a0cb8abf88bf3ea078749ce8e' " ${RUNNER_TEMP}/official-k-original.zip" | sha256sum --check --status
+          test "$(stat -c %s "${RUNNER_TEMP}/official-k-original.zip")" -eq 3398466
+      - name: Reparse all 92 primary-K days and reproduce holdout with frozen roles
+        run: |
+          set -euo pipefail
+          python scripts/research_official_k_boat_slots_holdout.py \
+            --artifact-zip "${RUNNER_TEMP}/official-k-original.zip" \
+            --out "${RUNNER_TEMP}/official-k-boatslot-vs-actual-92day.json"
+      - name: Validate provenance and do not certify as T-12
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          j=json.loads((Path(os.environ["RUNNER_TEMP"])/"official-k-boatslot-vs-actual-92day.json").read_text())
+          assert j["counts"] == {
+              "eligible":13815,"train":9241,"holdout":4574,
+              "boat1_vs_actual_c1_mismatch":116,
+              "boat2_vs_actual_c2_mismatch":706}
+          assert j["source_daily_K_hashes_checked"] == 92
+          assert j["source_original_ZIP_sha256"] == "c668f545bae54f8148616315e307ed2a2b04a77a0cb8abf88bf3ea078749ce8e"
+          assert not j["official_racelist_T12_evidence_complete"]
+          assert not j["forecast_improvement_formally_proven"]
+          assert not j["production_feature_approved"]
+          import csv
+          frozen=list(csv.DictReader(Path("docs/research/official_K_boat_number_vs_actual_course_24venue_20261110.csv").open(encoding="utf-8")))
+          assert len(frozen)==24
+          for row in frozen:
+              v=j["per_venue_course_identity_mismatch"][row["jcd"]]
+              assert v["eligible"]==int(row["eligible_original_K_1C2C_cohort"])
+              assert v["boat1_mismatch_count"]==int(row["boat1_not_actual_course1_count"])
+              assert v["boat2_mismatch_count"]==int(row["boat2_not_actual_course2_count"])
+              assert row["actual_entry_available_before_T12"]=="false"
+              assert row["model_approved"]=="false"
+          assert len(j["per_venue_course_identity_mismatch"])==24
+          print("92/92 official K days re-parsed; 24/24 venue CSV reconciled; 13,815 cohort, T12=false")
+          PY
+      - name: Upload only aggregate research metrics (not raw race or athlete data)
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-official-k-92day-boat-slot-replay
+          path: ${{ runner.temp }}/official-k-boatslot-vs-actual-92day.json
+          retention-days: 7
+          if-no-files-found: error

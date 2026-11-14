@@ -1,0 +1,81 @@
+name: Research beforeinfo 2C wall source witness (one shot)
+on:
+  push:
+    branches:
+      - research/venue-environment-factor-baseline-20261106
+    paths:
+      - .github/workflows/research-beforeinfo-wall-witness-once.yml
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: research-beforeinfo-2c-wall-once
+  cancel-in-progress: false
+jobs:
+  source-witness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run isolated source-time and exhibition-ST regression tests
+        run: |
+          python -m py_compile scripts/research_official_beforeinfo_wall_witness.py
+          python -m unittest discover -s tests -p 'test_research_official_beforeinfo_wall_witness.py' -v
+      - name: Download two already captured primary evidence ZIPs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --retry 2 \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/13652131213/zip" \
+            --output "$RUNNER_TEMP/nov9-original.zip"
+          curl --fail --location --silent --show-error --retry 2 \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/13740574410/zip" \
+            --output "$RUNNER_TEMP/nov10-original.zip"
+          echo "99f02ff306307dd945f27c225e18ff8341be2832232b7dd0f2751e1d8935f451  $RUNNER_TEMP/nov9-original.zip" | sha256sum --check --status
+          echo "cdfdeae53222a5b7852ba5cf5b6b44080247ec074c8d3dbaf53c4a32fe9706dd  $RUNNER_TEMP/nov10-original.zip" | sha256sum --check --status
+      - name: Reopen all official beforeinfo and odds original bytes and manifests
+        run: |
+          set -euo pipefail
+          python scripts/research_official_beforeinfo_wall_witness.py \
+            --nov9-zip "$RUNNER_TEMP/nov9-original.zip" \
+            --nov10-zip "$RUNNER_TEMP/nov10-original.zip" \
+            --out "$RUNNER_TEMP/research-beforeinfo-wall-source-witness.json"
+      - name: Explicitly fail closed on weather and T-12 certification
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          j=json.loads((Path(os.environ["RUNNER_TEMP"])/"research-beforeinfo-wall-source-witness.json").read_text())
+          assert j["counts"] == {
+              "fixed_races":4,
+              "source_raw_zip_sha_verified":2,
+              "raw_beforeinfo_and_odds_pair_sha_verified":4,
+              "six_boat_exhibition_course_ST_complete":3,
+              "weather_measure_race_label_earlier_than_target":4,
+              "official_wind_arrow_FROM_TO_verified":0,
+              "same_race_racelist_originals":0,
+              "source_consumed_by_new_forecast":0,
+              "independent_first_forecast_remote_acceptance":0,
+              "formal_T12_certified":0,
+              "forecast_effect_proven":0
+          }
+          assert all(x["weather"]["observation_provenance"]["actual_measurement_timestamp"] is None for x in j["observations"])
+          assert not j["production_change_allowed"]
+          assert all(not x["formal_T12_certified"] and not x["approved_for_production"] for x in j["observations"])
+          print("Verified 2 original ZIPs / 4 official paired races / 3 full exhibitions / 4 prior-race weather labels. No formal T12.")
+          PY
+      - name: Save derived research-only summary without raw originals
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-beforeinfo-wall-evidence-4-races
+          path: ${{ runner.temp }}/research-beforeinfo-wall-source-witness.json
+          retention-days: 7
+          if-no-files-found: error

@@ -1,0 +1,733 @@
+{
+  "schema": "VENUE_24_OFFICIAL_TEXTUAL_ORIENTATION_WITNESS_LEDGER_V1",
+  "checked_as_of_jst": "2026-11-08",
+  "status": "research_only_all_venue_wind_angle_predictions_blocked",
+  "linked_prior_official_k_study": "docs/research/official_k_relative_wind_dual_axis_risk_receipt_20261108.json",
+  "source_digest_prev_github_blob_sha": "3dcb7eb34afbba1d3e77889792dec98f133fac95",
+  "classifications": {
+    "explicit_first_party_historical_or_editorial_A_consistency": 11,
+    "partial_first_party_sector_or_diagram": 7,
+    "no_first_party_heading_evidence_this_round": 6,
+    "final_corroborated_field_angle_and_same_race_arrow": 0,
+    "approved_T_minus_12_features": 0
+  },
+  "venue_rows": [
+    {
+      "venue_code": "01",
+      "venue_name": "桐生",
+      "secondary_A_hypothesis_head_deg": 135,
+      "secondary_B_stand_based_hypothesis_head_deg": 270,
+      "source_status": "first_party_text_sector_only",
+      "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=01",
+      "first_party_evidence": {
+        "type": "first_party_text_sector_only",
+        "source_url": "https://boatrace.jp/owpc/pc/extra/race/01_20191119/monthly/dounaru.html",
+        "source_owner": "boatrace_official_site_editorial",
+        "publication_date": "2019-11",
+        "publication_date_precision": "month",
+        "cited_direction_wind_from": "S/N",
+        "cited_relative": "S=head,N=tail (broad editorial terms)",
+        "source_prose_japanese_paraphrase": "桐生の地元解説は南風を向い風、北風を追い風と説明。Aの135°軸と南180°は45°差であり厳密headは未証明。",
+        "alignment_with_A": "broad_sector_only_not_exact_angle",
+        "scope": "Historical official editorial prose, not source-archived water diagram or official same-race wind arrow. Do not use for 2026 model wind conversion.",
+        "original_http_body_sha256": null
+      },
+      "first_party_image_original_SHA256": null,
+      "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
+      "official_same_race_wind_arrow_image_SHA256": null,
+      "arrow_represents_wind_from_certified": false,
+      "final_relative_head_tail_approved": false,
+      "T_minus_12_wind_feature_approved": false,
+      "reviewer_conclusion": "historical_official_text_support_only_current_field_geometry_and_arrow_uncertified",
+      "prior_dual_axis_event_disagreement": {
+        "comparisons": 503,
+        "disagreed": 503
+      }
+    },
+    {
+      "venue_code": "02",
+      "venue_name": "戸田",
+      "secondary_A_hypothesis_head_deg": 90,
+      "secondary_B_stand_based_hypothesis_head_deg": 180,
+      "source_status": "first_party_text_explicit",
+      "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=02",
+      "first_party_evidence": {
+        "type": "first_party_text_explicit",
+        "source_url": "https://www.boatrace-toda.jp/data/suimen_guide.html",
+        "source_owner": "boatrace_toda_operator",
+        "cited_direction_wind_from": "E",
+        "cited_relative": "head",
+        "translation_to_heading_deg": 90,
+        "scope": "OB interview says eastern headwind in spring, not a dated 2026 diagram",
+        "text_basis": "春は東からの向かい風",
+        "alignment_with_A": "exact_consistent",
+        "publication_date_unverified": true
+      },
+      "first_party_image_original_SHA256": null,
+      "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
+      "official_same_race_wind_arrow_image_SHA256": null,
+      "arrow_represents_wind_from_certified": false,
+      "final_relative_head_tail_approved": false,
+      "T_minus_12_wind_feature_approved": false,
+      "reviewer_conclusion": "first_party_support_is_not_stadium_angle_certification",
+      "prior_dual_axis_event_disagreement": {
+        "comparisons": 437,
+        "disagreed": 339
+      }
+    },
+    {
+      "venue_code": "03",
+      "venue_name": "江戸川",
+      "secondary_A_hypothesis_head_deg": 0,
+      "secondary_B_stand_based_hypothesis_head_deg": 20,
+      "source_status": "first_party_text_explicit",
+      "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=03",
+      "first_party_evidence": {
+        "type": "first_party_text_explicit",
+        "source_url": "https://www.boatrace-edogawa.com/sp/index.php?day=20210115&page=soutenbo-tenbokiji",
+        "source_owner": "boatrace_edogawa_operator_event_preview",
+        "cited_direction_wind_from": "N/S",
+        "cited_relative": "N=head,S=tail",
+        "translation_to_heading_deg": 0,
+        "scope": "2021 preview seasonal prose; not an original 2026 wind-arrow receipt",
+        "text_basis": "北風（向かい風）／南風（追い風）",
+        "alignment_with_A": "exact_consistent",
+        "publication_date": "2021-01-15"
+      },
+      "first_party_image_original_SHA256": null,
+      "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
+      "official_same_race_wind_arrow_image_SHA256": null,
+      "arrow_represents_wind_from_certified": false,
+      "final_relative_head_tail_approved": false,
+      "T_minus_12_wind_feature_approved": false,
+      "reviewer_conclusion": "first_party_support_is_not_stadium_angle_certification",
+      "prior_dual_axis_event_disagreement": {
+        "comparisons": 533,
+        "disagreed": 0
+      }
+    },
+    {
+      "venue_code": "04",
+      "venue_name": "平和島",
+      "secondary_A_hypothesis_head_deg": 0,
+      "secondary_B_stand_based_hypothesis_head_deg": 90,
+      "source_status": "first_party_text_explicit",
+      "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=04",
+      "first_party_evidence": {
+        "type": "first_party_text_explicit",
+        "source_url": "https://www.boatrace.jp/owpc/pc/extra/race/04_20200317/monthly/keitai.html",
+        "source_owner": "boatrace_official_editorial",
+        "cited_direction_wind_from": "N/S",
+        "cited_relative": "N=head,S=tail",
+        "translation_to_heading_deg": 0,
+        "scope": "2020 official editorial, historical statement not current water diagram version",
+        "text_basis": "南風（ホーム追い風）／北風（向い風）",
+        "alignment_with_A": "exact_consistent",
+        "publication_date": "2020-03"
+      },
+      "first_party_image_original_SHA256": null,
+      "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
+      "official_same_race_wind_arrow_image_SHA256": null,
+      "arrow_represents_wind_from_certified": false,
+      "final_relative_head_tail_approved": false,
+      "T_minus_12_wind_feature_approved": false,
+      "reviewer_conclusion": "first_party_support_is_not_stadium_angle_certification",
+      "prior_dual_axis_event_disagreement": {
+        "comparisons": 560,
+        "disagreed": 505
+      }
+    },
+    {
+      "venue_code": "05",
+      "venue_name": "多摩川",
+      "secondary_A_hypothesis_head_deg": 270,
+      "secondary_B_stand_based_hypothesis_head_deg": 0,
+      "source_status": "first_party_text_explicit",
+      "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=05",
+      "first_party_evidence": {
+        "type": "first_party_text_explicit",
+        "source_url": "https://www.boatrace.jp/owpc/pc/extra/race/05_20190618/monthly/funaken.html",
+        "source_owner": "boatrace_official_site_editorial",
+        "publication_date": "2019-06",
+        "publication_date_precision": "month",
+        "cited_direction_wind_from": "E/W",
+        "cited_relative": "E=tail,W=head",
+        "source_prose_japanese_paraphrase": "BOAT RACE公式は多摩川で東系統をホーム追い風、西系統を向かい風と説明。",
+        "alignment_with_A": "cardinal_consistent_with_A_not_original_diagram",
+        "scope": "Historical official editorial prose, not source-archived water diagram or official same-race wind arrow. Do not use for 2026 model wind conversion.",
+        "original_http_body_sha256": null
+      },
+      "first_party_image_original_SHA256": null,
+      "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
+      "official_same_race_wind_arrow_image_SHA256": null,
+      "arrow_represents_wind_from_certified": false,
+      "final_relative_head_tail_approved": false,
+      "T_minus_12_wind_feature_approved": false,
+      "reviewer_conclusion": "historical_official_text_support_only_current_field_geometry_and_arrow_uncertified",
+      "prior_dual_axis_event_disagreement": {
+        "comparisons": 512,
+        "disagreed": 445
+      }
+    },
+    {
+      "venue_code": "06",
+      "venue_name": "浜名湖",
+      "secondary_A_hypothesis_head_deg": 180,
+      "secondary_B_stand_based_hypothesis_head_deg": 270,
+      "source_status": "first_party_text_explicit",
+      "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=06",
+      "first_party_evidence": {
+        "type": "first_party_text_explicit",
+        "source_url": "https://www.boatrace.jp/owpc/pc/extra/race/06_20180316/monthly/course_motor_guide.html",
+        "publication_date": "2018",
+        "text_basis": "南風=ホーム向かい風、北西風=ホーム追い風",
+        "cited_direction_wind_from": "S",
+        "cited_relative": "head",
+        "translation_to_heading_deg": 180,
+        "alignment_with_A": "exact_consistent",
+        "scope": "Historic editorial only, no current diagram original SHA.",
+        "source_owner": "official_boatrace_or_operator",
+        "original_http_sha256": null
+      },
+      "first_party_image_original_SHA256": null,
+      "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
+      "official_same_race_wind_arrow_image_SHA256": null,
+      "arrow_represents_wind_from_certified": false,
+      "final_relative_head_tail_approved": false,
+      "T_minus_12_wind_feature_approved": false,
+      "reviewer_conclusion": "textual_support_only_does_not_satisfy_final_water_diagram_and_same_race_arrow_gate",
+      "prior_dual_axis_event_disagreement": {
+        "comparisons": 590,
+        "disagreed": 551
+      }
+    },
+    {
+      "venue_code": "07",
+      "venue_name": "蒲郡",
+      "secondary_A_hypothesis_head_deg": 225,
+      "secondary_B_stand_based_hypothesis_head_deg": 270,
+      "source_status": "first_party_text_explicit",
+      "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=07",
+      "first_party_evidence": {
+        "type": "first_party_text_explicit",
+        "source_url": "https://www.gamagori-kyotei.com/classic61/pamphlet.pdf",
+        "source_owner": "gamagori_operator_2026_pamphlet",
+        "cited_direction_wind_from": "SW/NE",
+        "cited_relative": "SW=head,NE=tail",
+        "translation_to_heading_deg": 225,
+        "scope": "2026 SG printed pamphlet, pdf parsed text; web screenshot unavailable for this page, not same-race arrow",
+        "text_basis": "真向かいは南西、追い風は北東",
+        "alignment_with_A": "exact_consistent",
+        "publication_date": "2026-03"
+      },
+      "first_party_image_original_SHA256": null,
+      "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
+      "official_same_race_wind_arrow_image_SHA256": null,
+      "arrow_represents_wind_from_certified": false,
+      "final_relative_head_tail_approved": false,
+      "T_minus_12_wind_feature_approved": false,
+      "reviewer_conclusion": "first_party_support_is_not_stadium_angle_certification",
+      "prior_dual_axis_event_disagreement": {
+        "comparisons": 483,
+        "disagreed": 483
+      }
+    },
+    {
+      "venue_code": "08",
+      "venue_name": "常滑",
+      "secondary_A_hypothesis_head_deg": 270,
+      "secondary_B_stand_based_hypothesis_head_deg": 90,
+      "source_status": "no_first_party_orientation_evidence_checked_in_this_round",
+      "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=08",
+      "first_party_evidence": null,
+      "first_party_image_original_SHA256": null,
+      "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
+      "official_same_race_wind_arrow_image_SHA256": null,
+      "arrow_represents_wind_from_certified": false,
+      "final_relative_head_tail_approved": false,
+      "T_minus_12_wind_feature_approved": false,
+      "reviewer_conclusion": "unknown_not_negative_proof",
+      "prior_dual_axis_event_disagreement": {
+        "comparisons": 569,
+        "disagreed": 460
+      }
+    },
+    {
+      "venue_code": "09",
+      "venue_name": "津",
+      "secondary_A_hypothesis_head_deg": 270,
+      "secondary_B_stand_based_hypothesis_head_deg": 270,
+      "source_status": "first_party_text_sector_only",
+      "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=09",
+      "first_party_evidence": {
+        "type": "first_party_text_sector_only",
+        "source_url": "https://www.boatrace.jp/owsp/sp/extra/race/09_20160802/monthly/point.html",
+        "publication_date": "2016",
+        "text_basis": "南東からのホーム追い風、水面はほぼ東西",
+        "cited_direction_wind_from": "SE",
+        "cited_relative": "oblique_tail_sector",
+        "translation_to_heading_deg": null,
+        "alignment_with_A": "sector_consistent_not_axis_verified",
+        "scope": "Only tail sector, not exact race course heading.",
+        "source_owner": "official_boatrace_or_operator",
+        "original_http_sha256": null
+      },
+      "first_party_image_original_SHA256": null,
+      "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
+      "official_same_race_wind_arrow_image_SHA256": null,
+      "arrow_represents_wind_from_certified": false,
+      "final_relative_head_tail_approved": false,
+      "T_minus_12_wind_feature_approved": false,
+      "reviewer_conclusion": "textual_support_only_does_not_satisfy_final_water_diagram_and_same_race_arrow_gate",
+      "prior_dual_axis_event_disagreement": {
+        "comparisons": 615,
+        "disagreed": 0
+      }
+    },
+    {
+      "venue_code": "10",
+      "venue_name": "三国",
+      "secondary_A_hypothesis_head_deg": 135,
+      "secondary_B_stand_based_hypothesis_head_deg": 90,
+      "source_status": "no_first_party_orientation_evidence_checked_in_this_round",
+      "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=10",
+      "first_party_evidence": null,
+      "first_party_image_original_SHA256": null,
+      "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
+      "official_same_race_wind_arrow_image_SHA256": null,
+      "arrow_represents_wind_from_certified": false,
+      "final_relative_head_tail_approved": false,
+      "T_minus_12_wind_feature_approved": false,
+      "reviewer_conclusion": "unknown_not_negative_proof",
+      "prior_dual_axis_event_disagreement": {
+        "comparisons": 594,
+        "disagreed": 594
+      }
+    },
+    {
+      "venue_code": "11",
+      "venue_name": "びわこ",
+      "secondary_A_hypothesis_head_deg": 180,
+      "secondary_B_stand_based_hypothesis_head_deg": 180,
+      "source_status": "no_first_party_orientation_evidence_checked_in_this_round",
+      "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=11",
+      "first_party_evidence": null,
+      "first_party_image_original_SHA256": null,
+      "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
+      "official_same_race_wind_arrow_image_SHA256": null,
+      "arrow_represents_wind_from_certified": false,
+      "final_relative_head_tail_approved": false,
+      "T_minus_12_wind_feature_approved": false,
+      "reviewer_conclusion": "unknown_not_negative_proof",
+      "prior_dual_axis_event_disagreement": {
+        "comparisons": 506,
+        "disagreed": 0
+      }
+    },
+    {
+      "venue_code": "12",
+      "venue_name": "住之江",
+      "secondary_A_hypothesis_head_deg": 180,
+      "secondary_B_stand_based_hypothesis_head_deg": 180,
+      "source_status": "first_party_text_explicit",
+      "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=12",
+      "first_party_evidence": {
+        "type": "first_party_text_explicit",
+        "source_url": "https://www.boatrace.jp/owpc/pc/extra/race/12_20181219/monthly/suimen.html",
+        "source_owner": "boatrace_official_site_editorial",
+        "publication_date": "2018-12",
+        "publication_date_precision": "month",
+        "cited_direction_wind_from": "N",
+        "cited_relative": "N=tail",
+        "source_prose_japanese_paraphrase": "BOAT RACE公式は住之江の冬の北風をホーム追い風と明記。南風の直接観測はこの記事で証明していない。",
+        "alignment_with_A": "cardinal_tail_consistent_with_A",
+        "scope": "Historical official editorial prose, not source-archived water diagram or official same-race wind arrow. Do not use for 2026 model wind conversion.",
+        "original_http_body_sha256": null
+      },
+      "first_party_image_original_SHA256": null,
+      "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
+      "official_same_race_wind_arrow_image_SHA256": null,
+      "arrow_represents_wind_from_certified": false,
+      "final_relative_head_tail_approved": false,
+      "T_minus_12_wind_feature_approved": false,
+      "reviewer_conclusion": "historical_official_text_support_only_current_field_geometry_and_arrow_uncertified",
+      "prior_dual_axis_event_disagreement": {
+        "comparisons": 400,
+        "disagreed": 0
+      }
+    },
+    {
+      "venue_code": "13",
+      "venue_name": "尼崎",
+      "secondary_A_hypothesis_head_deg": 270,
+      "secondary_B_stand_based_hypothesis_head_deg": 180,
+      "source_status": "first_party_text_explicit",
+      "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=13",
+      "first_party_evidence": {
+        "type": "first_party_text_explicit",
+        "source_url": "https://www.boatrace.jp/owpc/pc/extra/race/13_20150317/monthly/guide.html",
+        "source_owner": "boatrace_official_editorial",
+        "cited_direction_wind_from": "W",
+        "cited_relative": "head",
+        "translation_to_heading_deg": 270,
+        "scope": "2015 SG editorial; historical, not 2026 diagram",
+        "text_basis": "六甲山からの西風が向かい風",
+        "alignment_with_A": "exact_consistent",
+        "publication_date": "2015-03"
+      },
+      "first_party_image_original_SHA256": null,
+      "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
+      "official_same_race_wind_arrow_image_SHA256": null,
+      "arrow_represents_wind_from_certified": false,
+      "final_relative_head_tail_approved": false,
+      "T_minus_12_wind_feature_approved": false,
+      "reviewer_conclusion": "first_party_support_is_not_stadium_angle_certification",
+      "prior_dual_axis_event_disagreement": {
+        "comparisons": 661,
+        "disagreed": 358
+      }
+    },
+    {
+      "venue_code": "14",
+      "venue_name": "鳴門",
+      "secondary_A_hypothesis_head_deg": 135,
+      "secondary_B_stand_based_hypothesis_head_deg": 180,
+      "source_status": "no_first_party_orientation_evidence_checked_in_this_round",
+      "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=14",
+      "first_party_evidence": null,
+      "first_party_image_original_SHA256": null,
+      "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
+      "official_same_race_wind_arrow_image_SHA256": null,
+      "arrow_represents_wind_from_certified": false,
+      "final_relative_head_tail_approved": false,
+      "T_minus_12_wind_feature_approved": false,
+      "reviewer_conclusion": "unknown_not_negative_proof",
+      "prior_dual_axis_event_disagreement": {
+        "comparisons": 590,
+        "disagreed": 590
+      }
+    },
+    {
+      "venue_code": "15",
+      "venue_name": "丸亀",
+      "secondary_A_hypothesis_head_deg": 315,
+      "secondary_B_stand_based_hypothesis_head_deg": 180,
+      "source_status": "no_first_party_orientation_evidence_checked_in_this_round",
+      "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=15",
+      "first_party_evidence": null,
+      "first_party_image_original_SHA256": null,
+      "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
+      "official_same_race_wind_arrow_image_SHA256": null,
+      "arrow_represents_wind_from_certified": false,
+      "final_relative_head_tail_approved": false,
+      "T_minus_12_wind_feature_approved": false,
+      "reviewer_conclusion": "unknown_not_negative_proof",
+      "prior_dual_axis_event_disagreement": {
+        "comparisons": 472,
+        "disagreed": 472
+      }
+    },
+    {
+      "venue_code": "16",
+      "venue_name": "児島",
+      "secondary_A_hypothesis_head_deg": 180,
+      "secondary_B_stand_based_hypothesis_head_deg": 180,
+      "source_status": "first_party_text_explicit",
+      "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=16",
+      "first_party_evidence": {
+        "type": "first_party_text_explicit",
+        "source_url": "https://www.boatrace.jp/owpc/pc/extra/race/16_20150414/monthly/guide.html",
+        "source_owner": "boatrace_official_site_editorial",
+        "publication_date": "2015-04",
+        "publication_date_precision": "month",
+        "cited_direction_wind_from": "S",
+        "cited_relative": "S=head (editorial forecast)",
+        "source_prose_japanese_paraphrase": "BOAT RACE公式は児島の春の穏やかな南風をスタートラインへの向かい風と見込む記述。歴史的記事の予想であり、2026個別レースの観測ではない。",
+        "alignment_with_A": "cardinal_consistent_with_A_but_forecast",
+        "scope": "Historical official editorial prose, not source-archived water diagram or official same-race wind arrow. Do not use for 2026 model wind conversion.",
+        "original_http_body_sha256": null
+      },
+      "first_party_image_original_SHA256": null,
+      "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
+      "official_same_race_wind_arrow_image_SHA256": null,
+      "arrow_represents_wind_from_certified": false,
+      "final_relative_head_tail_approved": false,
+      "T_minus_12_wind_feature_approved": false,
+      "reviewer_conclusion": "historical_official_text_support_only_current_field_geometry_and_arrow_uncertified",
+      "prior_dual_axis_event_disagreement": {
+        "comparisons": 645,
+        "disagreed": 0
+      }
+    },
+    {
+      "venue_code": "17",
+      "venue_name": "宮島",
+      "secondary_A_hypothesis_head_deg": 225,
+      "secondary_B_stand_based_hypothesis_head_deg": 270,
+      "source_status": "first_party_text_sector_only",
+      "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=17",
+      "first_party_evidence": {
+        "type": "first_party_text_sector_only",
+        "source_url": "https://boatrace.jp/owsp/sp/extra/race/17_20200623/monthly/suimen.html",
+        "source_owner": "boatrace_official_site_editorial",
+        "publication_date": "2020-06",
+        "publication_date_precision": "month",
+        "cited_direction_wind_from": "S/N",
+        "cited_relative": "S=head,N=stand_back_circulating_crosswind",
+        "source_prose_japanese_paraphrase": "BOAT RACE公式は宮島で南風を向い風、北風をスタンド後方からの風かつ1マーク左横風と説明。南180°はAの南西225°から45°ずれる。",
+        "alignment_with_A": "sector_only_official_description_includes_crosswind",
+        "scope": "Historical official editorial prose, not source-archived water diagram or official same-race wind arrow. Do not use for 2026 model wind conversion.",
+        "original_http_body_sha256": null
+      },
+      "first_party_image_original_SHA256": null,
+      "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
+      "official_same_race_wind_arrow_image_SHA256": null,
+      "arrow_represents_wind_from_certified": false,
+      "final_relative_head_tail_approved": false,
+      "T_minus_12_wind_feature_approved": false,
+      "reviewer_conclusion": "historical_official_text_support_only_current_field_geometry_and_arrow_uncertified",
+      "prior_dual_axis_event_disagreement": {
+        "comparisons": 448,
+        "disagreed": 448
+      }
+    },
+    {
+      "venue_code": "18",
+      "venue_name": "徳山",
+      "secondary_A_hypothesis_head_deg": 315,
+      "secondary_B_stand_based_hypothesis_head_deg": 180,
+      "source_status": "first_party_text_sector_only",
+      "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=18",
+      "first_party_evidence": {
+        "type": "first_party_text_sector_only",
+        "source_url": "https://www.boatrace-tokuyama.jp/modules/datafile/index_suimen.php",
+        "source_owner": "tokuyama_operator",
+        "cited_direction_wind_from": "SE",
+        "cited_relative": "left_oblique_tail",
+        "translation_to_heading_deg": null,
+        "scope": "Official operator says 南東の風は左斜め後方からの追い風; A labels exact SE as tail with NW heading. Sector agreement but exact bin mismatch; geometry/arrow not certified.",
+        "text_basis": "南東の風（左斜め後方からの追い風）",
+        "alignment_with_A": "tail_sector_only_exact_label_not_consistent",
+        "publication_date_unverified": true
+      },
+      "first_party_image_original_SHA256": null,
+      "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
+      "official_same_race_wind_arrow_image_SHA256": null,
+      "arrow_represents_wind_from_certified": false,
+      "final_relative_head_tail_approved": false,
+      "T_minus_12_wind_feature_approved": false,
+      "reviewer_conclusion": "first_party_support_is_not_stadium_angle_certification",
+      "prior_dual_axis_event_disagreement": {
+        "comparisons": 666,
+        "disagreed": 666
+      }
+    },
+    {
+      "venue_code": "19",
+      "venue_name": "下関",
+      "secondary_A_hypothesis_head_deg": 225,
+      "secondary_B_stand_based_hypothesis_head_deg": 180,
+      "source_status": "no_first_party_orientation_evidence_checked_in_this_round",
+      "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=19",
+      "first_party_evidence": null,
+      "first_party_image_original_SHA256": null,
+      "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
+      "official_same_race_wind_arrow_image_SHA256": null,
+      "arrow_represents_wind_from_certified": false,
+      "final_relative_head_tail_approved": false,
+      "T_minus_12_wind_feature_approved": false,
+      "reviewer_conclusion": "unknown_not_negative_proof",
+      "prior_dual_axis_event_disagreement": {
+        "comparisons": 585,
+        "disagreed": 585
+      }
+    },
+    {
+      "venue_code": "20",
+      "venue_name": "若松",
+      "secondary_A_hypothesis_head_deg": 270,
+      "secondary_B_stand_based_hypothesis_head_deg": 180,
+      "source_status": "first_party_text_sector_only",
+      "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=20",
+      "first_party_evidence": {
+        "type": "first_party_text_sector_only",
+        "source_url": "https://www.boatrace.jp/owpc/pc/extra/race/20_20201203/monthly/suimen.html",
+        "source_owner": "boatrace_official_site_editorial",
+        "publication_date": "2020-12",
+        "publication_date_precision": "month",
+        "cited_direction_wind_from": "N/NW",
+        "cited_relative": "N_to_NW=home_head_broad",
+        "source_prose_japanese_paraphrase": "BOAT RACE公式は若松の北～北西系統をホーム向い風と概括。Aの西270°から北0°は90°、北西315°は45°で一律真向い風にできない。",
+        "alignment_with_A": "broad_direction_sector_not_exact_eightpoint",
+        "scope": "Historical official editorial prose, not source-archived water diagram or official same-race wind arrow. Do not use for 2026 model wind conversion.",
+        "original_http_body_sha256": null
+      },
+      "first_party_image_original_SHA256": null,
+      "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
+      "official_same_race_wind_arrow_image_SHA256": null,
+      "arrow_represents_wind_from_certified": false,
+      "final_relative_head_tail_approved": false,
+      "T_minus_12_wind_feature_approved": false,
+      "reviewer_conclusion": "historical_official_text_support_only_current_field_geometry_and_arrow_uncertified",
+      "prior_dual_axis_event_disagreement": {
+        "comparisons": 609,
+        "disagreed": 470
+      }
+    },
+    {
+      "venue_code": "21",
+      "venue_name": "芦屋",
+      "secondary_A_hypothesis_head_deg": 90,
+      "secondary_B_stand_based_hypothesis_head_deg": 180,
+      "source_status": "first_party_operator_per_race_text_explicit",
+      "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=21",
+      "first_party_evidence": {
+        "type": "first_party_operator_per_race_text_explicit",
+        "source_url": "https://www.boatrace-ashiya.com/modules/datafile/?motor_no=46&page=index_motor_histdtl&select=6",
+        "publication_date": "2026-11-08",
+        "text_basis": "11月8日5R・東(向い風)4m、11R・東(向い風)5m",
+        "cited_direction_wind_from": "E",
+        "cited_relative": "head",
+        "translation_to_heading_deg": 90,
+        "alignment_with_A": "exact_consistent",
+        "scope": "Official operator race-specific text, no original HTML or diagram/arrow SHA.",
+        "source_owner": "official_boatrace_or_operator",
+        "original_http_sha256": null
+      },
+      "first_party_image_original_SHA256": null,
+      "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
+      "official_same_race_wind_arrow_image_SHA256": null,
+      "arrow_represents_wind_from_certified": false,
+      "final_relative_head_tail_approved": false,
+      "T_minus_12_wind_feature_approved": false,
+      "reviewer_conclusion": "textual_support_only_does_not_satisfy_final_water_diagram_and_same_race_arrow_gate",
+      "prior_dual_axis_event_disagreement": {
+        "comparisons": 437,
+        "disagreed": 364
+      }
+    },
+    {
+      "venue_code": "22",
+      "venue_name": "福岡",
+      "secondary_A_hypothesis_head_deg": 90,
+      "secondary_B_stand_based_hypothesis_head_deg": 180,
+      "source_status": "first_party_diagram_visual_preliminary",
+      "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=22",
+      "first_party_evidence": {
+        "type": "first_party_diagram_visual_preliminary",
+        "source_url": "https://www.boatrace-fukuoka.com/uploads/pdf/keikotaisaku.pdf",
+        "source_owner": "fukuoka_operator_2021_guide",
+        "cited_direction_wind_from": "visual_north_symbol_course_markers",
+        "cited_relative": "eastbound_to_first_turn_provisional",
+        "translation_to_heading_deg": null,
+        "scope": "Official guide screenshot PDF page 3 (pageno2) has north compass and second-to-first-mark direction to right, approximately east; diagram bytes not hash archived, image interpretation not signed off, 2021 version.",
+        "text_basis": "north compass + 2M(left), 1M(right) on water-course diagram",
+        "alignment_with_A": "visual_preliminary_not_exact",
+        "publication_date": "2021"
+      },
+      "first_party_image_original_SHA256": null,
+      "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
+      "official_same_race_wind_arrow_image_SHA256": null,
+      "arrow_represents_wind_from_certified": false,
+      "final_relative_head_tail_approved": false,
+      "T_minus_12_wind_feature_approved": false,
+      "reviewer_conclusion": "first_party_support_is_not_stadium_angle_certification",
+      "prior_dual_axis_event_disagreement": {
+        "comparisons": 607,
+        "disagreed": 566
+      }
+    },
+    {
+      "venue_code": "23",
+      "venue_name": "唐津",
+      "secondary_A_hypothesis_head_deg": 180,
+      "secondary_B_stand_based_hypothesis_head_deg": 180,
+      "source_status": "first_party_text_explicit_historical",
+      "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=23",
+      "first_party_evidence": {
+        "type": "first_party_text_explicit_historical",
+        "source_url": "https://www.boatrace-karatsu.jp/uploads/info/karatsu_capture_book.pdf",
+        "source_owner": "karatsu_operator_2020_guide",
+        "cited_direction_wind_from": "N",
+        "cited_relative": "tail",
+        "translation_to_heading_deg": 180,
+        "scope": "2020 operator guide says north sea wind tail; official updated venue page notes pit relocation in Dec 2025. Historical wind statement not proof 2026 geometry.",
+        "text_basis": "海からの北風（追い風）",
+        "alignment_with_A": "exact_consistent_historical",
+        "publication_date": "2020"
+      },
+      "first_party_image_original_SHA256": null,
+      "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
+      "official_same_race_wind_arrow_image_SHA256": null,
+      "arrow_represents_wind_from_certified": false,
+      "final_relative_head_tail_approved": false,
+      "T_minus_12_wind_feature_approved": false,
+      "reviewer_conclusion": "first_party_support_is_not_stadium_angle_certification",
+      "prior_dual_axis_event_disagreement": {
+        "comparisons": 510,
+        "disagreed": 0
+      }
+    },
+    {
+      "venue_code": "24",
+      "venue_name": "大村",
+      "secondary_A_hypothesis_head_deg": 90,
+      "secondary_B_stand_based_hypothesis_head_deg": 180,
+      "source_status": "first_party_text_sector_only",
+      "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=24",
+      "first_party_evidence": {
+        "type": "first_party_text_sector_only",
+        "source_url": "https://www.boatrace.jp/owpc/pc/extra/race/24_20171226/monthly/bunseki.html",
+        "source_owner": "boatrace_official_site_editorial",
+        "publication_date": "2017-12",
+        "publication_date_precision": "month",
+        "cited_direction_wind_from": "N",
+        "cited_relative": "N=left_cross_from_head_sector (not pure head)",
+        "source_prose_japanese_paraphrase": "BOAT RACE公式は大村の北風をホーム左横方向からの向かい風と説明。横風成分を伴うため、Nをhead軸0°と同一視しない。",
+        "alignment_with_A": "mixed_cross_and_head_words_not_exact_heading",
+        "scope": "Historical official editorial prose, not source-archived water diagram or official same-race wind arrow. Do not use for 2026 model wind conversion.",
+        "original_http_body_sha256": null
+      },
+      "first_party_image_original_SHA256": null,
+      "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
+      "official_same_race_wind_arrow_image_SHA256": null,
+      "arrow_represents_wind_from_certified": false,
+      "final_relative_head_tail_approved": false,
+      "T_minus_12_wind_feature_approved": false,
+      "reviewer_conclusion": "historical_official_text_support_only_current_field_geometry_and_arrow_uncertified",
+      "prior_dual_axis_event_disagreement": {
+        "comparisons": 580,
+        "disagreed": 438
+      }
+    }
+  ],
+  "gate": [
+    "First-party text/editorial corroboration is not a SHA-archived water diagram.",
+    "For full orientation certification: original official field diagram+compass arrow+start-to-first-turn marker geometry+URL/time/byte SHA; two independent reviewers; note historical venue modifications.",
+    "For official wind arrow mapping: compare K literal north/east etc and official results wind arrow from same date+race; determine wind FROM versus TO and any rotation; capture raw image/URL/time/SHA for two distinct directions per venue.",
+    "For T-12 production candidate: independent official beforeinfo bytes and Git first remote receipt before deadline-12min, six exhibition boats, 120 odds, candidate first save timestamp; separate from results K.",
+    "Historical text published 2015/2020/2021 and 2025 pit modification cannot certify geometry for Aug-Oct 2026.",
+    "Never equate direction relative axis A and stadium facing axis B; direct A/B discrepancy ≠ one being wrong.",
+    "Official operator commentary is first-party explanatory prose, not a 2026 official race-by-race measurement or model validation."
+  ],
+  "additional_source_audit": "docs/research/official_relative_wind_ashiya_operator_K_crosscheck_20261108.json",
+  "source_registry_extension": {
+    "appended_source_count": 7,
+    "appended_venue_codes": [
+      "01",
+      "05",
+      "12",
+      "16",
+      "17",
+      "20",
+      "24"
+    ],
+    "checked_local_day": "2026-11-08",
+    "distinction": "Official editorial descriptions of wind sectors are not all official compass-bearing certificates. Existing 2026 operator race-level text is left unchanged.",
+    "pdf_visual_source_verified_here": false,
+    "any_original_page_image_SHA256_saved": false,
+    "any_2026_original_beforeinfo_complete_weather_certification": false,
+    "any_historical_K_postrace_feature_promoted_to_T12": false,
+    "conflict_note": "Miyajima/North, Wakamatsu/North, Omura/North and Kiryu/South show broad or oblique editorial language, not exact 8-bin wind bearing definitions."
+  }
+}

@@ -1,0 +1,510 @@
+{
+  "schema": "OFFICIAL_K_WIND_DIRECTION_WAVE_ST_POSTRACE_SENSITIVITY_SUMMARY_V1",
+  "study_period": "2026-08-01/2026-10-31",
+  "origin": "Research-only; re-read GitHub Actions stored BOAT RACE official K LZH originals",
+  "sources": {
+    "run": "https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42453296631",
+    "artifact_id": 13607470249,
+    "original_zip_sha256": "c668f545bae54f8148616315e307ed2a2b04a77a0cb8abf88bf3ea078749ce8e",
+    "per_day_official_K_and_decoded_SHA_verified": 92,
+    "related_frozen_receipt": "docs/research/official_k_exact_wind_2m_3m_receipt_20261108.json",
+    "analysis_local_json_sha256": "eb21a253643e419afccf907468612345a6dbefd0ee0c62d598a0e2e94a609ad8"
+  },
+  "population": {
+    "official_races": 14249,
+    "c1_hypothesis_eligible": 14090,
+    "c1_wins": 7811,
+    "c1_exclusions": 159,
+    "unsettled_races": 2,
+    "races_without_all_six_parsed_actual_courses": 142,
+    "wind2_c1_eligible": 3616,
+    "wind3_c1_eligible": 2989
+  },
+  "comparisons": {
+    "crude_3_minus_2_pt": -1.704156020452574,
+    "weight_formula": "w_s=n2_s*n3_s/(n2_s+n3_s), percentage-point difference=100*SUM(w_s*(w3_s/n3_s-w2_s/n2_s))/SUM(w_s)",
+    "match_policy": "Keep only strata with observed races at both integer wind speeds. Missing strata are not zero-rate strata.",
+    "matched_strata": [
+      {
+        "dimensions": "venue/month",
+        "groups": 72,
+        "match1": 72,
+        "n2": 3616,
+        "n3": 2989,
+        "delta": -2.5396855903718105,
+        "match5": 72,
+        "n2_5": 3616,
+        "n3_5": 2989,
+        "delta5": -2.5396855903718105,
+        "match10": 69,
+        "n2_10": 3574,
+        "n3_10": 2964,
+        "delta10": -2.383543970688565
+      },
+      {
+        "dimensions": "venue/month/direction_raw",
+        "groups": 456,
+        "match1": 344,
+        "n2": 3354,
+        "n3": 2894,
+        "delta": -1.932686929275421,
+        "match5": 155,
+        "n2_5": 2448,
+        "n3_5": 2271,
+        "delta5": -2.802724401975266,
+        "match10": 78,
+        "n2_10": 1604,
+        "n3_10": 1644,
+        "delta10": -2.2937272705446983
+      },
+      {
+        "dimensions": "venue/month/wave_cm",
+        "groups": 134,
+        "match1": 46,
+        "n2": 1758,
+        "n3": 1326,
+        "delta": -1.3562292529734565,
+        "match5": 33,
+        "n2_5": 1668,
+        "n3_5": 1122,
+        "delta5": -1.2833013422343351,
+        "match10": 31,
+        "n2_10": 1620,
+        "n3_10": 1099,
+        "delta10": -1.2476763013750836
+      },
+      {
+        "dimensions": "venue/month/direction_raw/wave_cm",
+        "groups": 697,
+        "match1": 175,
+        "n2": 1593,
+        "n3": 1150,
+        "delta": -0.2723261551902648,
+        "match5": 64,
+        "n2_5": 1064,
+        "n3_5": 800,
+        "delta5": 0.1055301563715354,
+        "match10": 29,
+        "n2_10": 629,
+        "n3_10": 550,
+        "delta10": -1.0415489839237273
+      }
+    ]
+  },
+  "direction_raw": [
+    {
+      "direction": "北",
+      "n2": 606,
+      "w2": 322,
+      "n3": 568,
+      "w3": 328,
+      "wave2_cm": 2.0594,
+      "wave3_cm": 2.8415,
+      "delta_pt": 4.611165341886303
+    },
+    {
+      "direction": "北東",
+      "n2": 518,
+      "w2": 297,
+      "n3": 331,
+      "w3": 189,
+      "wave2_cm": 1.7973,
+      "wave3_cm": 2.4955,
+      "delta_pt": -0.23620945071095578
+    },
+    {
+      "direction": "東",
+      "n2": 493,
+      "w2": 279,
+      "n3": 482,
+      "w3": 256,
+      "wave2_cm": 1.5639,
+      "wave3_cm": 2.4004,
+      "delta_pt": -3.4802588942287493
+    },
+    {
+      "direction": "南東",
+      "n2": 600,
+      "w2": 358,
+      "n3": 484,
+      "w3": 270,
+      "wave2_cm": 1.7233,
+      "wave3_cm": 2.3657,
+      "delta_pt": -3.881542699724516
+    },
+    {
+      "direction": "南",
+      "n2": 456,
+      "w2": 248,
+      "n3": 351,
+      "w3": 175,
+      "wave2_cm": 1.9298,
+      "wave3_cm": 2.3162,
+      "delta_pt": -4.528415054730845
+    },
+    {
+      "direction": "南西",
+      "n2": 352,
+      "w2": 227,
+      "n3": 329,
+      "w3": 185,
+      "wave2_cm": 1.5369,
+      "wave3_cm": 1.8237,
+      "delta_pt": -8.257633324122683
+    },
+    {
+      "direction": "西",
+      "n2": 175,
+      "w2": 100,
+      "n3": 136,
+      "w3": 75,
+      "wave2_cm": 1.4114,
+      "wave3_cm": 1.9338,
+      "delta_pt": -1.995798319327724
+    },
+    {
+      "direction": "北西",
+      "n2": 416,
+      "w2": 234,
+      "n3": 308,
+      "w3": 178,
+      "wave2_cm": 1.6514,
+      "wave3_cm": 2.5487,
+      "delta_pt": 1.5422077922077948
+    }
+  ],
+  "wave_raw": [
+    {
+      "wave_cm": 0,
+      "n2": 138,
+      "w2": 78,
+      "n3": 166,
+      "w3": 98
+    },
+    {
+      "wave_cm": 1,
+      "n2": 1311,
+      "w2": 751,
+      "n3": 458,
+      "w3": 261
+    },
+    {
+      "wave_cm": 2,
+      "n2": 1688,
+      "w2": 1005,
+      "n3": 566,
+      "w3": 300
+    },
+    {
+      "wave_cm": 3,
+      "n2": 374,
+      "w2": 183,
+      "n3": 1689,
+      "w3": 944
+    },
+    {
+      "wave_cm": 4,
+      "n2": 0,
+      "w2": 0,
+      "n3": 10,
+      "w3": 5
+    },
+    {
+      "wave_cm": 5,
+      "n2": 104,
+      "w2": 48,
+      "n3": 98,
+      "w3": 48
+    },
+    {
+      "wave_cm": 6,
+      "n2": 0,
+      "w2": 0,
+      "n3": 1,
+      "w3": 0
+    },
+    {
+      "wave_cm": 10,
+      "n2": 1,
+      "w2": 0,
+      "n3": 1,
+      "w3": 0
+    }
+  ],
+  "outcome_result_st_and_tactics": {
+    "2m": {
+      "eligible_c1": 3616,
+      "wave_mean_cm": 1.7530420353982301,
+      "by_actual_course": {
+        "1": {
+          "valid": 3616,
+          "invalid_or_F_L": 0,
+          "mean_s": 0.1446653761061947
+        },
+        "2": {
+          "valid": 3607,
+          "invalid_or_F_L": 9,
+          "mean_s": 0.15599667313556972
+        },
+        "3": {
+          "valid": 3605,
+          "invalid_or_F_L": 11,
+          "mean_s": 0.14924549237170598
+        },
+        "4": {
+          "valid": 3603,
+          "invalid_or_F_L": 13,
+          "mean_s": 0.15167638079378296
+        }
+      },
+      "tactics_settled_all": {
+        "n": 3656,
+        "c2_sashi": 356,
+        "c3_makuri": 176,
+        "c4_makuri": 170,
+        "c4_makurizashi": 93
+      }
+    },
+    "3m": {
+      "eligible_c1": 2989,
+      "wave_mean_cm": 2.4098360655737703,
+      "by_actual_course": {
+        "1": {
+          "valid": 2989,
+          "invalid_or_F_L": 0,
+          "mean_s": 0.15178655068584812
+        },
+        "2": {
+          "valid": 2986,
+          "invalid_or_F_L": 3,
+          "mean_s": 0.16246483590087074
+        },
+        "3": {
+          "valid": 2980,
+          "invalid_or_F_L": 9,
+          "mean_s": 0.15733221476510068
+        },
+        "4": {
+          "valid": 2986,
+          "invalid_or_F_L": 3,
+          "mean_s": 0.15934025452109846
+        }
+      },
+      "tactics_settled_all": {
+        "n": 3023,
+        "c2_sashi": 222,
+        "c3_makuri": 155,
+        "c4_makuri": 176,
+        "c4_makurizashi": 83
+      }
+    }
+  },
+  "by_venue_raw_direction_month_sensitivity": [
+    {
+      "venue_code": "01",
+      "name": "桐生",
+      "wind2_eligible": 207,
+      "wind3_eligible": 102,
+      "venue_month_direction_overlap_delta_pt_rounded": -6.31,
+      "interpretation": "exploratory only, sparse per-direction cohorts"
+    },
+    {
+      "venue_code": "02",
+      "name": "戸田",
+      "wind2_eligible": 146,
+      "wind3_eligible": 74,
+      "venue_month_direction_overlap_delta_pt_rounded": -13.86,
+      "interpretation": "exploratory only, sparse per-direction cohorts"
+    },
+    {
+      "venue_code": "03",
+      "name": "江戸川",
+      "wind2_eligible": 103,
+      "wind3_eligible": 94,
+      "venue_month_direction_overlap_delta_pt_rounded": 2.6,
+      "interpretation": "exploratory only, sparse per-direction cohorts"
+    },
+    {
+      "venue_code": "04",
+      "name": "平和島",
+      "wind2_eligible": 154,
+      "wind3_eligible": 111,
+      "venue_month_direction_overlap_delta_pt_rounded": 10.79,
+      "interpretation": "exploratory only, sparse per-direction cohorts"
+    },
+    {
+      "venue_code": "05",
+      "name": "多摩川",
+      "wind2_eligible": 183,
+      "wind3_eligible": 81,
+      "venue_month_direction_overlap_delta_pt_rounded": -6.45,
+      "interpretation": "exploratory only, sparse per-direction cohorts"
+    },
+    {
+      "venue_code": "06",
+      "name": "浜名湖",
+      "wind2_eligible": 120,
+      "wind3_eligible": 170,
+      "venue_month_direction_overlap_delta_pt_rounded": 6.54,
+      "interpretation": "exploratory only, sparse per-direction cohorts"
+    },
+    {
+      "venue_code": "07",
+      "name": "蒲郡",
+      "wind2_eligible": 162,
+      "wind3_eligible": 126,
+      "venue_month_direction_overlap_delta_pt_rounded": -1.14,
+      "interpretation": "exploratory only, sparse per-direction cohorts"
+    },
+    {
+      "venue_code": "08",
+      "name": "常滑",
+      "wind2_eligible": 243,
+      "wind3_eligible": 159,
+      "venue_month_direction_overlap_delta_pt_rounded": 1.17,
+      "interpretation": "exploratory only, sparse per-direction cohorts"
+    },
+    {
+      "venue_code": "09",
+      "name": "津",
+      "wind2_eligible": 117,
+      "wind3_eligible": 151,
+      "venue_month_direction_overlap_delta_pt_rounded": -7.86,
+      "interpretation": "exploratory only, sparse per-direction cohorts"
+    },
+    {
+      "venue_code": "10",
+      "name": "三国",
+      "wind2_eligible": 126,
+      "wind3_eligible": 96,
+      "venue_month_direction_overlap_delta_pt_rounded": 11.38,
+      "interpretation": "exploratory only, sparse per-direction cohorts"
+    },
+    {
+      "venue_code": "11",
+      "name": "びわこ",
+      "wind2_eligible": 133,
+      "wind3_eligible": 120,
+      "venue_month_direction_overlap_delta_pt_rounded": -3.29,
+      "interpretation": "exploratory only, sparse per-direction cohorts"
+    },
+    {
+      "venue_code": "12",
+      "name": "住之江",
+      "wind2_eligible": 162,
+      "wind3_eligible": 75,
+      "venue_month_direction_overlap_delta_pt_rounded": -2.62,
+      "interpretation": "exploratory only, sparse per-direction cohorts"
+    },
+    {
+      "venue_code": "13",
+      "name": "尼崎",
+      "wind2_eligible": 138,
+      "wind3_eligible": 166,
+      "venue_month_direction_overlap_delta_pt_rounded": 3.51,
+      "interpretation": "exploratory only, sparse per-direction cohorts"
+    },
+    {
+      "venue_code": "14",
+      "name": "鳴門",
+      "wind2_eligible": 212,
+      "wind3_eligible": 151,
+      "venue_month_direction_overlap_delta_pt_rounded": -0.52,
+      "interpretation": "exploratory only, sparse per-direction cohorts"
+    },
+    {
+      "venue_code": "15",
+      "name": "丸亀",
+      "wind2_eligible": 152,
+      "wind3_eligible": 80,
+      "venue_month_direction_overlap_delta_pt_rounded": -3.46,
+      "interpretation": "exploratory only, sparse per-direction cohorts"
+    },
+    {
+      "venue_code": "16",
+      "name": "児島",
+      "wind2_eligible": 206,
+      "wind3_eligible": 165,
+      "venue_month_direction_overlap_delta_pt_rounded": -10.55,
+      "interpretation": "exploratory only, sparse per-direction cohorts"
+    },
+    {
+      "venue_code": "17",
+      "name": "宮島",
+      "wind2_eligible": 88,
+      "wind3_eligible": 80,
+      "venue_month_direction_overlap_delta_pt_rounded": -14.62,
+      "interpretation": "exploratory only, sparse per-direction cohorts"
+    },
+    {
+      "venue_code": "18",
+      "name": "徳山",
+      "wind2_eligible": 147,
+      "wind3_eligible": 200,
+      "venue_month_direction_overlap_delta_pt_rounded": 0.38,
+      "interpretation": "exploratory only, sparse per-direction cohorts"
+    },
+    {
+      "venue_code": "19",
+      "name": "下関",
+      "wind2_eligible": 196,
+      "wind3_eligible": 142,
+      "venue_month_direction_overlap_delta_pt_rounded": -0.45,
+      "interpretation": "exploratory only, sparse per-direction cohorts"
+    },
+    {
+      "venue_code": "20",
+      "name": "若松",
+      "wind2_eligible": 136,
+      "wind3_eligible": 137,
+      "venue_month_direction_overlap_delta_pt_rounded": -5,
+      "interpretation": "exploratory only, sparse per-direction cohorts"
+    },
+    {
+      "venue_code": "21",
+      "name": "芦屋",
+      "wind2_eligible": 99,
+      "wind3_eligible": 82,
+      "venue_month_direction_overlap_delta_pt_rounded": -14.16,
+      "interpretation": "exploratory only, sparse per-direction cohorts"
+    },
+    {
+      "venue_code": "22",
+      "name": "福岡",
+      "wind2_eligible": 142,
+      "wind3_eligible": 258,
+      "venue_month_direction_overlap_delta_pt_rounded": 1.26,
+      "interpretation": "exploratory only, sparse per-direction cohorts"
+    },
+    {
+      "venue_code": "23",
+      "name": "唐津",
+      "wind2_eligible": 90,
+      "wind3_eligible": 104,
+      "venue_month_direction_overlap_delta_pt_rounded": -2.77,
+      "interpretation": "exploratory only, sparse per-direction cohorts"
+    },
+    {
+      "venue_code": "24",
+      "name": "大村",
+      "wind2_eligible": 154,
+      "wind3_eligible": 65,
+      "venue_month_direction_overlap_delta_pt_rounded": -0.57,
+      "interpretation": "exploratory only, sparse per-direction cohorts"
+    }
+  ],
+  "limitations": [
+    "All exposures, wave heights, result start timing, actual courses, and finish methods come from POST-RACE official K, not a predeadline observation.",
+    "Wind direction is the source's eight Japanese cardinal names. The heading of the racing course, headwind and tailwind conversion are unverified.",
+    "Wave matching is selection on a co-observed or possibly mediator variable; it is not a causal adjustment for wind.",
+    "Comparing only overlapping venue-month-direction-wave strata excludes 3,862 of 6,605 otherwise eligible 2m/3m races: it cannot support population-level causal conclusions.",
+    "Course completeness is 14,107/14,249; exclude ambiguous actual-course tactical events rather than filling by boat number.",
+    "Result ST is distinct from exhibition ST and cannot be used as a T-12 predictor.",
+    "The 159 excluded statuses are a reproduction hypothesis; official denominator documentation was not certified.",
+    "No formal T-12 forecast wind eligibility, forecast improvement, coefficient acceptance, deployment, or main merge."
+  ],
+  "official_K_source_certified_as_original_receipts": true,
+  "official_wind_relative_direction_certified": false,
+  "formal_forecast_improvement_count": 0,
+  "production_authorized": false
+}

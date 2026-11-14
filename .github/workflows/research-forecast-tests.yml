@@ -26,6 +26,40 @@ on:
       - 'collect_research_daily.py'
       - 'test_collect_research_daily.py'
       - 'test_collect_research_input_integrity.py'
+      - 'venue_wind_holdout_venue_mix_audit.py'
+      - 'scripts/research_venue_wind_course_method_92day.py'
+      - 'tests/test_research_venue_wind_course_method_92day.py'
+      - 'scripts/research_venue_wind_outcomes.py'
+      - 'scripts/research_official_c1_rate_gap_f_audit.py'
+      - 'scripts/research_official_c1_exception_ledger.py'
+      - 'scripts/research_official_k_one_day_compare.py'
+      - 'scripts/research_official_k_focus_3day.py'
+      - 'scripts/research_official_k_all_34_exceptions.py'
+      - 'scripts/research_official_k_full_92day.py'
+      - 'scripts/research_official_k_c1_24venue_reproduction.py'
+      - 'scripts/research_official_k_missingness_profile.py'
+      - 'scripts/research_official_k_wind_missingness_sensitivity.py'
+      - 'scripts/research_four_mode_pre_t12_wind_inventory.py'
+      - 'scripts/research_official_beforeinfo_wind_receipt_gate.py'
+      - 'scripts/research_t12_same_race_receipt_join.py'
+      - 'tests/test_research_t12_same_race_receipt_join.py'
+      - 'tests/test_research_official_beforeinfo_wind_receipt_gate.py'
+      - 'tests/test_research_four_mode_pre_t12_wind_inventory.py'
+      - 'tests/test_research_official_k_wind_missingness_sensitivity.py'
+      - 'tests/test_research_official_k_missingness_profile.py'
+      - 'tests/test_research_official_k_c1_24venue_reproduction.py'
+      - 'tests/test_research_official_k_full_92day.py'
+      - 'tests/test_research_official_k_f_start_parse.py'
+      - 'tests/test_research_official_k_all_34_exceptions.py'
+      - 'tests/test_research_official_k_focus_3day.py'
+      - 'tests/test_research_official_c1_exception_ledger.py'
+      - 'venue_environment_observational.py'
+      - 'test_venue_environment_observational.py'
+      - 'tests/test_research_official_c1_rate_gap_f_audit.py'
+      - 'tests/test_research_venue_wind_outcomes.py'
+      - 'test_venue_wind_holdout_venue_mix_audit.py'
+      - 'docs/research/venue_wind_202608_202610_24venues_research_only.json'
+      - 'docs/research/venue_wind_nov01_05_out_of_period_research_only.json'
       - '.github/workflows/research-forecast-tests.yml'
       - 'advanced_card_preview_v392.py'
       - 'test_advanced_card_preview_v392.py'
@@ -53,6 +87,40 @@ on:
       - 'test_research_capture_workflow.py'
       - 'scripts/verify_new_research_snapshots.py'
       - '.github/workflows/daily-research-forecast.yml'
+      - 'venue_wind_holdout_venue_mix_audit.py'
+      - 'scripts/research_venue_wind_course_method_92day.py'
+      - 'tests/test_research_venue_wind_course_method_92day.py'
+      - 'scripts/research_venue_wind_outcomes.py'
+      - 'scripts/research_official_c1_rate_gap_f_audit.py'
+      - 'scripts/research_official_c1_exception_ledger.py'
+      - 'scripts/research_official_k_one_day_compare.py'
+      - 'scripts/research_official_k_focus_3day.py'
+      - 'scripts/research_official_k_all_34_exceptions.py'
+      - 'scripts/research_official_k_full_92day.py'
+      - 'scripts/research_official_k_c1_24venue_reproduction.py'
+      - 'scripts/research_official_k_missingness_profile.py'
+      - 'scripts/research_official_k_wind_missingness_sensitivity.py'
+      - 'scripts/research_four_mode_pre_t12_wind_inventory.py'
+      - 'scripts/research_official_beforeinfo_wind_receipt_gate.py'
+      - 'scripts/research_t12_same_race_receipt_join.py'
+      - 'tests/test_research_t12_same_race_receipt_join.py'
+      - 'tests/test_research_official_beforeinfo_wind_receipt_gate.py'
+      - 'tests/test_research_four_mode_pre_t12_wind_inventory.py'
+      - 'tests/test_research_official_k_wind_missingness_sensitivity.py'
+      - 'tests/test_research_official_k_missingness_profile.py'
+      - 'tests/test_research_official_k_c1_24venue_reproduction.py'
+      - 'tests/test_research_official_k_full_92day.py'
+      - 'tests/test_research_official_k_f_start_parse.py'
+      - 'tests/test_research_official_k_all_34_exceptions.py'
+      - 'tests/test_research_official_k_focus_3day.py'
+      - 'tests/test_research_official_c1_exception_ledger.py'
+      - 'venue_environment_observational.py'
+      - 'test_venue_environment_observational.py'
+      - 'tests/test_research_official_c1_rate_gap_f_audit.py'
+      - 'tests/test_research_venue_wind_outcomes.py'
+      - 'test_venue_wind_holdout_venue_mix_audit.py'
+      - 'docs/research/venue_wind_202608_202610_24venues_research_only.json'
+      - 'docs/research/venue_wind_nov01_05_out_of_period_research_only.json'
       - '.github/workflows/research-forecast-tests.yml'
       - 'advanced_card_preview_v392.py'
       - 'test_advanced_card_preview_v392.py'
@@ -91,3 +159,213 @@ jobs:
         run: python scripts/verify_legacy_preservation_samples.py
       - name: Measure chronological research holdout without overwriting saved forecasts
         run: python research_chronological_calibration.py
+      - name: Verify observational wind venue-mix holdout and rejection tests
+        run: python -m unittest -v test_venue_wind_holdout_venue_mix_audit
+      - name: Verify six-finisher wind cohort sensitivity tests
+        run: python -m unittest discover -s tests -p 'test_research_venue_wind_outcomes.py' -v
+      - name: Verify original venue observational parser and safety checks
+        run: python -m unittest -v test_venue_environment_observational
+      - name: Verify official venue-rate F denominator research audit
+        run: python -m unittest discover -s tests -p 'test_research_official_c1_rate_gap_f_audit.py' -v
+      - name: Verify C1 F and unranked exception ledger rejects unverified K statuses
+        run: python -m unittest discover -s tests -p 'test_research_official_c1_exception_ledger.py' -v
+      - name: Verify official K focus 3-day research safety gates
+        run: python -m unittest discover -s tests -p 'test_research_official_k_focus_3day.py' -v
+      - name: Verify 92-day course-by-method research parsing and safety gates
+        run: python -m unittest discover -s tests -p 'test_research_venue_wind_course_method_92day.py' -v
+      - name: Validate 34-case/28-day primary K exception cohort safety
+        run: python -m unittest discover -s tests -p 'test_research_official_k_all_34_exceptions.py' -v
+      - name: Validate full official K 92-day primary audit fail-closed behavior
+        run: python -m unittest discover -s tests -p 'test_research_official_k_full_92day.py' -v
+      - name: Validate primary 24-venue C1 reproduction safety (offline)
+        run: python -m unittest discover -s tests -p 'test_research_official_k_c1_24venue_reproduction.py' -v
+      - name: Verify SHA-gated primary-only 140-race missingness checks
+        run: python -m unittest discover -s tests -p 'test_research_official_k_missingness_profile.py' -v
+      - name: Validate wind-band missingness sensitivity without prediction leakage
+        run: python -m unittest discover -s tests -p 'test_research_official_k_wind_missingness_sensitivity.py' -v
+      - name: Reject unverified T-12 wind from saved four-mode metadata (offline)
+        run: python -m unittest discover -s tests -p 'test_research_four_mode_pre_t12_wind_inventory.py' -v
+      - name: Verify original beforeinfo wind receipt safety and time gates (offline)
+        run: python -m unittest discover -s tests -p 'test_research_official_beforeinfo_wind_receipt_gate.py' -v
+      - name: Reject joining late T-12 wind and odds with earlier four-mode forecast (offline)
+        run: python -m unittest discover -s tests -p 'test_research_t12_same_race_receipt_join.py' -v
+      - name: Verify official F0.xx actual course and ST are not silently omitted
+        run: python -m unittest discover -s tests -p 'test_research_official_k_f_start_parse.py' -v
+      - name: Read pinned main forecast originals without modifying predictions
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin 6409443d6487b5c175eec4ed2a7f4bf136f69da4
+          test "$(git rev-parse FETCH_HEAD)" = "6409443d6487b5c175eec4ed2a7f4bf136f69da4"
+          python scripts/research_four_mode_pre_t12_wind_inventory.py \
+            --source-commit 6409443d6487b5c175eec4ed2a7f4bf136f69da4 \
+            --start 2026-11-06 --end 2026-11-08 \
+            --out research_evidence/frozen_four_mode_pre_t12_wind_inventory.json
+      - name: Preserve immutable forecast metadata / wind T-12 gap audit
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: four-mode-frozen-main-wind-t12-metadata-gap-research-only
+          path: research_evidence/frozen_four_mode_pre_t12_wind_inventory.json
+          if-no-files-found: error
+      - name: Verify stored official Nov 4 weather source bytes and 12-minute cutoff (research only)
+        if: github.event_name == 'pull_request'
+        run: |
+          python scripts/research_official_beforeinfo_wind_receipt_gate.py \
+            --beforeinfo docs/observations/official_preview_20261104/beforeinfo.json \
+            --manifest docs/observations/official_preview_20261104/manifest.json \
+            --race-code 202611040111 \
+            --out research_evidence/official_beforeinfo_wind_receipt_202611040111.json
+      - name: Preserve official-beforeinfo Nov 4 weather witness (not T-12 forecast)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-beforeinfo-weather-raw-receipt-20261104-research-only
+          path: research_evidence/official_beforeinfo_wind_receipt_202611040111.json
+          if-no-files-found: error
+      - name: Audit Nov 4 same-race provisional forecast vs two later pre-T12 HTTP receipts
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin 6409443d6487b5c175eec4ed2a7f4bf136f69da4
+          python scripts/research_t12_same_race_receipt_join.py \
+            --source-main-sha 6409443d6487b5c175eec4ed2a7f4bf136f69da4 \
+            --beforeinfo-json docs/observations/official_preview_20261104/beforeinfo.json \
+            --beforeinfo-manifest docs/observations/official_preview_20261104/manifest.json \
+            --odds-api-replay docs/observations/live_odds_replay_20261104.json \
+            --out research_evidence/official_beforeinfo_odds_forecast_same_race_202611040111.json
+      - name: Preserve Nov 4 same-race timing join (not full T12 certified)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: same-race-nov4-wind-public-odds-forecast-timeline-not-certified
+          path: research_evidence/official_beforeinfo_odds_forecast_same_race_202611040111.json
+          if-no-files-found: error
+      - name: Reconcile 92 historical postrace CSV sources (PR research only)
+        if: github.event_name == 'pull_request'
+        run: python scripts/research_venue_wind_course_method_92day.py --output research_evidence/venue_wind_course_method_202608_202610.json --c1-exception-output research_evidence/official_c1_exception_candidates_92day.json --frozen-day-csv-output research_evidence/secondary_20260801_SHA_verified.csv --frozen-exception-csv-dir research_evidence/secondary_all_exceptions --frozen-all-csv-dir research_evidence/secondary_all_92
+      - name: Probe official K archive for one frozen date (research-only byte receipt)
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: python scripts/research_official_k_receipt.py --start 2026-08-01 --end 2026-08-01 --output-dir research_evidence/official_k_probe
+      - name: Compare official K 2026-08-01 against SHA-verified daily CSV (research-only)
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          if [ -s research_evidence/official_k_probe/k260801.lzh ]; then
+            python scripts/research_official_k_one_day_compare.py \
+              --k-archive research_evidence/official_k_probe/k260801.lzh \
+              --secondary-csv research_evidence/secondary_20260801_SHA_verified.csv \
+              --out research_evidence/official_k_20260801_vs_secondary.json
+          else
+            echo 'Official K archive unavailable: no official reconciliation performed'
+          fi
+      - name: Audit 34 first-course exceptions against 28 official K days (research only)
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: |
+          python scripts/research_official_k_all_34_exceptions.py \
+            --source-dir research_evidence/secondary_all_exceptions \
+            --frozen-evidence docs/research/venue_course_method_evidence_20261106/reconciled_92day_summary.json \
+            --exception-ledger research_evidence/official_c1_exception_candidates_92day.json \
+            --page-evidence docs/research/official_c1_34_exception_page_crosscheck_20261107.md \
+            --raw-dir research_evidence/official_k_all_exception_raw \
+            --out research_evidence/official_k_34exception_28day_report.json
+      - name: Audit frozen 92 days official K vs unchanged secondary CSV (research only)
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: |
+          python scripts/research_official_k_full_92day.py \
+            --secondary-dir research_evidence/secondary_all_92 \
+            --frozen-evidence docs/research/venue_course_method_evidence_20261106/reconciled_92day_summary.json \
+            --raw-dir research_evidence/official_k_full_92_raw \
+            --out research_evidence/official_k_full_92day_reconciliation.json
+      - name: Profile 140 official-only races by venue and postrace wind
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: |
+          python scripts/research_official_k_missingness_profile.py \
+            --official-comparison research_evidence/official_k_full_92day_reconciliation.json \
+            --official-k-dir research_evidence/official_k_full_92_raw \
+            --out research_evidence/official_k_missing_140_profile.json
+      - name: Preserve 140 primary-only race bias audit (research only)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-k-missing-140-postrace-bias-research-only
+          path: research_evidence/official_k_missing_140_profile.json
+          if-no-files-found: ignore
+      - name: Compare 24-venue postrace C1 rates with vs without 140 omitted races
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: |
+          python scripts/research_official_k_wind_missingness_sensitivity.py \
+            --official-comparison research_evidence/official_k_full_92day_reconciliation.json \
+            --missing-profile research_evidence/official_k_missing_140_profile.json \
+            --secondary-frozen-evidence docs/research/venue_course_method_evidence_20261106/reconciled_92day_summary.json \
+            --official-k-dir research_evidence/official_k_full_92_raw \
+            --frozen-official-baseline docs/research/venue_environment_baseline_20261106.csv \
+            --out research_evidence/official_k_wind_missingness_sensitivity.json
+      - name: Preserve primary K wind missingness sensitivity (not T-12 or production)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-k-wind-missingness-sensitivity-24venues-research-only
+          path: research_evidence/official_k_wind_missingness_sensitivity.json
+          if-no-files-found: ignore
+      - name: Reproduce 24 frozen venue C1 displays from all official K sources
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: |
+          python scripts/research_official_k_c1_24venue_reproduction.py \
+            --official-k-dir research_evidence/official_k_full_92_raw \
+            --frozen-official-baseline docs/research/venue_environment_baseline_20261106.csv \
+            --out research_evidence/official_k_c1_24venue_reproduction.json
+      - name: Preserve research-only primary 24-venue rate reproduction
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-k-c1-24venues-reproduction-not-formula-certification
+          path: research_evidence/official_k_c1_24venue_reproduction.json
+          if-no-files-found: ignore
+      - name: Preserve full 92-day primary audit and received K bytes (not T-12)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-k-92day-source-audit-research-only
+          path: |
+            research_evidence/official_k_full_92day_reconciliation.json
+            research_evidence/official_k_full_92_raw/*.lzh
+          if-no-files-found: ignore
+      - name: Preserve official K 34-case ledger and all received daily originals
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-k-34-exception-28day-research-not-statistically-certified
+          path: |
+            research_evidence/official_k_34exception_28day_report.json
+            research_evidence/official_k_all_exception_raw/*.lzh
+          if-no-files-found: error
+      - name: Preserve official K one-day comparison only when generated
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-k-20260801-comparison-research-only
+          path: research_evidence/official_k_20260801_vs_secondary.json
+          if-no-files-found: ignore
+      - name: Preserve official K raw probe only if actually downloaded
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-k-raw-probe-not-reconciled
+          path: research_evidence/official_k_probe/*
+          if-no-files-found: ignore
+      - name: Preserve 92-day postrace study artifact (not prediction evidence)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: venue-wind-course-method-postrace
+          path: |
+            research_evidence/venue_wind_course_method_202608_202610.json
+            research_evidence/official_c1_exception_candidates_92day.json
+          if-no-files-found: error
