@@ -9,7 +9,6 @@ on:
       - tests/test_audit_legacy_workflow_inventory.py
       - tests/test_legacy_workflow_schedule_detection.py
       - .github/workflows/legacy-workflow-inventory.yml
-      - .github/workflows/legacy-workflow-dependencies.yml
   push:
     branches: [main]
     paths:
@@ -18,7 +17,6 @@ on:
       - tests/test_audit_legacy_workflow_inventory.py
       - tests/test_legacy_workflow_schedule_detection.py
       - .github/workflows/legacy-workflow-inventory.yml
-      - .github/workflows/legacy-workflow-dependencies.yml
 
 permissions:
   contents: read
