@@ -257,6 +257,20 @@ jobs:
           path: full-candidate-history.log
           if-no-files-found: warn
           retention-days: 30
+      - name: Verify 24 real held venues and six-boat original exhibition on published Pages
+        timeout-minutes: 10
+        shell: bash
+        run: |
+          set -o pipefail
+          node tests/live_24venue_exhibition_browser.cjs 2>&1 | tee full-24venue-exhibition.log
+      - name: Preserve real 24-venue exhibition acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clean-published-24venue-${{ github.run_id }}-${{ github.run_attempt }}
+          path: full-24venue-exhibition.log
+          if-no-files-found: warn
+          retention-days: 30
       - name: Verify Oct 31 archived forecast and visible receipt warning
         timeout-minutes: 3
         env:

@@ -117,6 +117,49 @@ class BundleTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'six_lanes'):
             build_bundle(self.row, self.dirs)
 
+    def test_github_contents_put_uses_json_wire_format(self):
+        """Inspect actual urllib Request, never send a network request."""
+        from unittest.mock import patch
+        from scripts import persist_official_research_bundle as writer
+
+        calls = []
+
+        class FakeResponse:
+            status = 201
+            def __enter__(self):
+                return self
+            def __exit__(self, *exc):
+                return False
+            def read(self, size):
+                return b'{"content": {"sha": "fake"}}'
+
+        def intercept(request, timeout):
+            calls.append((request, timeout))
+            return FakeResponse()
+
+        path = 'official_source_forecast_bundles/20261114/202611142409.json'
+        payload = {'branch': 'entry-course-evidence-ledger',
+                   'message': 'research: first add',
+                   'content': base64.b64encode(b'raw').decode('ascii')}
+        with patch.object(writer, 'urlopen', side_effect=intercept):
+            code, result = writer.api_request('PUT', path, 'fake-test-token', payload)
+            self.assertEqual(code, 201)
+            self.assertEqual(result['content']['sha'], 'fake')
+            put, timeout = calls[-1]
+            self.assertEqual(put.get_method(), 'PUT')
+            self.assertEqual(put.get_header('Content-type'), 'application/json')
+            self.assertEqual(put.get_header('Authorization'), 'Bearer fake-test-token')
+            self.assertEqual(json.loads(put.data), payload)
+            self.assertIn('/contents/' + path, put.full_url)
+            self.assertEqual(timeout, 15)
+
+            writer.api_request('GET', path, 'fake-test-token')
+            get, _ = calls[-1]
+            self.assertEqual(get.get_method(), 'GET')
+            self.assertIsNone(get.data)
+            self.assertIsNone(get.get_header('Content-type'))
+            self.assertIn('?ref=entry-course-evidence-ledger', get.full_url)
+
     def test_write_once_readback_and_identical_reuse(self):
         path, body, cutoff = build_bundle(self.row, self.dirs)
         files = {}

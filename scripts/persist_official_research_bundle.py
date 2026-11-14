@@ -189,6 +189,10 @@ def api_request(method, path, token, data=None):
                "X-GitHub-Api-Version": "2022-11-28",
                "User-Agent": "boat-edge-research-append-only"}
     body = serialized(data) if data is not None else None
+    # urllib otherwise labels a bytes POST/PUT as form-urlencoded. GitHub's
+    # Contents PUT endpoint expects a JSON object, not form-encoded bytes.
+    if body is not None:
+        headers["Content-Type"] = "application/json"
     try:
         with urlopen(Request(url, data=body, headers=headers, method=method), timeout=15) as response:
             return response.status, json.loads(response.read(800_000))
