@@ -10,17 +10,21 @@ class OriginalReferencePriorityTests(unittest.TestCase):
         html = INDEX.read_text(encoding="utf-8")
         self.assertIn("async function loadOriginalV133Frozen(", html)
         self.assertIn("if(await loadOriginalV133Frozen(key,token,status,root))return;", html)
-        self.assertIn("boat-edge/main/data/site_prediction_snapshots/", html)
-        self.assertIn("data.snapshot_window==='FINAL_15M'", html)
-        self.assertIn("data.guards?.results_seen===false", html)
+        self.assertIn("boat-edge-clean/main/legacy_preservation/samples/", html)
+        self.assertIn("/api/v133-reference-preview?", html)
+        self.assertNotIn("ikst2512-eng/boat-edge/", html)
+        self.assertIn("d.snapshot_window==='FINAL_15M'", html)
+        self.assertIn("d.guards?.results_seen===false", html)
         self.assertIn("first<=saved&&saved<cutoff", html)
-        self.assertIn("data.prediction_kind==='SITE_REFERENCE_V122'", html)
-        self.assertIn("data.selection_policy==='V122_SCENARIO_AWARE_PROBABILITY_FIRST'", html)
+        self.assertIn("d.prediction_kind==='SITE_REFERENCE_V122'", html)
+        self.assertIn("d.selection_policy==='V122_SCENARIO_AWARE_PROBABILITY_FIRST'", html)
 
     def test_original_modes_are_not_replaced_with_v2_ticket_counts(self):
         html = INDEX.read_text(encoding="utf-8")
-        self.assertIn("const counts={narrow:3,hit:10,balance:10};", html)
-        self.assertIn("[12,15,18].some(n=>validRows(modes.hole?.tickets,n))", html)
+        self.assertIn("validRows(m.narrow?.tickets,3)", html)
+        self.assertIn("validRows(m.hit?.tickets,10)", html)
+        self.assertIn("validRows(m.balance?.tickets,10)", html)
+        self.assertIn("[12,15,18].some(n=>validRows(m.hole?.tickets,n))", html)
         self.assertIn("BALANCE10_WAVE12_15_18_V133_FIXED", html)
         self.assertIn("PROVISIONAL_V254_THIRD_TAIL10_FIXED_TOP7", html)
         self.assertIn("統計的優位は未証明", html)
@@ -30,9 +34,9 @@ class OriginalReferencePriorityTests(unittest.TestCase):
 
     def test_model_provenance_is_labeled_as_reference_not_formal(self):
         html = INDEX.read_text(encoding="utf-8")
-        self.assertIn("初回Git保存の独立受領・正式的中率は未認定", html)
-        self.assertIn("元のV127/V133予想を優先表示中", html)
-        self.assertIn("旧V127/V133の保存原本が不正です", html)
+        self.assertIn("正式的中率・独立初回保存認定ではありません", html)
+        self.assertIn("V127/V133保存原本を優先表示", html)
+        self.assertIn("V127/V133のCLEAN直前情報検証に失敗", html)
         self.assertIn("旧V127/V133の保存原本・時刻・モードを検証できません", html)
 
 
