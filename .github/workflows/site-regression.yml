@@ -14,6 +14,8 @@ on:
       - research_model.py
       - tests/test_entry_course_t12_seed.py
       - tests/audit_workflow_paths.py
+      - 'research/legacy_course_stats_reference/**'
+      - 'tests/test_legacy_venue_course_stats_reference.py'
       - .github/workflows/site-regression.yml
       - .github/workflows/deploy-pages.yml
   workflow_dispatch:
@@ -31,6 +33,8 @@ on:
       - research_model.py
       - tests/test_entry_course_t12_seed.py
       - tests/audit_workflow_paths.py
+      - 'research/legacy_course_stats_reference/**'
+      - 'tests/test_legacy_venue_course_stats_reference.py'
       - .github/workflows/site-regression.yml
       - .github/workflows/deploy-pages.yml
 permissions:
@@ -51,6 +55,8 @@ jobs:
           mkdir -p test-results
           printf 'Commit: %s\nWorkflow run: %s\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" | tee test-results/provenance.txt
           node tests/site-regression.cjs 2>&1 | tee test-results/site-regression.log
+      - name: Validate 24 imported venue-course originals and active model isolation
+        run: python3 -m unittest discover -s tests -p 'test_legacy_venue_course_stats_reference.py' -v
       - name: Verify archived research source receipt ordering
         run: python3 -m unittest discover -s tests -p 'test_prospective_receipt_order.py' -v
       - name: Verify restored scenario engine and immutable V2 comparison
