@@ -85,7 +85,15 @@ def main():
             "racecard_verified": (payload.get("source_audit") or {}).get("race_card", {}).get("status") == "ok",
             "beforeinfo_verified": (payload.get("source_audit") or {}).get("beforeinfo", {}).get("status") == "ok",
         }
-        if status == 200:
+        if status == 200 and payload.get("model_version") == "V127_V133_SOURCE_PORT_INPUT_GUARDED_REFERENCE_V1":
+            # PR validation probes the currently deployed Render before the
+            # new selection policy can be deployed. It is explicitly NOT
+            # success for the new 12 / 15-20 ticket policy.
+            assert payload.get("formal") is False
+            assert evidence["modes"].get("balance") == 10
+            assert evidence["modes"].get("hole") in (12, 15, 18)
+            evidence["outcome"] = "old_v133_deployed_new_point_policy_not_yet_verified"
+        elif status == 200:
             expected = {"narrow": 3, "hit": 10, "balance": 12}
             assert payload.get("ok") is True and payload.get("model_version") == MODEL
             assert payload.get("selection_policy") == "BALANCE12_WAVE15_18_20_V133_REFERENCE_V2"
