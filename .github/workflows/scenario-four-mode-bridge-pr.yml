@@ -651,6 +651,14 @@ jobs:
               "aug_sep_train_n": report["train_n"],
               "oct_historical_holdout_n": report["historical_october_n"],
               "oct_focus": report["october_focus"],
+              "oct_joint_tail_top5": {
+                  name: report["train_vs_oct_descriptive"][name]["top_joint_second_third_oct"]
+                  for name in ("three_makuri", "three_makuri_sashi", "four_makuri")
+              },
+              "train_oct_course4_second": {
+                  name: report["train_vs_oct_descriptive"][name]["course_fraction_by_period"]["course4_second"]
+                  for name in ("three_makuri", "three_makuri_sashi")
+              },
               "not_attack_failure_observations": True,
               "not_causal_benefit": True,
               "not_prospective_accuracy": True,
