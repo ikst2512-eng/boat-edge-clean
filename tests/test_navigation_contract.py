@@ -17,11 +17,12 @@ class NavigationContractTest(unittest.TestCase):
         cls.nav = (ROOT / "navigation.js").read_text(encoding="utf-8")
         cls.server = (ROOT / "server.py").read_text(encoding="utf-8")
         cls.index = (ROOT / "index.html").read_text(encoding="utf-8")
-        cls.secondary = (ROOT / "secondary_navigation.js").read_text(encoding="utf-8")
+        cls.secondary = cls.nav
 
     def test_schedule_success_does_not_call_deleted_home_cards(self):
         self.assertNotIn("loadHomeRaceCards", self.index)
         self.assertIn("todayVenueRaces=data;renderDeadlines(data);", self.index)
+        self.assertNotIn(".view-tabs", self.index, "retired CSS selector must not return")
 
     def test_pages_schedule_snapshot_is_local_first_with_clean_fallback(self):
         """Archived schedules should survive Raw outages without old-site data."""
@@ -39,7 +40,7 @@ class NavigationContractTest(unittest.TestCase):
 
     def test_navigation_initialization_waits_for_nav_element(self):
         probe = self.nav.index("const nav=document.querySelector('.site-global-nav');")
-        guard = self.nav.index("if(!nav)return;", probe)
+        guard = self.nav.index("if(!nav){", probe)
         initialized = self.nav.index("document.documentElement.dataset.cleanNavigationInit='1';")
         self.assertLess(probe, guard)
         self.assertLess(guard, initialized)
@@ -115,16 +116,18 @@ class NavigationContractTest(unittest.TestCase):
 
     def test_navigation_files_are_served_and_injected(self):
         for snippet in ('"/navigation.js"', '"/secondary_navigation.js"',
-                        'script src="/secondary_navigation.js"'):
+                        'script src="/navigation.js"'):
             with self.subTest(snippet=snippet):
                 self.assertIn(snippet, self.server)
         # The HTML bootstrap owns the main navigation loader. Injecting it
         # again server-side would double-load the same script on Render.
         self.assertIn("navScript.src='navigation.js'", self.index)
-        self.assertNotIn('script src="/navigation.js"', self.server)
+        self.assertIn('script src="/navigation.js"', self.server)
+        self.assertFalse((ROOT / "secondary_navigation.js").exists(), "duplicate standalone navigation code must not return")
         self.assertIn("history.back()", self.secondary)
         self.assertIn("レース選択へ", self.secondary)
         self.assertIn(".site-head .header-candidate-tab", self.nav)
+        self.assertIn("document.documentElement.dataset.cleanStandaloneNavigationInit", self.nav)
 
     def test_pages_candidate_history_stays_on_pages(self):
         self.assertIn("selection.href='/boat-edge-clean/candidates.html'",self.nav)
