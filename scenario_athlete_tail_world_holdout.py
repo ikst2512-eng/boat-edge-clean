@@ -13,7 +13,6 @@ and does not certify 2C walls or beneficiaries. Research only; never deploy.
 from collections import Counter, defaultdict
 from datetime import date
 from hashlib import sha256
-from itertools import permutations
 import json
 import math
 import random
@@ -39,7 +38,6 @@ WORLD_TAIL_PRIOR_RACES = 30
 POSITION_PRIOR_EXPECTED = 10
 BOOTSTRAP_SEED = 171021
 BOOTSTRAP_N = 1000
-METRICS = ("top1", "top3", "top5", "top10")
 
 
 def _month(r):
