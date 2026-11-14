@@ -34,6 +34,18 @@ WORLDS = ("escape_wall", "two_sashi", "third_attack", "outer_benefit")
 PROTOCOL_PATH = "research/four_mode_triple_source_forward_protocol_20261110.json"
 
 
+def _handoff_digest(data):
+    """Detect accidental mutation after raw-source/history join; NOT attestation."""
+    try:
+        encoded = json.dumps(
+            {k: v for k, v in data.items() if k != "handoff_digest_sha256"},
+            sort_keys=True, ensure_ascii=False, separators=(",", ":"),
+            allow_nan=False).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise ValueError("course_holder_handoff_not_serializable") from exc
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def _frozen_protocol():
     original = (Path(__file__).resolve().parent / PROTOCOL_PATH).read_bytes()
     if _git_blob_sha1(original) != FROZEN_1710_PROTOCOL_BLOB:
@@ -160,7 +172,7 @@ def prepare_course_holder_head_study(audit, source_bundle, candidate,
         mapped_vectors[world] = mapped
         heads[world] = hypothetical_head_board(
             baseline, mapped, study_id=STUDY+"_HEAD_"+world.upper())
-    return {
+    prepared = {
         "schema": SCHEMA, "study_id": STUDY,
         "race_code": lineage["race_code"],
         "source_lineage": lineage,
@@ -186,6 +198,8 @@ def prepare_course_holder_head_study(audit, source_bundle, candidate,
         "production_changed": False, "promotion_allowed": False,
         "results_read": False,
     }
+    prepared["handoff_digest_sha256"] = _handoff_digest(prepared)
+    return prepared
 
 
 def run_course_holder_four_mode_sensitivity(study, projection,
@@ -207,6 +221,14 @@ def run_course_holder_four_mode_sensitivity(study, projection,
             or study.get("race_code") != projection.get("race_code")
             or not callable(conditional_callback)):
         raise ValueError("course_holder_sensitivity_untrusted_preparation")
+    # A digest is a local mutation tripwire, NOT a trusted Git/HTTP receipt.
+    # It binds the verified-at-preparation racelist vector, exhibition roster,
+    # history/source claims, four world boards and nonformal flags together.
+    claimed_digest = study.get("handoff_digest_sha256")
+    if (type(claimed_digest) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", claimed_digest) is None
+            or claimed_digest != _handoff_digest(study)):
+        raise ValueError("course_holder_handoff_modified_since_source_join")
     _projected(projection)
     plans, weights = _frozen_protocol()
     if weights != study["scenario_weights"]:
