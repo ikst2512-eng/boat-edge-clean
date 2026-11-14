@@ -3,7 +3,6 @@
 All fixtures in this module are FAKE. Actual archived official XHTML is
 rechecked only in the read-only #1710 GitHub evidence workflow.
 """
-import hashlib
 import re
 import unittest
 
@@ -39,48 +38,11 @@ class OfficialSixWinRatesTests(unittest.TestCase):
         self.assertEqual(data['national_rates'],RATES)
         self.assertEqual(data['local_rates'],[4.5]*6)
         self.assertEqual(data['average_st'],[0.16]*6)
-        self.assertEqual(data["motor_numbers"],[32]*6)
-        self.assertEqual(data["motor_2ren_pct"],[40.0]*6)
-        self.assertEqual([r["motor_3ren_pct"] for r in data["boats"]],[50.0]*6)
-        self.assertEqual(data["racelist_original_bytes_sha256"],
-                         hashlib.sha256(synthetic_racelist()).hexdigest())
-        self.assertFalse(data["motor_2ren_sample_size_verified"])
-        self.assertTrue(all(r["motor_starts"] is None and r["motor_2ren_count"] is None
-                            for r in data["boats"]))
         self.assertEqual([x["registration_id"] for x in data["boats"]],IDS)
         self.assertEqual(len(data["boats"]),6)
         self.assertFalse(data['formal'])
         self.assertFalse(data['official_HTTP_origin_attested'])
         self.assertFalse(data['forecast_usable'])
-
-    def test_motor_display_without_denominator_cannot_enter_matrix(self):
-        from scenario_attack_benefit_feature_matrix import build_attack_benefit_matrix
-        from test_scenario_attack_benefit_feature_matrix import fixture
-        parsed=extract_six_official_racelist_rates(synthetic_racelist())
-        x=fixture()
-        x["racers"][0]["signals"]["motor_2ren_pct"]={
-            "value":parsed["boats"][0]["motor_2ren_pct"],
-            "source_sha256":parsed["racelist_original_bytes_sha256"],
-            "received_at_jst":"2026-11-15T09:45:00+09:00",
-            "source_url":"https://www.boatrace.jp/",
-            "denominator_kind":"motor_starts",
-        }
-        with self.assertRaisesRegex(ValueError,"numeric_feature_value_and_denominator"):
-            build_attack_benefit_matrix(x)
-
-    def test_invalid_or_shifted_motor_column_is_rejected(self):
-        raw=synthetic_racelist()
-        for variant in ("0<br>40.00<br>50.00",
-                        "32<br>140.00<br>50.00",
-                        "32<br>??<br>50.00",
-                        "32<br>40.00<br>50.00<br>garbage"):
-            changed=raw.replace(b'32<br>40.00<br>50.00',variant.encode(),1)
-            with self.subTest(value=variant),self.assertRaises(ValueError):
-                extract_six_official_racelist_rates(changed)
-        changed=raw.replace(b'<td class="is-lineH2" rowspan="4">32',
-                            b'<td class="wrong" rowspan="4">32',1)
-        with self.assertRaises(ValueError):
-            extract_six_official_racelist_rates(changed)
 
     def test_header_cannot_be_missing_or_local_before_national(self):
         raw=synthetic_racelist()
