@@ -84,7 +84,6 @@ on:
       - 'test_scenario_official_local_zero_research_adapter.py'
       - 'test_scenario_future_three_original_gateway.py'
       - 'test_scenario_archived_rates_ablation.py'
-      - '.github/workflows/scenario-official-pair-real-inject-once.yml'
       - 'test_scenario_mode_specific_exhibition_end_to_end.py'
       - 'docs/research/scenario_all_mode_bridge_1708.md'
       - '.github/workflows/scenario-four-mode-bridge-pr.yml'
