@@ -215,11 +215,23 @@ def run_course_holder_four_mode_sensitivity(study, projection,
     if {str(r["exhibition_course_only"]): r["boat"] for r in rows} != (
             study["exhibition_course_to_boat"]):
         raise ValueError("course_holder_changed_entry_after_preparation")
+    # The handoff is caller-owned research data. Do not trust a copied or
+    # edited first-place board even when its declared vector is unchanged.
+    recalculated_baseline = probabilities(
+        study["national_rates_from_same_racelist_original"])
     for world in WORLDS:
         vector = [plans[world]["head_log_shifts"][
             r["exhibition_course_only"] - 1] for r in rows]
         if vector != study["frozen_head_coefficients_mapped_by_exhibition_course"][world]:
             raise ValueError("course_holder_changed_head_vector")
+        expected = hypothetical_head_board(
+            recalculated_baseline, vector,
+            study_id=STUDY+"_HEAD_"+world.upper())
+        prior = study["head_models"][world]
+        if (prior["ranked_board"] != expected["ranked_board"]
+                or prior["hypothesis_first_mass"] != expected["hypothesis_first_mass"]
+                or prior["head_hypothesis_sha256"] != expected["head_hypothesis_sha256"]):
+            raise ValueError("course_holder_tampered_first_head_board")
     evidence = {"boats": [{
         "boat": r["boat"], "entry_course": r["exhibition_course_only"],
         "exhibition_st_s": r["exhibition_st_s"],
