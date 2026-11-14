@@ -264,7 +264,7 @@ class Pinned1698CourseHolderMathTests(unittest.TestCase):
         forged=copy.deepcopy(study)
         board=forged["head_models"]["escape_wall"]["ranked_board"]
         board[0]=(board[0][0], board[0][1] + .001)
-        with self.assertRaisesRegex(ValueError,"tampered_first_head_board"):
+        with self.assertRaisesRegex(ValueError,"course_holder_handoff_modified_since_source_join"):
             run_course_holder_four_mode_sensitivity(
                 forged,case[3],self.callback)
         def fake(*args):
