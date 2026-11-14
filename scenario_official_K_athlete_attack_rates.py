@@ -16,7 +16,7 @@ from zipfile import ZipFile
 import json
 import re
 
-from scenario_official_K_attack_benefit_holdout import _record
+from scenario_official_K_attack_benefit_holdout import _record, _wilson
 
 STUDY="RETROSPECTIVE_ONLY_K92_C2_ESCAPE_C3C4_METHOD_BY_ATHLETE_V1"
 ORIGINAL_K_SHA="c668f545bae54f8148616315e307ed2a2b04a77a0cb8abf88bf3ea078749ce8e"
@@ -24,15 +24,20 @@ EXPECTED=(14249,13815,13301,9241,4574,8919,4382)
 REG=re.compile(r"[0-9]{4}\Z")
 TARGET=re.compile(r"20[0-9]{10}\Z")
 METHODS=("まくり","まくり差し")
+MIN_DESCRIPTIVE_SAMPLE=30
 
 
 def _safe_summary(counter, prefix, denom):
     n=counter[denom]
     return {
         "eligible_starts":n,
+        "not_all_course_starts":prefix=="method_",
         **{method:{
             "wins":counter[prefix+method],
             "rate_pct":round(100*counter[prefix+method]/n,4) if n else None,
+            "wilson_95_pct":_wilson(counter[prefix+method],n)["wilson_95_pct"],
+            "small_sample_n_below_30":n<MIN_DESCRIPTIVE_SAMPLE,
+            "forecast_rate_allowed":False,
         } for method in METHODS},
         "source_denominator":("complete_six_numeric_finishers_by_actual_course"
                               if prefix=="method_" else
@@ -175,6 +180,9 @@ def analyze_k_method_athlete(zip_path, target_race, exhibition_roster):
             "eligible_C2_pair_starts":n,
             "C1_escape_while_athlete_C2":a["escape"],
             "historical_C2_escape_assist_pct":round(100*a["escape"]/n,4) if n else None,
+            "wilson_95_pct":_wilson(a["escape"],n)["wilson_95_pct"],
+            "small_sample_n_below_30":n<MIN_DESCRIPTIVE_SAMPLE,
+            "forecast_rate_allowed":False,
             "not_verified_vendor_C2_escape_rate":True,
         }
     matched_methods={}
