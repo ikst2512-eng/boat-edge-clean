@@ -8,6 +8,9 @@ on:
   pull_request:
     paths:
       - clean_four_mode_capture.py
+      - capture_restored_scenario.py
+      - test_capture_restored_scenario.py
+      - legacy_scenario_engine.py
       - clean_four_modes.py
       - test_clean_four_mode_capture_e2e.py
       - test_clean_four_modes.py
@@ -67,7 +70,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Verify four-mode capture and receipts
-        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts test_four_mode_raw_receipt test_audit_four_mode_raw_receipts test_link_four_mode_raw_forecast test_audit_new_v2_staged test_hole_shadow_same_job_capture test_hole_shadow_prospective_gate test_third_rate_same_job_capture test_third_rate_evidence_ledger test_four_mode_github_server_observation test_four_mode_github_server_observation_ledger test_four_mode_remote_evidence_end_to_end test_verify_four_mode_capture_evidence test_four_mode_workflow_shell_syntax tests.test_four_mode_source_link_scope test_forecast_strategy_contract
+        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts test_four_mode_raw_receipt test_audit_four_mode_raw_receipts test_link_four_mode_raw_forecast test_audit_new_v2_staged test_hole_shadow_same_job_capture test_hole_shadow_prospective_gate test_third_rate_same_job_capture test_third_rate_evidence_ledger test_four_mode_github_server_observation test_four_mode_github_server_observation_ledger test_four_mode_remote_evidence_end_to_end test_verify_four_mode_capture_evidence test_four_mode_workflow_shell_syntax tests.test_four_mode_source_link_scope test_forecast_strategy_contract test_capture_restored_scenario
   capture:
     # workflow_dispatch can target a feature branch. Never let it enter the
     # privileged forecast-publication path or attempt git push HEAD:main.
@@ -392,3 +395,84 @@ jobs:
             four_mode_forecasts/capture_status.json
           if-no-files-found: warn
           retention-days: 30
+
+  scenario_capture:
+    # Reuse this EXISTING research workflow schedule. This is a separate,
+    # append-only scenario experiment, never a replacement for frozen V2.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify original scenario guards before capture
+        run: python -m unittest -v test_legacy_scenario_engine test_capture_restored_scenario test_forecast_strategy_contract
+      - name: Freeze available near-deadline scenario evidence
+        run: python capture_restored_scenario.py
+      - name: Commit and publish only safe new scenario snapshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet -- scenario_forecasts/ || ! git diff --cached --quiet -- scenario_forecasts/; then
+            echo "Previously tracked scenario evidence changed; refusing write" >&2
+            exit 1
+          fi
+          python - <<'PY'
+          import subprocess
+          from capture_restored_scenario import verify_snapshot
+          files = subprocess.check_output(
+              ["git", "ls-files", "--others", "--exclude-standard", "--", "scenario_forecasts/"],
+              text=True).splitlines()
+          valid = 0
+          for name in files:
+              if not name.endswith(".json"):
+                  continue
+              try:
+                  verify_snapshot(name)
+              except (ValueError, OSError, KeyError, TypeError) as exc:
+                  print("scenario snapshot held from publication:", name, str(exc)[:90])
+                  continue
+              subprocess.run(["git", "add", "--", name], check=True)
+              valid += 1
+          print("scenario candidates safely staged:", valid)
+          PY
+          if git diff --cached --quiet; then
+            echo 'No safe new restored-scenario forecasts; leave V2 and history unchanged.'
+            exit 0
+          fi
+          git config user.name 'scenario-capture-bot'
+          git config user.email 'scenario-capture-bot@users.noreply.github.com'
+          git commit -m 'data: freeze restored scenario four-mode research (unvalidated)'
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git -c rebase.autoStash=true rebase origin/main
+            python - <<'PY'
+          import subprocess
+          from capture_restored_scenario import verify_snapshot
+          files = subprocess.check_output(
+              ["git", "diff-tree", "--no-commit-id", "--name-only", "--diff-filter=A", "-r", "HEAD", "--", "scenario_forecasts/"],
+              text=True).splitlines()
+          if not files:
+              raise SystemExit("No newly added scenario evidence in commit")
+          for name in files:
+              print("scenario pre-push checked:", verify_snapshot(name))
+          PY
+            if git push origin HEAD:main; then
+              git fetch origin main
+              git merge-base --is-ancestor HEAD FETCH_HEAD
+              echo 'Scenario research published; formal/independent first-seen remains unverified.'
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Scenario push rejected; no backdated archive created" >&2
+              exit 1
+            fi
+            sleep "$attempt"
+          done
