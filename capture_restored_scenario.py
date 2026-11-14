@@ -73,6 +73,7 @@ def collect(root=ROOT, now=None, card_loader=None, max_races=8):
             data = restored_scenario_preview(card, now=generated)
             if (data.get("model_version") != MODEL_VERSION or
                     data.get("race_code") != code or
+                    data.get("deadline_jst") != deadline.isoformat() or
                     data.get("observed_exhibition_only") is not True or
                     data.get("formal") is not False or
                     data.get("production_buy_approved") is not False):
@@ -129,6 +130,7 @@ def verify_snapshot(path, now=None):
             generated.utcoffset() != timedelta(hours=9) or
             deadline.utcoffset() != timedelta(hours=9) or
             not generated < deadline - timedelta(seconds=120) or
+            not generated <= now or
             not now < deadline - timedelta(seconds=90)):
         raise ValueError("scenario_predeadline_publish_window_closed")
     source = data.get("source_audit")
