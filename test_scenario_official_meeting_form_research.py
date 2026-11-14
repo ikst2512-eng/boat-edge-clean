@@ -69,8 +69,12 @@ class PriorDayMeetingTests(unittest.TestCase):
 
     def test_future_race_result_link_and_cross_venue_rejected(self):
         raw = original_like_racelist()
-        for future in (b"20261115",b"20261114"):
-            replaced=raw.replace(b"hd=20261113",b"hd="+future,1)
+        for future in (b"20261115", b"20261114"):
+            # Same-day 3R is prior to target 12R and is intentionally
+            # excluded, not a target leakage. Change 12R for the boundary.
+            anchor=(b"rno=12&amp;jcd=07&amp;hd=20261113" if future==b"20261114"
+                    else b"rno=3&amp;jcd=07&amp;hd=20261113")
+            replaced=raw.replace(anchor,anchor.replace(b"20261113",future),1)
             with self.subTest(future=future), self.assertRaisesRegex(ValueError,"future|target"):
                 extract_prior_day_meeting_form(replaced,RACE,IDS)
         wrong=raw.replace(b"jcd=07",b"jcd=03",1)
