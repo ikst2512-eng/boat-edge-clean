@@ -535,6 +535,22 @@ class ActivationTests(unittest.TestCase):
         self.assertIn("contents: read",workflow)
         self.assertNotIn("contents: write",workflow)
 
+    def test_native_t2_capture_parent_wakes_only_gated_watchdog(self):
+        # A real 20:53:33 JST native T-2 capture on Nov 14 completed but
+        # was not an official-three-original capture. The scheduled parent
+        # may wake the independently guarded preview research, not certify it.
+        from pathlib import Path
+        workflow=(Path(__file__).resolve().parents[1]/
+                  ".github/workflows/entry-course-activation-watchdog.yml").read_text()
+        self.assertIn('- "Entry course research-only late preview capture"',workflow)
+        self.assertIn("github.event.workflow_run.event == 'schedule'",workflow)
+        self.assertIn("github.event.workflow_run.head_branch == 'main'",workflow)
+        self.assertIn("github.event.workflow_run.head_repository.full_name == github.repository",workflow)
+        self.assertEqual(workflow.count("- cron:"),1)
+        self.assertIn("contents: read",workflow)
+        self.assertNotIn("contents: write",workflow)
+        self.assertNotIn("formal_t12_certified=true",workflow)
+
     def test_preview_fallback_does_not_run_at_8_or_after_22(self):
         for hour in (7,8,22,23):
             with self.subTest(hour=hour):
