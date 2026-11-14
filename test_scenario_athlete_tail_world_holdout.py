@@ -66,7 +66,7 @@ class FullTailTest(unittest.TestCase):
 
     def test_each_tail_candidate_changes_some_conditional_pairs(self):
         boards=predict_120(self.fit,IDS)["boards"]
-        for name in ALTERNATIVES[1:]:
+        for name in ALTERNATIVES[1:]+("head_second_only","head_third_only"):
             self.assertTrue(any(abs(boards[name][t]-boards["head_only"][t])>1e-12
                                 for t in TICKETS),name)
 
@@ -109,6 +109,11 @@ class FullTailTest(unittest.TestCase):
                          oct_["winner_method_postrace_diagnostic_only"].values()),31)
         self.assertFalse(oct_["outcomes_consumed_before_forecast"])
         self.assertEqual(oct_,evaluate(f,month(10),10,strata=True))
+        for ablation in ("head_second_only","head_third_only"):
+            self.assertEqual(oct_["models"][ablation]["n"],31)
+        for name in ALTERNATIVES[1:]:
+            paired=oct_["paired_vs_head_only"][name]["day_block_bootstrap95"]
+            self.assertEqual(set(paired),{"log","tail","top5","top10"})
         for name in ALTERNATIVES[1:]:
             for k in (1,3,5,10):
                 self.assertEqual(sum(oct_["paired_vs_head_only"][name][
