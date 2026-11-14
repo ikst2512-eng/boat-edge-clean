@@ -2,7 +2,8 @@
 import copy
 import unittest
 from datetime import datetime
-from legacy_v133_reference_engine import SOURCE_BLOB, v133_reference_preview
+from itertools import permutations
+from legacy_v133_reference_engine import SOURCE_BLOB, v133_reference_preview, modes_from_tickets
 from server import get_v133_reference_preview
 from legacy_scenario_engine import JST
 from test_legacy_scenario_engine import current_card, NOW
@@ -11,15 +12,15 @@ from test_legacy_scenario_engine import current_card, NOW
 class LegacyV133ReferenceTests(unittest.TestCase):
     def test_original_v133_mode_counts_and_source_identity(self):
         record = v133_reference_preview(current_card(), NOW)
-        self.assertEqual(record["model_version"], "V127_V133_SOURCE_PORT_INPUT_GUARDED_REFERENCE_V1")
+        self.assertEqual(record["model_version"], "V127_V133_BALANCE12_HOLE15_18_20_REFERENCE_V2")
         self.assertEqual(record["race_code"], "202611120501")
         self.assertEqual(len(SOURCE_BLOB), 40)
         self.assertEqual(record["source_model_git_blob"], SOURCE_BLOB)
         self.assertEqual({mode: len(info["tickets"]) for mode, info in record["modes"].items() if mode not in ("hole", "tail")},
-                         {"narrow": 3, "hit": 10, "balance": 10})
+                         {"narrow": 3, "hit": 10, "balance": 12})
         self.assertIn("tail", record["modes"])
         self.assertEqual(len(record["modes"]["tail"]["tickets"]), 10)
-        self.assertIn(len(record["modes"]["hole"]["tickets"]), (12, 15, 18))
+        self.assertIn(len(record["modes"]["hole"]["tickets"]), (15, 18, 20))
         self.assertFalse(record["formal"])
         self.assertFalse(record["calibrated"])
         self.assertFalse(record["production_buy_approved"])
@@ -27,6 +28,35 @@ class LegacyV133ReferenceTests(unittest.TestCase):
         self.assertFalse(record["first_remote_add_verified"])
         self.assertIn("old_site_three_month_course_stats_not_imported", record["missing_or_unverified"])
         self.assertEqual(v133_reference_preview(current_card(), NOW)["modes"], record["modes"])
+
+    def test_new_selection_policy_is_identified_and_not_formal(self):
+        record = v133_reference_preview(current_card(), NOW)
+        self.assertEqual(record["selection_policy"], "BALANCE12_WAVE15_18_20_V133_REFERENCE_V2")
+        self.assertFalse(record["formal"])
+        self.assertFalse(record["production_buy_approved"])
+
+    def test_hole_points_follow_actual_head_scenario_spread(self):
+        combos = ["-".join(map(str, xs)) for xs in permutations(range(1, 7), 3)]
+        for weights, wanted in [
+            ([100, .1, .1, .1, .1, .1], 15),
+            ([10, 6, 4, .01, .01, .01], 18),
+            ([1, 1, 1, 1, 1, 1], 20),
+        ]:
+            rows = [{"combo": combo, "p": weights[int(combo[0]) - 1]}
+                    for combo in combos]
+            mode = modes_from_tickets(rows, {}, rows, adopt_tail=False)
+            with self.subTest(wanted=wanted):
+                self.assertEqual({k: len(v) for k, v in mode.items()},
+                                 {"hit": 10, "balance": 12,
+                                  "hole": wanted, "narrow": 3})
+                self.assertEqual([t["combo"] for t in mode["hit"]],
+                                 [t["combo"] for t in rows[:10]])
+                self.assertEqual([t["combo"] for t in mode["narrow"]],
+                                 [t["combo"] for t in rows[:3]])
+                self.assertEqual([t["combo"] for t in mode["balance"][:7]],
+                                 [t["combo"] for t in rows[:7]])
+                for name, tickets in mode.items():
+                    self.assertEqual(len({t["combo"] for t in tickets}), len(tickets), name)
 
     def test_existing_guard_prevents_results_and_after_deadline(self):
         card = current_card()
