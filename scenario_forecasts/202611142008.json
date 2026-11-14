@@ -1,0 +1,334 @@
+{
+  "accuracy_improvement_proven": false,
+  "actual_final_entry_verified": false,
+  "base_engine": "boat-edge index.html computeScores / buildFallbackPrediction head-world",
+  "baseline_model_version": "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED",
+  "baseline_prediction_changed": false,
+  "board_extension": "research-only conditional softmax 120, NOT original formal CURRENT",
+  "calibrated": false,
+  "created_at_jst": "2026-11-14T18:16:17.778785+09:00",
+  "deadline_jst": "2026-11-14T18:23:00+09:00",
+  "first_remote_add_verified": false,
+  "formal": false,
+  "generated_at_jst": "2026-11-14T18:16:17.778785+09:00",
+  "head_top2_is_not_trifecta_hit70": true,
+  "head_top2_model_sum_pct": 92.65,
+  "independently_saved_before_T12": false,
+  "message": "旧展開スコアを主軸にした未校正・未保存の参考予想。V2とは別に表示。正式な買い推奨ではありません。",
+  "missing_or_unverified": [
+    "actual_final_entry",
+    "numeric_exhibition_ST",
+    "original_exhibition",
+    "same_day_attack_distribution",
+    "verified_two_course_wall_rate",
+    "weather_wave_tide_verified_coefficients"
+  ],
+  "model_version": "LEGACY_SCENARIO_SCORE_RESTORED_FOUR_MODE_REFERENCE_V1",
+  "modes": {
+    "balance": {
+      "count": 16,
+      "tickets": [
+        {
+          "combo": "1-2-3",
+          "p": 28.54168
+        },
+        {
+          "combo": "1-3-2",
+          "p": 12.94176
+        },
+        {
+          "combo": "1-2-5",
+          "p": 13.7789
+        },
+        {
+          "combo": "2-1-3",
+          "p": 7.25831
+        },
+        {
+          "combo": "1-5-2",
+          "p": 5.48169
+        },
+        {
+          "combo": "1-2-4",
+          "p": 4.60809
+        },
+        {
+          "combo": "2-1-5",
+          "p": 3.50405
+        },
+        {
+          "combo": "3-1-2",
+          "p": 2.3505
+        },
+        {
+          "combo": "2-3-1",
+          "p": 2.96062
+        },
+        {
+          "combo": "3-2-1",
+          "p": 2.11443
+        },
+        {
+          "combo": "1-3-5",
+          "p": 2.06692
+        },
+        {
+          "combo": "1-4-2",
+          "p": 1.70348
+        },
+        {
+          "combo": "1-5-3",
+          "p": 1.81346
+        },
+        {
+          "combo": "2-5-1",
+          "p": 1.26487
+        },
+        {
+          "combo": "2-1-4",
+          "p": 1.17186
+        },
+        {
+          "combo": "1-2-6",
+          "p": 0.96709
+        }
+      ],
+      "uncalibrated_model_mass_pct": 92.53
+    },
+    "hit": {
+      "count": 10,
+      "tickets": [
+        {
+          "combo": "1-2-3",
+          "p": 28.54168
+        },
+        {
+          "combo": "1-2-5",
+          "p": 13.7789
+        },
+        {
+          "combo": "1-3-2",
+          "p": 12.94176
+        },
+        {
+          "combo": "2-1-3",
+          "p": 7.25831
+        },
+        {
+          "combo": "1-5-2",
+          "p": 5.48169
+        },
+        {
+          "combo": "1-2-4",
+          "p": 4.60809
+        },
+        {
+          "combo": "2-1-5",
+          "p": 3.50405
+        },
+        {
+          "combo": "2-3-1",
+          "p": 2.96062
+        },
+        {
+          "combo": "3-1-2",
+          "p": 2.3505
+        },
+        {
+          "combo": "3-2-1",
+          "p": 2.11443
+        }
+      ],
+      "uncalibrated_model_mass_pct": 83.54
+    },
+    "hole": {
+      "count": 22,
+      "tickets": [
+        {
+          "combo": "1-3-5",
+          "p": 2.06692
+        },
+        {
+          "combo": "1-5-3",
+          "p": 1.81346
+        },
+        {
+          "combo": "1-4-2",
+          "p": 1.70348
+        },
+        {
+          "combo": "2-5-1",
+          "p": 1.26487
+        },
+        {
+          "combo": "2-1-4",
+          "p": 1.17186
+        },
+        {
+          "combo": "1-2-6",
+          "p": 0.96709
+        },
+        {
+          "combo": "1-3-4",
+          "p": 0.69124
+        },
+        {
+          "combo": "1-4-3",
+          "p": 0.56355
+        },
+        {
+          "combo": "2-3-5",
+          "p": 0.43297
+        },
+        {
+          "combo": "5-1-2",
+          "p": 0.4319
+        },
+        {
+          "combo": "2-4-1",
+          "p": 0.3948
+        },
+        {
+          "combo": "5-2-1",
+          "p": 0.39188
+        },
+        {
+          "combo": "2-5-3",
+          "p": 0.38317
+        },
+        {
+          "combo": "3-1-5",
+          "p": 0.3754
+        },
+        {
+          "combo": "1-6-2",
+          "p": 0.34774
+        },
+        {
+          "combo": "3-2-5",
+          "p": 0.30922
+        },
+        {
+          "combo": "1-5-4",
+          "p": 0.29279
+        },
+        {
+          "combo": "1-4-5",
+          "p": 0.27206
+        },
+        {
+          "combo": "2-1-6",
+          "p": 0.24594
+        },
+        {
+          "combo": "3-5-1",
+          "p": 0.20612
+        },
+        {
+          "combo": "3-5-2",
+          "p": 0.18874
+        },
+        {
+          "combo": "1-3-6",
+          "p": 0.14507
+        }
+      ],
+      "uncalibrated_model_mass_pct": 14.66
+    },
+    "narrow": {
+      "count": 5,
+      "tickets": [
+        {
+          "combo": "1-2-3",
+          "p": 28.54168
+        },
+        {
+          "combo": "1-2-5",
+          "p": 13.7789
+        },
+        {
+          "combo": "1-3-2",
+          "p": 12.94176
+        },
+        {
+          "combo": "2-1-3",
+          "p": 7.25831
+        },
+        {
+          "combo": "1-5-2",
+          "p": 5.48169
+        }
+      ],
+      "uncalibrated_model_mass_pct": 68.0
+    }
+  },
+  "observed_exhibition_only": true,
+  "ok": true,
+  "production_buy_approved": false,
+  "race_code": "202611142008",
+  "schema": "CLEAN_RESTORED_SCENARIO_FORWARD_CAPTURE_V1",
+  "source_audit": {
+    "beforeinfo": {
+      "csv_audit": {
+        "source_status": {
+          "stt": "race_not_published",
+          "sui": "race_not_published",
+          "tkz": "race_not_published"
+        },
+        "status": "not_published_or_unavailable"
+      },
+      "fetched_at": "2026-11-14T18:16:17.777701+09:00",
+      "formal_t12_certified": false,
+      "observation_time_basis": "local HTTP completion; upstream measurement time unproven",
+      "official_measurement_counts": {
+        "exhibition_time": 6,
+        "racers": 6,
+        "start_rows": 6,
+        "start_valid_six": true,
+        "tilt": 6
+      },
+      "received_at_jst": "2026-11-14T18:16:17.777701+09:00",
+      "sha256": "62b1187447e19d9c37ebf30ae9b25ebe412e7f345a304d767243f4e0a963c841",
+      "source": "BOAT RACE official beforeinfo JSON",
+      "source_url": "https://www.boatrace.jp/owsp/sp/spdata?type=beforeinfo&hd=20261114&jcd=20&rno=8",
+      "sources": {
+        "official": {
+          "received_at_jst": "2026-11-14T18:16:17.777701+09:00",
+          "sha256": "62b1187447e19d9c37ebf30ae9b25ebe412e7f345a304d767243f4e0a963c841",
+          "url": "https://www.boatrace.jp/owsp/sp/spdata?type=beforeinfo&hd=20261114&jcd=20&rno=8"
+        }
+      },
+      "status": "ok"
+    },
+    "race_card": {
+      "fetched_at": "2026-11-14T18:16:17.406477+09:00",
+      "predeadline_verified": true,
+      "sha256": "f503ef1a40310b29343764b43282cee15a685fa01fa8c5e80e03fe10bc1513ab",
+      "status": "ok"
+    }
+  },
+  "source_racecard_sha256": "f503ef1a40310b29343764b43282cee15a685fa01fa8c5e80e03fe10bc1513ab",
+  "status": "predeadline_frozen_scenario_research",
+  "used_features": [
+    "average_ST",
+    "boat_2ren",
+    "class_grade",
+    "exhibition_course_only",
+    "exhibition_time",
+    "lane_base",
+    "local_2ren",
+    "local_win_rate",
+    "motor_2ren",
+    "national_2ren",
+    "national_win_rate",
+    "numeric_exhibition_ST",
+    "tilt"
+  ],
+  "v2_archive_untouched": true,
+  "worlds": {
+    "assumption": "legacy_heuristic_not_measured_probability",
+    "leading_attack_lane": 2,
+    "one_escape_model_pct": 74.49,
+    "one_not_escape_model_pct": 25.51
+  }
+}
