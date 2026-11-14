@@ -58,6 +58,8 @@ on:
       - 'test_scenario_future_protocol_freeze.py'
       - 'scenario_official_racelist_rates.py'
       - 'test_scenario_official_racelist_rates.py'
+      - 'scenario_official_local_zero_research_adapter.py'
+      - 'test_scenario_official_local_zero_research_adapter.py'
       - 'test_scenario_future_three_original_gateway.py'
       - 'test_scenario_archived_rates_ablation.py'
       - '.github/workflows/scenario-official-pair-real-inject-once.yml'
@@ -96,7 +98,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Check scenario bridge safety and all four mode contracts
-        run: python -m unittest -v test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway test_scenario_official_racelist_rates test_scenario_future_protocol_freeze test_scenario_future_local_candidate_handoff test_scenario_future_github_research_adapter test_scenario_future_archived_receipts_to_candidate test_scenario_official_st_intake_diagnostic test_scenario_flagged_st_feature_study test_scenario_signed_st_four_mode_shadow test_scenario_signed_st_registered_shadow test_scenario_signed_st_future_pre_t12_handoff test_scenario_signed_st_future_pre_t12_cli test_scenario_signed_st_cross_ledger_audit test_scenario_signed_st_source_remote_witness test_scenario_signed_st_F_remote_candidate_witness test_scenario_escape_prior_first_head_sensitivity test_scenario_exhibition_course_head_research test_scenario_official_K_training_roster_bridge
+        run: python -m unittest -v test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway test_scenario_official_racelist_rates test_scenario_official_local_zero_research_adapter test_scenario_future_protocol_freeze test_scenario_future_local_candidate_handoff test_scenario_future_github_research_adapter test_scenario_future_archived_receipts_to_candidate test_scenario_official_st_intake_diagnostic test_scenario_flagged_st_feature_study test_scenario_signed_st_four_mode_shadow test_scenario_signed_st_registered_shadow test_scenario_signed_st_future_pre_t12_handoff test_scenario_signed_st_future_pre_t12_cli test_scenario_signed_st_cross_ledger_audit test_scenario_signed_st_source_remote_witness test_scenario_signed_st_F_remote_candidate_witness test_scenario_escape_prior_first_head_sensitivity test_scenario_exhibition_course_head_research test_scenario_official_K_training_roster_bridge
       - name: Materialize pinned existing #1698 conditional lab for integration (read-only)
         run: |
           set -euo pipefail
@@ -836,7 +838,7 @@ jobs:
           from research_official_k_c2_athlete_chronological_holdout import official_rows
           from scenario_escape_prior_first_head_sensitivity import historical_C1_escape_proxy,sensitivity_only
           from scenario_flagged_st_feature_study import encode_archived_triple
-          from scenario_official_racelist_rates import extract_six_official_racelist_rates
+          from scenario_official_local_zero_research_adapter import extract_six_with_local_zero_research
           from test_scenario_mode_specific_exhibition_end_to_end import hypotheses
           from position_sensitive_conditioned_lab import experimental_conditional_board
           import hashlib
@@ -915,7 +917,10 @@ jobs:
                       try:
                           signed=encode_archived_triple(*groups)
                           raw_card=(groups[0]/"racelist.html").read_bytes()
-                          rates=extract_six_official_racelist_rates(raw_card)
+                          rates=extract_six_with_local_zero_research(raw_card)
+                          assert rates["method_preregistered"] is False
+                          assert rates["forecast_usable"] is False
+                          report["official_local_zero_boats"]=rates["local_zero_boats"]
                           assert [v["registration_id"] for v in rates["boats"]]==[
                               ids[str(i)] for i in range(1,7)]
                           raw_before=json.loads(
