@@ -53,6 +53,11 @@ class InteractionTests(unittest.TestCase):
         self.assertEqual(len({v["ticket"] for v in x["rows"]}), 120)
         by_ticket = {r["ticket"]: r["features"] for r in x["rows"]}
         self.assertAlmostEqual(by_ticket["3-4-5"]["third_attack_four_sashi_second"], .075)
+        self.assertAlmostEqual(by_ticket["4-3-5"]["third_attack_four_sashi_head"], .075)
+        self.assertAlmostEqual(by_ticket["5-3-4"]["third_attack_five_makuri_sashi_head"], .05)
+        self.assertAlmostEqual(by_ticket["3-4-5"]["second_motor_2ren"], .49)
+        self.assertAlmostEqual(by_ticket["3-4-5"]["third_meeting_2ren"], .40)
+        self.assertEqual(by_ticket["3-4-5"]["second_comment_turn"], 1)
         self.assertAlmostEqual(by_ticket["3-5-4"]["third_attack_five_makuri_sashi_second"], .05)
         self.assertAlmostEqual(by_ticket["3-4-5"]["third_attack_five_makuri_sashi_third"], .05)
         self.assertAlmostEqual(by_ticket["1-2-3"]["escape_two_escape_assist_proxy"], .8)
