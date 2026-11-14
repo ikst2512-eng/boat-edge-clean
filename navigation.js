@@ -6,7 +6,6 @@ if(!nav){
   // Do not initialize the race-history state machine on standalone screens.
   if(document.documentElement.dataset.cleanStandaloneNavigationInit==='1'||document.querySelector('.race-browser-toolbar'))return;
   document.documentElement.dataset.cleanStandaloneNavigationInit='1';
-  if(document.querySelector('.race-browser-toolbar'))return;
   const bar=document.createElement('nav');
   bar.setAttribute('aria-label','ページ移動');
   bar.className='secondary-page-navigation';
