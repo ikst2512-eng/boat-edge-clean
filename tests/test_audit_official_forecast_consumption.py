@@ -103,6 +103,34 @@ class OfficialForecastConsumptionTests(unittest.TestCase):
                 self.assertFalse(too_early["generated"])
                 self.assertEqual(too_early["status"], "source_receipt_after_requested_generation")
 
+                from scripts.audit_official_forecast_consumption import (
+                    generate_timed_official_research_shadow,
+                )
+                early = "2026-11-02T21:20:40+09:00"
+                completed = "2026-11-02T21:20:45+09:00"
+                clock_iter = iter((early, completed))
+                timed = generate_timed_official_research_shadow(
+                    m, clock=lambda: jst(next(clock_iter)))
+                self.assertTrue(timed["generated"])
+                self.assertEqual(timed["generated_at_jst"], completed)
+                self.assertEqual(
+                    timed, generate_official_research_shadow(m, completed))
+                # Started with enough time, but completed at the cutoff.
+                # No forecast may be labeled as created before T-12.
+                close_iter = iter(("2026-11-02T21:38:59+09:00",
+                                   "2026-11-02T21:39:00+09:00"))
+                closed = generate_timed_official_research_shadow(
+                    m, clock=lambda: jst(next(close_iter)))
+                self.assertFalse(closed["generated"])
+                self.assertEqual(
+                    closed["status"], "t12_window_closed_during_shadow_generation")
+                self.assertNotIn("predictions", closed)
+                backwards = iter((completed, early))
+                with self.assertRaisesRegex(
+                        ValueError, "invalid_research_shadow_completion_clock"):
+                    generate_timed_official_research_shadow(
+                        m, clock=lambda: jst(next(backwards)))
+
                 forged = json.loads(json.dumps(m))
                 forged["six_boat_inputs"][0]["exhibition_time"] += 0.2
                 with self.assertRaisesRegex(ValueError, "unverified_official_shadow_manifest"):

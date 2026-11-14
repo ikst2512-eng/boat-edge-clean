@@ -13,7 +13,23 @@ def get(path):
             raise AssertionError(f"{path}: HTTP {response.status}")
         return response.read()
 
+def deployed_revision():
+    """Read the public Render revision, never substitute main's SHA."""
+    req = Request(BASE + "/healthz",
+                  headers={"User-Agent": "BOAT-EDGE-CLEAN-public-smoke/1"})
+    try:
+        with urlopen(req, timeout=30) as response:
+            sha = response.headers.get("X-Boat-Edge-Deploy-Commit", "")
+            if response.status == 200 and len(sha) == 40 and all(ch in "0123456789abcdef" for ch in sha.lower()):
+                return sha.lower()
+    except (OSError, TimeoutError):
+        pass
+    return "unverified"
+
+
 def main():
+    revision = deployed_revision()
+    print("RENDER_PUBLIC_DEPLOY_COMMIT=" + revision, flush=True)
     html = get("/forecast").decode("utf-8")
     required = (
         "展開重視予想｜4モード",
@@ -62,7 +78,7 @@ def main():
             raise AssertionError("invalid V133 request unexpectedly accepted: "+str(response.status))
     except HTTPError as error:
         if error.code != 400:
-            raise AssertionError("V133 API not deployed or wrong status: "+str(error.code))
+            raise AssertionError("V133 API not deployed or wrong status: "+str(error.code)+", Render revision: "+revision)
         payload = json.loads(error.read(5000))
         if payload != {"ok": False, "status": "invalid_race"}:
             raise AssertionError("V133 API response mismatch")

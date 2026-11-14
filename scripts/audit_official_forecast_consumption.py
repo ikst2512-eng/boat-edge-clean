@@ -289,6 +289,35 @@ def generate_official_research_shadow(manifest, generated_at_jst):
     }
 
 
+def generate_timed_official_research_shadow(manifest, *, clock=None):
+    """Attest *completion*, not merely start, before the research T-12 cutoff.
+
+    Live audit uses an actual JST clock twice. A model that starts before T-12
+    but finishes at/after T-12 must never be labeled pre-cutoff, even if it
+    produced plausible tickets. No clock is synthesized or backdated.
+    """
+    from research_model import JST
+    if clock is None:
+        clock = lambda: datetime.now(JST)
+    started = clock()
+    if not isinstance(started, datetime) or started.utcoffset() != timedelta(hours=9):
+        raise ValueError("invalid_research_shadow_start_clock")
+    shadow = generate_official_research_shadow(manifest, started.isoformat())
+    completed = clock()
+    if (not isinstance(completed, datetime)
+            or completed.utcoffset() != timedelta(hours=9) or completed < started):
+        raise ValueError("invalid_research_shadow_completion_clock")
+    if shadow.get("generated") is True:
+        if completed >= jst(manifest["cutoff_jst"]):
+            return {"status": "t12_window_closed_during_shadow_generation",
+                    "generated": False, "formal_t12_certified": False,
+                    "research_only": True, "purchase_approved": False}
+        # Preserve one truthful completion timestamp; the privileged writer
+        # independently replays and matches the same deterministic prediction.
+        shadow["generated_at_jst"] = completed.isoformat()
+    return shadow
+
+
 def locate_sources(batch_dir, race, *, parts=("racelist_", "before_", "odds_")):
     observation_root = batch_dir / "observations"
     if observation_root.is_symlink() or not observation_root.is_dir():
@@ -361,9 +390,8 @@ def audit_batch(batch_dir, forecast_root, *, official_auditor=audit_three_origin
                             "component_checks", "missing_components"))):
                     raise ValueError("official_three_source_reaudit_mismatch")
                 row["official_input_manifest"] = verified_official_input_manifest(dirs, audited)
-                from research_model import JST
-                row["official_research_shadow"] = generate_official_research_shadow(
-                    row["official_input_manifest"], datetime.now(JST).isoformat())
+                row["official_research_shadow"] = generate_timed_official_research_shadow(
+                    row["official_input_manifest"])
                 row["official_original_status"] = "three_originals_reaudited_research_only"
                 row["latest_official_received_jst"] = audited["latest_original_received_jst"]
                 row["forecast_statuses"] = {
