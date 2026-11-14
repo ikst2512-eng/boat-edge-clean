@@ -1,0 +1,39 @@
+name: Research — mass historical frozen forecast audit (no model changes)
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/audit_frozen_models_mass_history.py'
+      - 'test_mass_historical_v133_audit.py'
+      - '.github/workflows/historical-frozen-mass-audit.yml'
+      - 'legacy_preservation/samples/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  historical-mass-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify historic cohort integrity and strict no-leakage tests
+        run: python -m unittest -v test_mass_historical_v133_audit test_active_forecast_lock
+      - name: Audit all preserved V133 predictions against pinned official-result archive, plus all CLEAN V1/V2 frozen cohorts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/audit_frozen_models_mass_history.py
+      - name: Preserve full race-by-race evidence as an artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: old-v133-and-clean-bulk-historical-${{ github.run_id }}
+          path: artifacts/historical-v133-mass-audit.json
+          if-no-files-found: warn
+          retention-days: 30
