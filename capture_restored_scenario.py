@@ -103,5 +103,61 @@ def collect(root=ROOT, now=None, card_loader=None, max_races=8):
             "excluded": excluded, "formal": False, "source_model": MODEL_VERSION}
 
 
+
+def verify_snapshot(path, now=None):
+    """Fail closed on a candidate not safe to commit/push to remote main."""
+    now = datetime.now(JST) if now is None else now
+    path = Path(path)
+    if path.is_symlink() or not re.fullmatch(r"20\d{10}\.json", path.name):
+        raise ValueError("invalid_scenario_path")
+    if path.stat().st_size > 30000:
+        raise ValueError("scenario_snapshot_too_large")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    code = path.stem
+    if (data.get("schema") != SCHEMA or data.get("race_code") != code or
+            data.get("model_version") != MODEL_VERSION or
+            data.get("status") != "predeadline_frozen_scenario_research" or
+            data.get("formal") is not False or data.get("calibrated") is not False or
+            data.get("first_remote_add_verified") is not False or
+            data.get("production_buy_approved") is not False or
+            data.get("observed_exhibition_only") is not True or
+            data.get("v2_archive_untouched") is not True):
+        raise ValueError("invalid_scenario_identity_or_flags")
+    generated = datetime.fromisoformat(data["generated_at_jst"])
+    deadline = datetime.fromisoformat(data["deadline_jst"])
+    if (now.utcoffset() != timedelta(hours=9) or
+            generated.utcoffset() != timedelta(hours=9) or
+            deadline.utcoffset() != timedelta(hours=9) or
+            not generated < deadline - timedelta(seconds=120) or
+            not now < deadline - timedelta(seconds=90)):
+        raise ValueError("scenario_predeadline_publish_window_closed")
+    source = data.get("source_audit")
+    if not isinstance(source, dict):
+        raise ValueError("missing_full_source_audit")
+    for key in ("race_card", "beforeinfo"):
+        record = source.get(key)
+        if not isinstance(record, dict) or record.get("status") != "ok":
+            raise ValueError("missing_verified_" + key)
+        received = datetime.fromisoformat(record["fetched_at"])
+        if received.utcoffset() != timedelta(hours=9) or received > generated:
+            raise ValueError("source_received_after_scenario_generation")
+    if source["race_card"].get("sha256") != data.get("source_racecard_sha256"):
+        raise ValueError("scenario_racecard_sha_mismatch")
+    expected = {"narrow":5,"hit":10,"balance":16,"hole":22}
+    modes = data.get("modes")
+    if not isinstance(modes, dict) or set(modes) != set(expected):
+        raise ValueError("scenario_modes_missing")
+    for mode, count in expected.items():
+        rows = modes[mode].get("tickets")
+        if not isinstance(rows, list) or len(rows) != count:
+            raise ValueError("scenario_ticket_count_changed")
+        combos = [r.get("combo") for r in rows if isinstance(r, dict)]
+        if (len(combos) != count or len(set(combos)) != count or
+                any(not isinstance(t,str) or not re.fullmatch(r"[1-6]-[1-6]-[1-6]",t) or
+                    len(set(t.split("-"))) != 3 for t in combos)):
+            raise ValueError("scenario_ticket_invalid")
+    return code
+
+
 if __name__ == "__main__":
     print(json.dumps(collect(), ensure_ascii=False, sort_keys=True))
