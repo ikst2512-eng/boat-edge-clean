@@ -405,11 +405,15 @@ def modes_from_tickets(allrows,odds,wave_rows=None,adopt_tail=False):
     primary_share=shares[0]["share"] if shares else 1
     meaningful=sum(1 for x in shares if x["share"]>=.10)
 
-    target=12
+    # Versioned selection-policy change for NEW live predictions only.
+    # Keep the same scenario-weight thresholds and ticket ordering; widen
+    # the hole coverage from historical (12,15,18) to (15,18,20).
+    # The original 3/10/10/12-15-18 immutable snapshots are never changed.
+    target=15
     if meaningful>=4 or primary_share<=.42:
-        target=18
+        target=20
     elif meaningful>=3 or primary_share<=.58:
-        target=15
+        target=18
 
     alt=[x for x in source if x["combo"].split("-")[0]!=primary] if primary else []
     primary_rows=[x for x in source if x["combo"].split("-")[0]==primary] if primary else source
@@ -421,7 +425,7 @@ def modes_from_tickets(allrows,odds,wave_rows=None,adopt_tail=False):
 
     balance=[];balance_seen=set()
     def add_balance(x):
-        if not x or x["combo"] in balance_seen or len(balance)>=10:return
+        if not x or x["combo"] in balance_seen or len(balance)>=12:return
         balance_seen.add(x["combo"]);balance.append(x)
 
     balance_primary=(allrows[0]["combo"].split("-")[0] if allrows else primary)
@@ -430,13 +434,13 @@ def modes_from_tickets(allrows,odds,wave_rows=None,adopt_tail=False):
     alt_balance=[x for x in source if x["combo"].split("-")[0]!=balance_primary] if balance_primary else []
     for x in alt_balance:
         add_balance(x)
-        if len(balance)>=10:break
+        if len(balance)>=12:break
     for x in allrows:
         add_balance(x)
-        if len(balance)>=10:break
+        if len(balance)>=12:break
     for x in source:
         add_balance(x)
-        if len(balance)>=10:break
+        if len(balance)>=12:break
 
     modes={
         "hit":allrows[:10],
@@ -502,7 +506,7 @@ def v133_reference_preview(card, now=None):
     modes = modes_from_tickets(adjusted["tickets"], {}, expanded["tickets"], adopt_tail=True)
     sizes = {name: len(rows) for name, rows in modes.items()}
     if (sizes.get("narrow") != 3 or sizes.get("hit") != 10 or
-            sizes.get("balance") != 10 or sizes.get("hole") not in (12, 15, 18)):
+            sizes.get("balance") != 12 or sizes.get("hole") not in (15, 18, 20)):
         raise ValueError("reference_mode_count_unavailable")
     out = {}
     for name, rows in modes.items():
@@ -513,7 +517,8 @@ def v133_reference_preview(card, now=None):
         out[name] = {"count": len(tickets), "tickets": tickets}
     return {
         "ok": True, "status": "live_old_v127_v133_reference_not_formal",
-        "model_version": "V127_V133_SOURCE_PORT_INPUT_GUARDED_REFERENCE_V1",
+        "model_version": "V127_V133_BALANCE12_HOLE15_18_20_REFERENCE_V2",
+        "selection_policy": "BALANCE12_WAVE15_18_20_V133_REFERENCE_V2",
         "source_model_git_blob": SOURCE_BLOB,
         "race_code": guard["race_code"],
         "deadline_jst": guard.get("deadline_jst"),
